@@ -114,6 +114,7 @@ struct PlaygroundView: View {
         var h = Hasher()
         h.combine(settings.theme); h.combine(settings.accent); h.combine(settings.keySize)
         h.combine(settings.swipeTrail); h.combine(settings.keyPreview); h.combine(settings.longPressNumbers)
+        h.combine(settings.commaKey); h.combine(settings.emojiOnCommaKey)
         return h.finalize()
     }
 

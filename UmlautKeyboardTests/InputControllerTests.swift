@@ -377,6 +377,35 @@ final class InputControllerTests: XCTestCase {
         input.textDidChangeExternally()
         XCTAssertNil(input.state.letterPrior)
     }
+
+    // MARK: Comma / emoji key
+
+    private final class DelegateRecorder: InputControllerDelegate {
+        var emojiRequests = 0
+        func inputController(_ c: InputController, didUpdate state: InputUIState) {}
+        func inputControllerRequestsGlobe(_ c: InputController) {}
+        func inputControllerRequestsEmoji(_ c: InputController) { emojiRequests += 1 }
+        func inputControllerRequestsDismiss(_ c: InputController) {}
+    }
+
+    func testCommaKeyTypesCommaOnTapAndOpensEmojiOnHold() {
+        let recorder = DelegateRecorder()
+        input.delegate = recorder
+        let comma = GermanLayouts.letters(options: LayoutOptions(needsGlobeKey: false)).rows[3].keys.first { $0.id == "comma" }!
+        type("ja")
+        input.handle(key: comma)
+        XCTAssertEqual(proxy.text, "Ja,")
+        XCTAssertEqual(recorder.emojiRequests, 0)
+
+        input.handleLongPress(key: comma)
+        XCTAssertEqual(recorder.emojiRequests, 1)
+        XCTAssertEqual(proxy.text, "Ja,", "the hold must not type a second comma")
+
+        // Keys without a hold action are ignored.
+        input.handleLongPress(key: GermanLayouts.space)
+        XCTAssertEqual(recorder.emojiRequests, 1)
+        XCTAssertEqual(proxy.text, "Ja,")
+    }
 }
 
 final class WalkthroughReplayTests: XCTestCase {
@@ -411,34 +440,4 @@ final class WalkthroughReplayTests: XCTestCase {
         type("hakko ")
         XCTAssertEqual(proxy.text, "Ich habe morgen einen Termin in Köln. Danke hallo ")
     }
-
-    // MARK: Comma / emoji key
-
-    private final class DelegateRecorder: InputControllerDelegate {
-        var emojiRequests = 0
-        func inputController(_ c: InputController, didUpdate state: InputUIState) {}
-        func inputControllerRequestsGlobe(_ c: InputController) {}
-        func inputControllerRequestsEmoji(_ c: InputController) { emojiRequests += 1 }
-        func inputControllerRequestsDismiss(_ c: InputController) {}
-    }
-
-    func testCommaKeyTypesCommaOnTapAndOpensEmojiOnHold() {
-        let recorder = DelegateRecorder()
-        input.delegate = recorder
-        let comma = GermanLayouts.letters(options: LayoutOptions(needsGlobeKey: false)).rows[3].keys.first { $0.id == "comma" }!
-        type("ja")
-        input.handle(key: comma)
-        XCTAssertEqual(proxy.text, "ja,")
-        XCTAssertEqual(recorder.emojiRequests, 0)
-
-        input.handleLongPress(key: comma)
-        XCTAssertEqual(recorder.emojiRequests, 1)
-        XCTAssertEqual(proxy.text, "ja,", "the hold must not type a second comma")
-
-        // Keys without a hold action are ignored.
-        input.handleLongPress(key: GermanLayouts.space)
-        XCTAssertEqual(recorder.emojiRequests, 1)
-        XCTAssertEqual(proxy.text, "ja,")
-    }
-
 }
