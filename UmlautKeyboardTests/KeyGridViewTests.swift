@@ -164,6 +164,72 @@ final class KeyGridViewTests: XCTestCase {
         XCTAssertEqual(recorder.alternates, [","], "bubble committed the option under the finger")
     }
 
+    // MARK: Fast typing
+
+    /// Thirty taps with no run-loop turn in between (what a stalled main thread sees when it
+    /// catches up): every one of them is typed, in order.
+    func testBurstOfTapsIsNeverDropped() {
+        let ids = Array(repeating: ["d", "a", "s", "i", "s", "t", "e", "i", "n", "t"], count: 3).flatMap { $0 }
+        for id in ids {
+            let t = press(id)
+            release(t)
+        }
+        XCTAssertEqual(recorder.taps, ids)
+        XCTAssertEqual(recorder.swipes, 0)
+    }
+
+    /// A quick tap that drifts a little is still a tap on the key under the finger, never a
+    /// glide the decoder has to guess a word for.
+    func testSloppyTapStaysATap() {
+        let e = center(of: "e")
+        let t = press("e")
+        t.point = CGPoint(x: e.x + 14, y: e.y + 3)
+        grid.touchesMoved([t], with: nil)
+        release(t)
+        XCTAssertEqual(recorder.taps, ["e"])
+        XCTAssertEqual(recorder.swipes, 0)
+
+        // Further into the neighbour: the key under the finger wins (system behaviour).
+        let u = press("e")
+        u.point = CGPoint(x: e.x + 22, y: e.y)
+        grid.touchesMoved([u], with: nil)
+        release(u)
+        XCTAssertEqual(recorder.taps, ["e", "r"])
+        XCTAssertEqual(recorder.swipes, 0)
+
+        // Real travel is a glide.
+        let g = press("e")
+        for i in 1...6 { g.point = CGPoint(x: e.x + CGFloat(i) * 14, y: e.y); grid.touchesMoved([g], with: nil) }
+        release(g)
+        XCTAssertEqual(recorder.taps, ["e", "r"])
+        XCTAssertEqual(recorder.swipes, 1)
+    }
+
+    /// The other thumb keeps typing while a glide is in flight.
+    func testTapWhileAnotherFingerGlidesIsTyped() {
+        let a = center(of: "a")
+        let glide = press("a")
+        for i in 1...6 { glide.point = CGPoint(x: a.x + CGFloat(i) * 14, y: a.y); grid.touchesMoved([glide], with: nil) }
+        let tap = press("l")
+        release(tap)
+        XCTAssertEqual(recorder.taps, ["l"])
+        release(glide)
+        XCTAssertEqual(recorder.swipes, 1)
+    }
+
+    /// When the main thread stalls, the long-press timer can fire before the lift that is
+    /// queued behind it. That must not turn a tap on "e" into its alternates bubble (whose first
+    /// option is the digit 3).
+    func testOverdueLongPressTimerLeavesAQuickTapAlone() {
+        let t = press("e")
+        Thread.sleep(forTimeInterval: KeyGridView.longPressDelay + 0.5)   // the stall
+        spin(0.02)                                                       // the overdue timer fires
+        release(t)
+        XCTAssertEqual(recorder.taps, ["e"])
+        XCTAssertEqual(recorder.alternates, [])
+        XCTAssertEqual(recorder.longPresses, [])
+    }
+
     func testPreviewDisabledStillTypes() {
         recorder.keyPreviewEnabled = false
         for id in ["o", "k"] {

@@ -45,8 +45,22 @@ final class KeyGridView: UIView {
     var letterPrior: LetterPrior?
     /// Learned centre shifts of the letter keys (see `TapMap`); nil = geometric centres.
     var tapOffsets: TapMap.Offsets?
-    var returnLabel: String? { didSet { keyViews["return"]?.returnLabel = returnLabel } }
-    var isReturnAccented = false { didSet { keyViews["return"]?.isAccented = isReturnAccented } }
+    var returnLabel: String? { didSet { if returnLabel != oldValue { keyViews["return"]?.returnLabel = returnLabel } } }
+    var isReturnAccented = false { didSet { if isReturnAccented != oldValue { keyViews["return"]?.isAccented = isReturnAccented } } }
+
+    /// How long a finger rests on a key before its hold action / alternates bubble.
+    static let longPressDelay: TimeInterval = 0.42
+
+    // MARK: Movement thresholds
+
+    /// Drift a finger may have before a tap follows it to a neighbouring key (system behaviour:
+    /// the key under the finger wins). Fast typing lands and lifts within this.
+    private func slideThreshold(_ geometry: KeyboardGeometry) -> CGFloat { max(10, geometry.unitWidth * 0.3) }
+
+    /// Travel before a touch on a letter becomes a glide. Most of a key width: a quick, slightly
+    /// sloppy tap stays a tap (the key under the finger is typed), and only a path the decoder
+    /// can actually read starts the trail. Below this the decoder would reject the path anyway.
+    private func glideThreshold(_ geometry: KeyboardGeometry) -> CGFloat { max(20, geometry.unitWidth * 0.75) }
 
     // MARK: Touch state
 
@@ -203,7 +217,8 @@ final class KeyGridView: UIView {
         for (touch, state) in touches where state.mode == .pending || state.mode == .shiftSlide || state.mode == .alternates {
             finish(touch: touch, state: state, at: state.points.last ?? state.startPoint)
         }
-        if touches.values.contains(where: { $0.mode == .swiping }) { return }
+        // A glide in flight never blocks the other thumb: its tap is tracked alongside and
+        // commits on its own lift. Every touch that lands on the grid becomes a key event.
 
         for touch in newTouches {
             let p = touch.location(in: self)
@@ -264,7 +279,6 @@ final class KeyGridView: UIView {
             switch state.mode {
             case .pending:
                 let key = state.startFrame.key
-                let threshold = max(10, geometry.unitWidth * 0.3)
                 if key.action == .space {
                     if abs(dx) > 14 && abs(dx) > abs(dy) {
                         state.mode = .spaceCursor
@@ -273,7 +287,7 @@ final class KeyGridView: UIView {
                         setTrackpadMode(true)
                         feedback.selectionTick()
                     }
-                } else if key.isLetter, (delegate?.swipeTypingEnabled ?? true), dist > threshold {
+                } else if key.isLetter, (delegate?.swipeTypingEnabled ?? true), dist > glideThreshold(geometry) {
                     state.mode = .swiping
                     state.invalidate()
                     popup.hide()
@@ -282,9 +296,11 @@ final class KeyGridView: UIView {
                         trail.begin(at: state.startPoint)
                         state.points.forEach { trail.add(point: $0) }
                     }
-                } else if dist > threshold {
+                } else if dist > slideThreshold(geometry) {
                     // Slide to a neighbouring key (system behaviour): the key under the finger wins.
-                    if let kf = geometry.keyFrame(at: p), kf.key.id != state.currentFrame.key.id {
+                    // Resolved like the landing itself, so a wobble on a key the prior awarded
+                    // does not hand the tap to the geometric neighbour.
+                    if let kf = geometry.keyFrame(at: p, prior: letterPrior, offsets: tapOffsets), kf.key.id != state.currentFrame.key.id {
                         keyViews[state.currentFrame.key.id]?.setPressed(false)
                         state.currentFrame = kf
                         keyViews[kf.key.id]?.setPressed(true)
@@ -311,7 +327,7 @@ final class KeyGridView: UIView {
                 }
             case .shiftSlide:
                 // Same drift tolerance as taps, otherwise an edge tap on shift "slides" to y.
-                if dist > max(10, geometry.unitWidth * 0.3), let kf = geometry.keyFrame(at: p), kf.key.id != state.currentFrame.key.id {
+                if dist > slideThreshold(geometry), let kf = geometry.keyFrame(at: p), kf.key.id != state.currentFrame.key.id {
                     keyViews[state.currentFrame.key.id]?.setPressed(false)
                     state.currentFrame = kf
                     keyViews[kf.key.id]?.setPressed(true)
@@ -422,8 +438,12 @@ final class KeyGridView: UIView {
     }
 
     private func scheduleLongPress(for state: TouchState) {
-        state.longPressTimer = Timer.scheduledTimer(withTimeInterval: 0.42, repeats: false) { [weak self, weak state] _ in
+        state.longPressTimer = Timer.scheduledTimer(withTimeInterval: Self.longPressDelay, repeats: false) { [weak self, weak state] _ in
             guard let self, let state, state.mode == .pending else { return }
+            // Firing far too late means the run loop was stalled, and the lift that ends this
+            // tap is most likely queued right behind: a quick tap must stay a quick tap and
+            // never turn into a hold that swallows it or opens the bubble.
+            if CACurrentMediaTime() - state.startTime > Self.longPressDelay + 0.3 { return }
             self.beginLongPress(state)
         }
     }

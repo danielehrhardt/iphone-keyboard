@@ -43,6 +43,9 @@ final class KeyboardCoordinator: NSObject {
         // An engine for another language is of no use; wait for the provider instead.
         input = InputController(engine: engine?.language == language ? engine : nil, settings: settings, proxy: proxy, tapMap: tapMap)
         input.language = language
+        // The suggestion strip is computed off the main thread; a tap returns as soon as the
+        // character is in the document and the next touch is never queued behind a dictionary search.
+        input.suggestionQueue = DispatchQueue(label: "de.codext.umlaut.suggestions", qos: .userInteractive)
         super.init()
         input.delegate = self
         view.grid.delegate = self
@@ -129,6 +132,7 @@ final class KeyboardCoordinator: NSObject {
         view.suggestionHeight = h.suggestions
         view.apply(theme: KeyboardTheme.current(traits: traits, settings: settings))
         refreshLayoutOptions()
+        view.setNeedsLayout()     // metrics may have changed even when the options did not
         return h.keys + h.suggestions
     }
 
@@ -146,10 +150,14 @@ final class KeyboardCoordinator: NSObject {
     func cancelTouches() { view.grid.cancelAllTouches() }
 
     private func refreshLayoutOptions() {
-        layoutOptions = LayoutOptions(needsGlobeKey: needsGlobeKey, showsEmojiKey: true,
-                                      isEmailOrURL: input.traits.isEmailOrURL, showsCommaKey: settings.commaKey,
-                                      emojiOnCommaKey: settings.emojiOnCommaKey,
-                                      language: language, showsLanguageName: settings.hasMultipleLanguages)
+        let options = LayoutOptions(needsGlobeKey: needsGlobeKey, showsEmojiKey: true,
+                                    isEmailOrURL: input.traits.isEmailOrURL, showsCommaKey: settings.commaKey,
+                                    emojiOnCommaKey: settings.emojiOnCommaKey,
+                                    language: language, showsLanguageName: settings.hasMultipleLanguages)
+        // Called after every keystroke (the host reports each edit back); only a real change
+        // is worth a layout pass.
+        guard options != layoutOptions || lastOptions == nil else { return }
+        layoutOptions = options
         view.setNeedsLayout()
     }
 

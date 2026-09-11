@@ -21,6 +21,11 @@ protocol InputControllerDelegate: AnyObject {
 
 /// The text-editing brain: turns key events into document edits, runs autocorrect on word
 /// boundaries, commits swipe words, tracks shift state and produces the suggestion strip.
+///
+/// Built for fast typing: a key event touches the document once (every `UITextDocumentProxy`
+/// read is a round trip to the host app), updates what the *next* tap depends on – shift state
+/// and the hit-target prior – synchronously, and hands the suggestion strip to a background
+/// queue so the main thread is free for the next touch within a millisecond or two.
 final class InputController {
 
     private enum Commit: Equatable {
@@ -37,6 +42,11 @@ final class InputController {
     let settings: KeyboardSettings
     let proxy: TextProxy
     weak var delegate: InputControllerDelegate?
+    /// Where the suggestion strip is computed. nil runs it inline before the key event returns
+    /// (deterministic, for tests); the coordinator sets a serial background queue so a tap costs
+    /// the main thread only the edit, the shift state and the hit-target update. Results are
+    /// delivered on the main queue; a stale result (an older key event's) is dropped.
+    var suggestionQueue: DispatchQueue?
 
     private(set) var state = InputUIState() { didSet { if state != oldValue { delegate?.inputController(self, didUpdate: state) } } }
     var traits = FieldTraits() { didSet { if traits != oldValue { fieldChanged() } } }
@@ -57,12 +67,54 @@ final class InputController {
     /// True while the last tap-map update came from an autocorrection the user may still revert.
     private var canUndoTapLearning = false
     private static let unknownTap = CGPoint(x: CGFloat.nan, y: CGFloat.nan)
+    /// Counts suggestion requests so a result that arrives after a newer request is ignored.
+    private var suggestionGeneration = 0
 
     init(engine: KeyboardEngine?, settings: KeyboardSettings, proxy: TextProxy, tapMap: TapMap? = nil) {
         self.engine = engine
         self.settings = settings
         self.proxy = proxy
         self.tapMap = tapMap
+    }
+
+    // MARK: Document context
+
+    /// The text around the cursor, read once per key event. In the extension each proxy read is
+    /// a synchronous round trip to the host app – and blocks for as long as the host's main
+    /// thread is busy laying out the character we just inserted – so the snapshot is reused for
+    /// everything an event needs and refreshed only after an edit of our own.
+    private struct DocumentContext: Equatable {
+        var before: String
+        var after: String
+    }
+
+    private var cachedContext: DocumentContext?
+    /// The document as it looked when the UI state was last brought up to date; lets the host's
+    /// echo of our own edit (`textDidChange`) be recognised and skipped.
+    private var refreshedContext: DocumentContext?
+
+    private var context: DocumentContext {
+        if let cachedContext { return cachedContext }
+        let c = DocumentContext(before: proxy.textBefore, after: proxy.textAfter)
+        cachedContext = c
+        return c
+    }
+
+    private var textBefore: String { context.before }
+    private var textAfter: String { context.after }
+
+    /// Forgets the snapshot; the next read goes to the document. Called at every entry point
+    /// (the host may have changed the text since) and after every edit of our own.
+    private func invalidateContext() { cachedContext = nil }
+
+    private func insertText(_ text: String) {
+        proxy.insert(text)
+        cachedContext = nil
+    }
+
+    private func deleteBackwardOnce() {
+        proxy.deleteBackward()
+        cachedContext = nil
     }
 
     // MARK: Context helpers
@@ -73,7 +125,7 @@ final class InputController {
 
     /// The word being typed (letters immediately before the cursor).
     var composingWord: String {
-        let before = proxy.textBefore
+        let before = textBefore
         var start = before.endIndex
         while start > before.startIndex {
             let c = before[before.index(before: start)]
@@ -81,14 +133,14 @@ final class InputController {
             start = before.index(before: start)
         }
         // Only when the cursor is at the end of the word.
-        if let next = proxy.textAfter.first, Self.wordCharacters(next) { return "" }
+        if let next = textAfter.first, Self.wordCharacters(next) { return "" }
         return String(before[start...])
     }
 
     /// The last complete word before the composing word.
     var previousWord: String? {
         if cursorIsInsideWord { return nil }
-        let before = proxy.textBefore
+        let before = textBefore
         let composing = composingWord
         var text = Substring(before.dropLast(composing.count))
         while let last = text.last, last == " " { text = text.dropLast() }
@@ -101,12 +153,12 @@ final class InputController {
 
     /// True when a letter follows the cursor directly ("Hal|lo").
     private var cursorIsInsideWord: Bool {
-        guard let next = proxy.textAfter.first, Self.wordCharacters(next) else { return false }
-        return proxy.textBefore.last.map(Self.wordCharacters) ?? false
+        guard let next = textAfter.first, Self.wordCharacters(next) else { return false }
+        return textBefore.last.map(Self.wordCharacters) ?? false
     }
 
     private var isSentenceStart: Bool {
-        language.rules.isSentenceStart(String(proxy.textBefore.dropLast(composingWord.count)))
+        language.rules.isSentenceStart(String(textBefore.dropLast(composingWord.count)))
     }
 
     private var suggestionsAllowed: Bool { traits.allowsSuggestions }
@@ -118,15 +170,16 @@ final class InputController {
     static let justinWord = "Justin"
 
     /// „Justin“, or „JUSTIN“ when the typed word was written in all caps.
-    private func justin(matching typed: String) -> String {
+    private static func justin(matching typed: String) -> String {
         let letters = typed.filter(\.isLetter)
         let allCaps = letters.count > 1 && letters.allSatisfy(\.isUppercase)
-        return allCaps ? Self.justinWord.uppercased() : Self.justinWord
+        return allCaps ? justinWord.uppercased() : justinWord
     }
 
     // MARK: Field / external changes
 
     private func fieldChanged() {
+        invalidateContext()
         lastCommit = nil
         autoSpacePending = false
         shiftTouchedManually = false
@@ -134,7 +187,7 @@ final class InputController {
         var s = state
         s.layer = initialLayer()
         state = s
-        refresh()
+        refreshNow()
     }
 
     private func initialLayer() -> KeyboardLayer {
@@ -148,24 +201,54 @@ final class InputController {
     }
 
     /// Called when the host text changed for reasons other than our own edits (cursor moves, pastes…).
+    /// The host also reports our own edits back this way; those are recognised and cost nothing.
     func textDidChangeExternally() {
+        invalidateContext()
+        if let refreshedContext, context == refreshedContext { return }
         if case .swipe(let w, _, let autoSpace) = lastCommit {
             let expected = w + (autoSpace ? " " : "")
-            if !proxy.textBefore.hasSuffix(expected) { lastCommit = nil; autoSpacePending = false }
-        } else if case .autocorrect(_, let corrected, let trigger) = lastCommit, !proxy.textBefore.hasSuffix(corrected + trigger) {
+            if !textBefore.hasSuffix(expected) { lastCommit = nil; autoSpacePending = false }
+        } else if case .autocorrect(_, let corrected, let trigger) = lastCommit, !textBefore.hasSuffix(corrected + trigger) {
             lastCommit = nil
         }
-        if autoSpacePending, !proxy.textBefore.hasSuffix(" ") { autoSpacePending = false }
-        refresh()
+        if autoSpacePending, !textBefore.hasSuffix(" ") { autoSpacePending = false }
+        refreshNow()
     }
 
     /// Recomputes shift and suggestions from the document.
     func refresh() {
+        invalidateContext()
+        refreshNow()
+    }
+
+    /// Brings the UI state up to date with the (already snapshotted) document. Shift, the letter
+    /// prior and the tap offsets decide how the *next* tap is read, so they are updated before
+    /// this returns; the suggestion strip may follow a moment later.
+    private func refreshNow() {
         var s = state
         s.shift = computedShift(current: s.shift)
-        s.suggestions = buildSuggestions()
         s.letterPrior = buildLetterPrior()
         s.tapOffsets = buildTapOffsets()
+        let input = suggestionInput(layer: s.layer)
+        refreshedContext = context
+        suggestionGeneration += 1
+        let generation = suggestionGeneration
+        if let queue = suggestionQueue {
+            state = s
+            queue.async { [weak self] in
+                let suggestions = Self.buildSuggestions(input)
+                DispatchQueue.main.async { self?.deliver(suggestions, generation: generation) }
+            }
+        } else {
+            s.suggestions = Self.buildSuggestions(input)
+            state = s
+        }
+    }
+
+    private func deliver(_ suggestions: [Suggestion], generation: Int) {
+        guard generation == suggestionGeneration else { return }
+        var s = state
+        s.suggestions = suggestions
         state = s
     }
 
@@ -198,29 +281,64 @@ final class InputController {
 
     // MARK: Suggestions
 
-    private func buildSuggestions() -> [Suggestion] {
-        guard suggestionsAllowed, state.layer == .letters, let engine, engine.language == language else { return [] }
-        let composing = composingWord
-        if justinModeActive {
+    /// Everything the strip depends on, captured on the main thread so the search can run on
+    /// the suggestion queue without touching mutable state. The engine's parts are read-only or
+    /// lock-protected; the key-map-bound autocorrect is fetched here so its cache stays main-only.
+    private struct SuggestionInput {
+        var composing: String
+        var previous: String?
+        var isSentenceStart: Bool
+        var lastCommit: Commit?
+        var engine: KeyboardEngine?
+        var autocorrect: Autocorrect?
+        var allowed: Bool
+        var autocorrectAllowed: Bool
+        var predictions: Bool
+        var justinMode: Bool
+    }
+
+    private func suggestionInput(layer: KeyboardLayer) -> SuggestionInput {
+        let engine = suggestionsAllowed && layer == .letters && self.engine?.language == language ? self.engine : nil
+        let justin = justinModeActive
+        let composing = engine == nil ? "" : composingWord
+        // Only the correction search needs context; skip the reads when nothing will run.
+        let needsContext = engine != nil && !justin
+        return SuggestionInput(
+            composing: composing,
+            previous: needsContext ? previousWord : nil,
+            isSentenceStart: needsContext ? isSentenceStart : false,
+            lastCommit: lastCommit,
+            engine: engine,
+            autocorrect: needsContext && !composing.isEmpty ? keyMap.flatMap { engine?.autocorrect(for: $0) } : nil,
+            allowed: suggestionsAllowed && layer == .letters,
+            autocorrectAllowed: autocorrectAllowed,
+            predictions: settings.predictions,
+            justinMode: justin)
+    }
+
+    private static func buildSuggestions(_ input: SuggestionInput) -> [Suggestion] {
+        guard input.allowed, let engine = input.engine else { return [] }
+        let composing = input.composing
+        if input.justinMode {
             return [Suggestion(text: justin(matching: composing), kind: composing.isEmpty ? .prediction : .primary)]
         }
         if composing.isEmpty {
-            if case .swipe(let word, let alternates, _) = lastCommit {
+            if case .swipe(let word, let alternates, _) = input.lastCommit {
                 var items = [Suggestion(text: word, kind: .primary)]
                 for alt in alternates.prefix(2) { items.insert(Suggestion(text: alt, kind: .alternate), at: items.count == 1 ? 0 : items.count) }
                 return items
             }
-            guard settings.predictions else { return [] }
-            return engine.predictor.nextWords(after: previousWord, isSentenceStart: isSentenceStart).map { Suggestion(text: $0, kind: .prediction) }
+            guard input.predictions else { return [] }
+            return engine.predictor.nextWords(after: input.previous, isSentenceStart: input.isSentenceStart).map { Suggestion(text: $0, kind: .prediction) }
         }
 
-        guard let keyMap else { return [] }
-        let previous = previousWord
-        let start = isSentenceStart
-        let corrections = engine.autocorrect(for: keyMap).corrections(for: composing, previousWord: previous, isSentenceStart: start)
-        let completions = settings.predictions ? engine.predictor.completions(prefix: composing, previous: previous, isSentenceStart: start, limit: 4) : []
+        guard let autocorrect = input.autocorrect else { return [] }
+        let previous = input.previous
+        let start = input.isSentenceStart
+        let corrections = autocorrect.corrections(for: composing, previousWord: previous, isSentenceStart: start)
+        let completions = input.predictions ? engine.predictor.completions(prefix: composing, previous: previous, isSentenceStart: start, limit: 4) : []
         let best = corrections.first
-        let willReplace = autocorrectAllowed && best?.autoApply == true && best?.word != composing
+        let willReplace = input.autocorrectAllowed && best?.autoApply == true && best?.word != composing
         // A capital the user typed (or auto-capitalisation produced) stays: "Hakko" → "Hallo", not "hallo".
         let keepCapital = composing.first?.isUppercase == true
         func cased(_ w: String) -> String {
@@ -250,6 +368,7 @@ final class InputController {
 
     /// `touch` is where the finger landed on the key grid (grid coordinates); it feeds the tap map.
     func handle(key: Key, touch: CGPoint? = nil) {
+        invalidateContext()
         currentTouch = touch
         defer { currentTouch = nil }
         perform(key.action, from: key)
@@ -258,6 +377,7 @@ final class InputController {
     /// Runs the key's hold action (e.g. emoji on the comma key); keys without one are ignored.
     func handleLongPress(key: Key) {
         guard let action = key.longPressAction else { return }
+        invalidateContext()
         perform(action, from: key)
     }
 
@@ -273,7 +393,7 @@ final class InputController {
             toggleShift()
         case .newline:
             commitComposingIfNeeded(trigger: "\n")
-            proxy.insert("\n")
+            insertText("\n")
             afterEdit(lastWasSpace: false)
         case .switchLayer(let layer):
             var s = state
@@ -281,7 +401,7 @@ final class InputController {
             if layer != .letters { s.shift = .off }
             shiftTouchedManually = false
             state = s
-            refresh()
+            refreshNow()
         case .globe:
             delegate?.inputControllerRequestsGlobe(self)
         case .emoji:
@@ -297,16 +417,16 @@ final class InputController {
         let isPunctuation = text.count == 1 && (Self.sentenceTerminators.contains(text.first!) || ",;:".contains(text))
 
         if isPunctuation {
-            if autoSpacePending, proxy.textBefore.hasSuffix(" ") {
-                proxy.deleteBackward()             // "wort ." → "wort."
-                proxy.insert(text)
-                proxy.insert(" ")
+            if autoSpacePending, textBefore.hasSuffix(" ") {
+                deleteBackwardOnce()               // "wort ." → "wort."
+                insertText(text)
+                insertText(" ")
                 lastCommit = nil
                 afterEdit(lastWasSpace: false)
                 return
             }
             commitComposingIfNeeded(trigger: text)
-            proxy.insert(text)
+            insertText(text)
             afterEdit(lastWasSpace: false)
             return
         }
@@ -317,7 +437,7 @@ final class InputController {
             autoSpacePending = false
         }
         recordTap(text, touch: currentTouch)
-        proxy.insert(text)
+        insertText(text)
         afterEdit(lastWasSpace: false, consumedShift: key.isLetter)
     }
 
@@ -330,7 +450,7 @@ final class InputController {
     }
 
     private func handleSpace() {
-        if autoSpacePending, proxy.textBefore.hasSuffix(" ") {
+        if autoSpacePending, textBefore.hasSuffix(" ") {
             // Space right after a swipe: the space is already there.
             autoSpacePending = false
             lastCommit = nil
@@ -339,19 +459,19 @@ final class InputController {
             return
         }
         autoSpacePending = false
-        let before = proxy.textBefore
+        let before = textBefore
         if settings.doubleSpacePeriod, lastKeyWasSpace, before.hasSuffix(" "), before.count >= 2 {
             let prev = before[before.index(before.endIndex, offsetBy: -2)]
             if prev.isLetter || prev.isNumber || ")\"“”".contains(prev) {
-                proxy.deleteBackward()
-                proxy.insert(". ")
+                deleteBackwardOnce()
+                insertText(". ")
                 lastCommit = nil
                 afterEdit(lastWasSpace: false)
                 return
             }
         }
         commitComposingIfNeeded(trigger: " ")
-        proxy.insert(" ")
+        insertText(" ")
         afterEdit(lastWasSpace: true)
     }
 
@@ -359,7 +479,7 @@ final class InputController {
         switch lastCommit {
         case .swipe(let word, _, let autoSpace):
             let expected = word + (autoSpace ? " " : "")
-            if proxy.textBefore.hasSuffix(expected) {
+            if textBefore.hasSuffix(expected) {
                 delete(count: expected.count)
                 lastCommit = nil
                 autoSpacePending = false
@@ -367,9 +487,9 @@ final class InputController {
                 return
             }
         case .autocorrect(let original, let corrected, let trigger):
-            if proxy.textBefore.hasSuffix(corrected + trigger) {
+            if textBefore.hasSuffix(corrected + trigger) {
                 delete(count: corrected.count + trigger.count)
-                proxy.insert(original)
+                insertText(original)
                 engine?.user.rejectCorrection(typed: original)
                 // The correction was wrong, so what it taught the tap map was wrong too.
                 if canUndoTapLearning { tapMap?.undoLastLearning(); canUndoTapLearning = false }
@@ -382,22 +502,23 @@ final class InputController {
         }
         lastCommit = nil
         autoSpacePending = false
-        proxy.deleteBackward()
+        deleteBackwardOnce()
         afterEdit(lastWasSpace: false)
     }
 
     func backspaceRepeat(wordwise: Bool) {
+        invalidateContext()
         lastCommit = nil
         autoSpacePending = false
         if wordwise {
-            let before = proxy.textBefore
+            let before = textBefore
             var n = 0
             var idx = before.endIndex
             while idx > before.startIndex, before[before.index(before: idx)] == " " { idx = before.index(before: idx); n += 1 }
             while idx > before.startIndex, before[before.index(before: idx)] != " ", before[before.index(before: idx)] != "\n" { idx = before.index(before: idx); n += 1 }
             delete(count: max(1, n))
         } else {
-            proxy.deleteBackward()
+            deleteBackwardOnce()
         }
         afterEdit(lastWasSpace: false)
     }
@@ -421,32 +542,36 @@ final class InputController {
 
     func shiftSlide(to key: Key) {
         guard let c = key.character else { return }
+        invalidateContext()
         if case .swipe = lastCommit { lastCommit = nil }
         autoSpacePending = false
         recordTap(String(c).uppercased(), touch: nil)
-        proxy.insert(String(c).uppercased())
+        insertText(String(c).uppercased())
         afterEdit(lastWasSpace: false, consumedShift: true)
     }
 
     func insertAlternate(_ text: String, for key: Key) {
+        invalidateContext()
         if case .swipe = lastCommit { lastCommit = nil }
         autoSpacePending = false
         recordTap(text, touch: nil)
-        proxy.insert(text)
+        insertText(text)
         afterEdit(lastWasSpace: false, consumedShift: key.isLetter)
     }
 
     func moveCursor(by offset: Int) {
         proxy.moveCursor(by: offset)
+        invalidateContext()
         lastCommit = nil
         autoSpacePending = false
         wordTaps.removeAll()
-        refresh()
+        refreshNow()
     }
 
     // MARK: Swipe
 
     func handleSwipe(path: [CGPoint], keyMap: KeyMap, fallbackKey: Key?) {
+        invalidateContext()
         guard traits.allowsSwipe, settings.swipeTyping, let engine, engine.language == language else {
             if let fallbackKey { handle(key: fallbackKey) }
             return
@@ -465,12 +590,12 @@ final class InputController {
             return
         }
         // Separate from a partially typed word or the previous word with a space.
-        let before = proxy.textBefore
+        let before = textBefore
         if let last = before.last, !last.isWhitespace, !last.isNewline, !autoSpacePending, !Self.openingDelimiters.contains(last) {
-            proxy.insert(" ")
+            insertText(" ")
         }
         let cased = justinModeActive ? applyCase(to: Self.justinWord) : applyCase(to: best.word)
-        proxy.insert(cased + " ")
+        insertText(cased + " ")
         let alternates = justinModeActive ? [] : candidates.dropFirst().map { applyCase(to: $0.word) }
         lastCommit = .swipe(word: cased, alternates: Array(alternates), autoSpace: true)
         autoSpacePending = true
@@ -492,12 +617,13 @@ final class InputController {
     // MARK: Suggestions tapped
 
     func accept(_ suggestion: Suggestion) {
+        invalidateContext()
         let composing = composingWord
         let previous = previousWord
         if justinModeActive {
             if composing.isEmpty, case .swipe = lastCommit { return }   // already „Justin“
             if !composing.isEmpty { delete(count: composing.count) }
-            proxy.insert(justin(matching: composing) + " ")
+            insertText(Self.justin(matching: composing) + " ")
             lastCommit = .suggestion(word: Self.justinWord)
             autoSpacePending = true
             afterEdit(lastWasSpace: true, consumedShift: true)
@@ -506,8 +632,8 @@ final class InputController {
         switch (suggestion.kind, lastCommit) {
         case (_, .swipe(let word, _, let autoSpace)) where composing.isEmpty:
             let expected = word + (autoSpace ? " " : "")
-            if proxy.textBefore.hasSuffix(expected) { delete(count: expected.count) }
-            proxy.insert(suggestion.text + " ")
+            if textBefore.hasSuffix(expected) { delete(count: expected.count) }
+            insertText(suggestion.text + " ")
             var alts = [word]
             if case .swipe(_, let a, _) = lastCommit { alts += a.filter { $0 != suggestion.text } }
             lastCommit = .swipe(word: suggestion.text, alternates: Array(alts.prefix(3)), autoSpace: true)
@@ -515,14 +641,14 @@ final class InputController {
             learn(word: suggestion.text, after: previous)
         case (.prediction, _):
             if !composing.isEmpty { delete(count: composing.count) }
-            proxy.insert(suggestion.text + " ")
+            insertText(suggestion.text + " ")
             lastCommit = .suggestion(word: suggestion.text)
             autoSpacePending = true
             learn(word: suggestion.text, after: previous)
         case (.literal, _):
             // The user insists on the typed word: every tap behind it was on target.
             learnTaps(typed: composing, committed: composing)
-            proxy.insert(" ")
+            insertText(" ")
             if settings.learnWords { engine?.user.add(word: composing) }
             lastCommit = nil
             autoSpacePending = true
@@ -530,7 +656,7 @@ final class InputController {
             // A hand-picked correction is as good a teacher as an automatic one.
             learnTaps(typed: composing, committed: suggestion.text)
             if !composing.isEmpty { delete(count: composing.count) }
-            proxy.insert(suggestion.text + " ")
+            insertText(suggestion.text + " ")
             lastCommit = .suggestion(word: suggestion.text)
             autoSpacePending = true
             learn(word: suggestion.text, after: previous)
@@ -548,10 +674,10 @@ final class InputController {
         lastCommit = nil
         if justinModeActive {
             wordTaps.removeAll()
-            let replacement = justin(matching: composing)
+            let replacement = Self.justin(matching: composing)
             guard replacement != composing else { return }
             delete(count: composing.count)
-            proxy.insert(replacement)
+            insertText(replacement)
             return
         }
         guard suggestionsAllowed, let keyMap, let engine, engine.language == language else { wordTaps.removeAll(); return }
@@ -564,7 +690,7 @@ final class InputController {
                     replacement = replacement.prefix(1).uppercased() + replacement.dropFirst()
                 }
                 delete(count: composing.count)
-                proxy.insert(replacement)
+                insertText(replacement)
                 lastCommit = .autocorrect(original: composing, corrected: replacement, trigger: trigger)
                 learn(word: replacement, after: previous)
                 canUndoTapLearning = learnTaps(typed: composing, committed: replacement)
@@ -597,7 +723,9 @@ final class InputController {
     }
 
     private func delete(count: Int) {
+        guard count > 0 else { return }
         for _ in 0..<count { proxy.deleteBackward() }
+        cachedContext = nil
     }
 
     private func afterEdit(lastWasSpace: Bool, consumedShift: Bool = false) {
@@ -610,6 +738,6 @@ final class InputController {
         state = s
         // Typing a character ends a manual shift override; auto-capitalisation takes over again.
         if consumedShift { shiftTouchedManually = false }
-        refresh()
+        refreshNow()
     }
 }

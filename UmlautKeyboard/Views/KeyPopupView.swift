@@ -152,20 +152,25 @@ final class KeyPopupView: UIView {
         }
     }
 
+    /// Labels are kept and retitled: the preview shows on every letter tap, and creating a
+    /// label per tap is work the main thread does not need between two fast touches.
     private func rebuildLabels(fontSize: CGFloat) {
-        labels.forEach { $0.removeFromSuperview() }
-        labels = options.map { text in
+        while labels.count > options.count { labels.removeLast().removeFromSuperview() }
+        while labels.count < options.count {
             let l = UILabel()
-            l.text = text
             l.textAlignment = .center
-            l.font = .systemFont(ofSize: fontSize, weight: .regular)
             l.adjustsFontSizeToFitWidth = true
             l.minimumScaleFactor = 0.5
             l.layer.cornerRadius = 7
             l.layer.cornerCurve = .continuous
             l.layer.masksToBounds = true
             addSubview(l)
-            return l
+            labels.append(l)
+        }
+        let font = UIFont.systemFont(ofSize: fontSize, weight: .regular)
+        for (l, text) in zip(labels, options) {
+            l.text = text
+            if l.font != font { l.font = font }
         }
         updateHighlights()
     }
