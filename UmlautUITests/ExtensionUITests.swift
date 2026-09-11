@@ -8,7 +8,7 @@ final class ExtensionUITests: XCTestCase {
     static let outDir = URL(fileURLWithPath: ProcessInfo.processInfo.environment["SHOT_DIR"] ?? "/tmp/umlaut-ui")
 
     override func setUpWithError() throws {
-        continueAfterFailure = false
+        continueAfterFailure = true
         try? FileManager.default.createDirectory(at: Self.outDir, withIntermediateDirectories: true)
         app.launchArguments = ["--reset-user-lexicon"]
         app.launch()
@@ -42,8 +42,14 @@ final class ExtensionUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["key-q"].waitForExistence(timeout: 10), "Umlaut keyboard not showing")
         // Predictions appear once the engine has loaded.
         let suggestion = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Vorschlag'")).firstMatch
-        XCTAssertTrue(suggestion.waitForExistence(timeout: 15), "no suggestions – engine did not load?")
+        let loaded = suggestion.waitForExistence(timeout: 15)
         shot("11b-extension-loaded")
+        if !loaded {
+            let labels = app.buttons.allElementsBoundByIndex.map { "[\($0.identifier)|\($0.label)]" }.joined(separator: " ")
+            print("EXT-DIAG buttons: \(labels)")
+            print("EXT-DIAG other: \(app.otherElements.matching(NSPredicate(format: "label BEGINSWITH 'Vorschlag'")).count) statics: \(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Vorschlag'")).count)")
+        }
+        XCTAssertTrue(loaded, "no suggestions – engine did not load?")
         XCTAssertFalse(app.buttons["shift"].exists, "system keyboard still showing")
 
         // Keys are accessibility elements ("key-<id>"), so they can be addressed directly.
