@@ -164,12 +164,22 @@ def is_contraction_typo(lower):
         return True
     return any(len(lower) > k and (lower[:-k] + "'" + lower[-k:]) in hunspell for k in (1, 2))
 
+# "that's", "we'll", "she'd": OpenSubtitles splits these before the apostrophe, and Hunspell
+# builds them from affix rules, so the news corpus is their only witness.
+CONTRACTION_SUFFIXES = {"s", "ll", "d", "re", "ve", "m", "t"}
+
+def is_contraction(lower):
+    stem, apostrophe, suffix = lower.rpartition("'")
+    return bool(apostrophe) and suffix in CONTRACTION_SUFFIXES and (stem in hunspell or stem in wordlist or suffix == "t")
+
 def is_valid(lower, subs_freq):
     ltotal = leipzig_any.get(lower, 0)
     if lower in hunspell:
         return subs_freq >= 3 or ltotal >= 3
     if is_contraction_typo(lower):
         return False
+    if is_contraction(lower):
+        return subs_freq >= 3 or ltotal >= 3
     if lower in wordlist:
         # word lists carry some proper-noun noise ("Suu"); very short entries need real usage.
         if len(lower) <= 3:

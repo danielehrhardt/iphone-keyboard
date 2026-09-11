@@ -441,3 +441,62 @@ final class WalkthroughReplayTests: XCTestCase {
         XCTAssertEqual(proxy.text, "Ich habe morgen einen Termin in Köln. Danke hallo ")
     }
 }
+
+/// Typing in English: QWERTY key map, English dictionary and sentence rules, and an engine of
+/// the other language is ignored until the matching one arrives.
+final class EnglishInputTests: XCTestCase {
+    static let lexicon: Lexicon = try! Lexicon.loadBundled(language: .english)
+
+    var proxy: FakeTextProxy!
+    var input: InputController!
+    let letters = EnglishLayouts.letters()
+
+    override func setUp() {
+        super.setUp()
+        let settings = KeyboardSettings(defaults: UserDefaults(suiteName: "en-tests-\(UUID())")!)
+        proxy = FakeTextProxy()
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("en-tests-\(UUID()).json")
+        input = InputController(engine: KeyboardEngine(lexicon: Self.lexicon, user: UserLexicon(fileURL: url)), settings: settings, proxy: proxy)
+        input.language = .english
+        input.keyMap = KeyMap.reference(language: .english)
+        input.traits = FieldTraits()
+        input.refresh()
+    }
+
+    func type(_ s: String) {
+        for c in s {
+            switch c {
+            case " ": input.handle(key: letters.allKeys.first { $0.action == .space }!)
+            case ".": input.handle(key: letters.allKeys.first { $0.character == "." }!)
+            default: input.handle(key: letters.allKeys.first { $0.character == c && $0.isLetter }!)
+            }
+        }
+    }
+
+    func testEnglishAutocorrectAndSentenceRules() {
+        type("teh dont ")
+        XCTAssertEqual(proxy.text, "The don't ")
+        type("i ")
+        XCTAssertEqual(proxy.text, "The don't I ")
+        // "e.g." is an abbreviation, not a sentence end.
+        type("e.g. you ")
+        XCTAssertEqual(proxy.text, "The don't I e.g. you ")
+        type("ok. you ")
+        XCTAssertEqual(proxy.text, "The don't I e.g. you ok. You ")
+        XCTAssertTrue(input.state.suggestions.allSatisfy { $0.kind == .prediction })
+        type("hel")
+        XCTAssertTrue(input.state.suggestions.contains { $0.text.lowercased() == "help" }, "\(input.state.suggestions)")
+    }
+
+    func testEngineOfAnotherLanguageIsIgnored() {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("en-tests-\(UUID()).json")
+        input.engine = KeyboardEngine(lexicon: InputControllerTests.lexicon, user: UserLexicon(fileURL: url))
+        input.refresh()
+        XCTAssertTrue(input.state.suggestions.isEmpty)
+        type("teh ")
+        XCTAssertEqual(proxy.text, "Teh ", "no German engine may correct English text")
+        input.engine = KeyboardEngine(lexicon: Self.lexicon, user: UserLexicon(fileURL: url))
+        input.refresh()
+        XCTAssertFalse(input.state.suggestions.isEmpty)
+    }
+}

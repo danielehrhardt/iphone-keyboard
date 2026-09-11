@@ -1,7 +1,8 @@
 # Umlaut – die deutsche Swipe-Tastatur für iOS
 
-Native iOS keyboard extension (UIKit) with Gboard-style glide typing, German-aware autocorrect,
-next-word prediction and a SwiftUI host app for onboarding and settings.
+Native iOS keyboard extension (UIKit) with Gboard-style glide typing, language-aware autocorrect,
+next-word prediction and a SwiftUI host app for onboarding and settings. Types German (QWERTZ) and
+English (QWERTY); more languages plug in the same way.
 
 ```
 Umlaut/            SwiftUI host app (onboarding, Ausprobieren, Einstellungen, gelernte Wörter)
@@ -58,9 +59,24 @@ sources under `UmlautKeyboard/` are compiled into both targets; only `KeyboardVi
 
 ## How the engine works
 
-**Layout** – `GermanLayouts` defines the QWERTZ layers (letters with ü/ö/ä keys, ß on long-press s,
-symbols, #+=, number pads). `KeyboardGeometry` places keys for any size; `KeyMap` exposes letter
-centres to the engines.
+**Languages** – `KeyboardLanguage` (`.german`, `.english`) is the one switch everything hangs off:
+the layout family, the bundled dictionary (`<lang>_words.txt`, `<lang>_bigrams.txt`), the orthography
+(`LanguageRules`: abbreviations that don't end a sentence, digraph spellings such as `ue → ü`, cold-start
+suggestions) and the personal dictionary file (`user-lexicon.json` for German, `user-lexicon-en.json`
+for English). `KeyboardSettings.enabledLanguages` lists the languages the keyboard cycles through and
+`currentLanguage` the one being typed; the app's „Sprachen“ section toggles them (the last one cannot be
+switched off). With two or more enabled, the space bar shows the language name and a badge (`DE`/`EN`)
+next to the hide-keyboard button switches to the next one. The extension keeps only the active
+language's engine in memory (a second lexicon would cost another ~14 MB) and reloads on switch; typing
+keeps working meanwhile, suggestions return once the engine is there. Adding a language: a case in
+`KeyboardLanguage`, a layout family, a `LanguageRules` value, and `scripts/build_dictionary.py <lang>`.
+
+**Layout** – `GermanLayouts` defines the QWERTZ layers (letters with ü/ö/ä keys, ß on long-press s),
+`EnglishLayouts` the QWERTY layers (10/9/7 letters, umlauts on long-press, `$` on the symbol layer);
+`LayoutParts` holds what they share (function keys, digit and punctuation rows, number pads, bottom
+row). `KeyboardGeometry` places keys for any size; `KeyMap` exposes letter centres to the engines. The
+letter code space (`KeyAlphabet`, a–z + äöü) is shared: on QWERTY the umlaut codes fold onto a/o/u so
+one swipe decoder, autocorrect and tap map serve every layout.
 
 **Swipe decoding** (`SwipeDecoder`) – a SHARK²-style two-channel matcher with a language-model prior:
 
@@ -95,23 +111,29 @@ group; the host app shows it under „Deine Tap Map“ with a reset. Toggle: „
 
 ## Dictionary
 
-`scripts/fetch_corpora.sh` downloads the public sources, `scripts/build_dictionary.py` builds
-`de_words.txt` (word, frequency; sorted by lowercase spelling) and `de_bigrams.txt`:
+`scripts/fetch_corpora.sh [de|en]` downloads the public sources (into `$CORPUS_DIR`, default `/tmp`),
+`scripts/build_dictionary.py <de|en>` builds `<lang>_words.txt` (word, frequency; sorted by lowercase
+spelling) and `<lang>_bigrams.txt`:
 
 | Source | Used for |
 | --- | --- |
-| hermitdave/FrequencyWords (OpenSubtitles 2018, de) | conversational word frequencies |
-| Leipzig Corpora Collection (deu_news_2023, deu_mixed-typical_2011, 300K sentences each) | casing (mid-sentence counts), bigrams, extra frequencies |
-| davidak/wortliste, LibreOffice de_DE_frami (Hunspell) | validity filter, casing tie-breaks |
+| hermitdave/FrequencyWords (OpenSubtitles 2018, de / en) | conversational word frequencies |
+| Leipzig Corpora Collection (de: deu_news_2023, deu_mixed-typical_2011; en: eng_news_2023; 300K sentences each) | casing (mid-sentence counts), bigrams, extra frequencies |
+| de: davidak/wortliste, LibreOffice de_DE_frami (Hunspell) | validity filter, casing tie-breaks |
+| en: dwyl/english-words, LibreOffice en_US (Hunspell) | validity filter, casing tie-breaks |
 
-Words with two legitimate casings ship twice (`Sie`/`sie`, `Essen`/`essen`, `Dank`/`dank`).
+Words with two legitimate casings ship twice (`Sie`/`sie`, `Essen`/`essen`, `Dank`/`dank`). The
+German list has 150k words, the English one 100k. English keeps contractions (`don't`, `that's`;
+the news corpus is their only witness, OpenSubtitles splits them) and drops their apostrophe-less
+typo forms (`dont`, `thats`) so autocorrect can fix them.
 
 ## Memory budget
 
 Keyboard extensions are killed around 60–70 MB. Measured on the iOS 26 simulator (Release):
 17.6 MB before the engine, 31.6 MB with the 137k-word lexicon loaded, about 43 MB while typing
 and swiping. The lexicon is flat arrays only (no string-keyed dictionaries), the loader works on raw
-UTF-8 bytes, and the emoji panel is created on first use. The extension logs these numbers under the
+UTF-8 bytes, and the emoji panel is created on first use. Only one language's lexicon is resident
+at a time; switching languages swaps it. The extension logs these numbers under the
 `de.codext.umlaut.keyboard` subsystem (`log stream --predicate 'subsystem == "de.codext.umlaut.keyboard"'`).
 
 ## Privacy
