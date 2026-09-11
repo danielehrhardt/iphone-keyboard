@@ -25,11 +25,15 @@ struct SettingsView: View {
                 Text("Jedes getippte oder gewischte Wort wird zu „Justin“ – ohne Ausnahme, in jedem Textfeld.")
             }
 
-            Section("Feedback") {
+            Section {
                 Toggle("Tastenvorschau", isOn: $settings.keyPreview)
                 Toggle("Wischspur anzeigen", isOn: $settings.swipeTrail)
                 Toggle("Haptik", isOn: $settings.haptics)
                 Toggle("Tastentöne", isOn: $settings.sound)
+            } header: {
+                Text("Feedback")
+            } footer: {
+                Text("Die Tastenvorschau zeigt beim Tippen den gedrückten Buchstaben vergrößert über der Taste.")
             }
 
             Section("Darstellung") {

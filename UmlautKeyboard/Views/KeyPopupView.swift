@@ -35,6 +35,12 @@ final class KeyPopupView: UIView {
 
     required init?(coder: NSCoder) { fatalError() }
 
+    /// The bubble is drawn over neighbouring keys (and over the grid as a whole, since its frame
+    /// covers the grid). It must never own a touch: whatever is tapped while it is up belongs to
+    /// the key underneath, so the next keystroke is not swallowed.
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool { false }
+
     /// Shows a single magnified character above `keyFrame` (coordinates in the superview).
     func showPreview(text: String, keyFrame: CGRect, in container: CGRect) {
         isExpanded = false

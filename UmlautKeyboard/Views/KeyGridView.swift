@@ -135,6 +135,14 @@ final class KeyGridView: UIView {
         layoutPopup()
     }
 
+    /// Key caps and the preview/alternates bubble are presentation only. Every touch inside the
+    /// grid is resolved by `KeyboardGeometry`, never by a subview, so the bubble popping up over
+    /// a neighbouring key can never intercept the next tap.
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        guard isUserInteractionEnabled, !isHidden, alpha >= 0.01, self.point(inside: point, with: event) else { return nil }
+        return self
+    }
+
     /// The popup covers the grid; only touch its frame when the size changed, and never while it
     /// is mid-animation with a transform (frame is undefined then).
     private func layoutPopup() {
