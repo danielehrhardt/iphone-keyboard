@@ -21,7 +21,7 @@ struct SettingsView: View {
             Section {
                 Toggle("Justin-Modus", isOn: $settings.justinMode)
             } footer: {
-                Text("Jedes getippte oder gewischte Wort wird zu „Justin“ korrigiert.")
+                Text("Jedes getippte oder gewischte Wort wird zu „Justin“ – ohne Ausnahme, in jedem Textfeld.")
             }
 
             Section("Feedback") {

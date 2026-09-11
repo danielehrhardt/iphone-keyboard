@@ -280,30 +280,34 @@ final class InputControllerTests: XCTestCase {
         XCTAssertEqual(proxy.text, "Justin ")
     }
 
-    func testJustinModeShowsTypedWordAsLiteralAndJustinAsPrimary() {
+    func testJustinModeOffersNothingButJustin() {
         settings.justinMode = true
         type("hal")
-        XCTAssertEqual(input.state.suggestions, [Suggestion(text: "Hal", kind: .literal), Suggestion(text: "Justin", kind: .primary)])
+        XCTAssertEqual(input.state.suggestions, [Suggestion(text: "Justin", kind: .primary)])
         input.accept(input.state.suggestions[0])
-        XCTAssertEqual(proxy.text, "Hal ")
-        XCTAssertFalse(engine.user.isLearned("Hal"))
+        XCTAssertEqual(proxy.text, "Justin ")
+        XCTAssertEqual(input.state.suggestions, [Suggestion(text: "Justin", kind: .prediction)])
+        input.accept(input.state.suggestions[0])
+        XCTAssertEqual(proxy.text, "Justin Justin ")
+        XCTAssertFalse(engine.user.isLearned("Justin"))
     }
 
-    func testJustinModeBackspaceRestoresTypedWordWithoutBlockingIt() {
+    func testJustinModeBackspaceDoesNotRestoreTypedWord() {
         settings.justinMode = true
         type("hallo ")
         XCTAssertEqual(proxy.text, "Justin ")
         input.handle(key: GermanLayouts.backspace)
-        XCTAssertEqual(proxy.text, "Hallo")
+        XCTAssertEqual(proxy.text, "Justin")
         XCTAssertFalse(engine.user.isBlocked("Hallo"))
-        XCTAssertFalse(engine.user.isLearned("Justin"))
     }
 
-    func testJustinModeAppliesToSwipeAndKeepsDecodedWordAsAlternate() {
+    func testJustinModeAppliesToSwipeWithoutAlternates() {
         settings.justinMode = true
         swipe("danke")
         XCTAssertEqual(proxy.text, "Justin ")
-        XCTAssertTrue(input.state.suggestions.contains { $0.kind == .alternate && $0.text == "Danke" }, "\(input.state.suggestions)")
+        XCTAssertEqual(input.state.suggestions, [Suggestion(text: "Justin", kind: .prediction)])
+        input.accept(input.state.suggestions[0])
+        XCTAssertEqual(proxy.text, "Justin ")
     }
 
     func testJustinModeFollowsCapsLock() {
@@ -313,14 +317,22 @@ final class InputControllerTests: XCTestCase {
         XCTAssertEqual(proxy.text, "JUSTIN ")
     }
 
-    func testJustinModeRespectsFieldsWithoutAutocorrection() {
+    func testJustinModeAppliesInEveryField() {
         settings.justinMode = true
         var traits = FieldTraits()
         traits.autocorrectionDisabled = true
         input.traits = traits
         input.refresh()
         type("hallo ")
-        XCTAssertEqual(proxy.text, "Hallo ")
+        XCTAssertEqual(proxy.text, "Justin ")
+
+        var email = FieldTraits()
+        email.keyboardType = .emailAddress
+        email.autocapitalization = .none
+        input.traits = email
+        input.refresh()
+        type("welt ")
+        XCTAssertEqual(proxy.text, "Justin Justin ")
     }
 
     func testJustinModeWorksBeforeTheLexiconIsLoaded() {

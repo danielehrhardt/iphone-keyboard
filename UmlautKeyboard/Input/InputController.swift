@@ -91,9 +91,9 @@ final class InputController {
 
     private var suggestionsAllowed: Bool { traits.allowsSuggestions }
     private var autocorrectAllowed: Bool { settings.autocorrect && traits.allowsAutocorrect }
-    /// „Justin-Modus“: every word becomes „Justin“, independent of the normal autocorrect toggle,
-    /// but never in fields that asked for no autocorrection (passwords, addresses, code).
-    private var justinModeActive: Bool { settings.justinMode && traits.allowsAutocorrect }
+    /// „Justin-Modus“: every word becomes „Justin“ – in every field, regardless of the autocorrect
+    /// toggle, with no literal, alternate or backspace escape.
+    private var justinModeActive: Bool { settings.justinMode }
 
     static let justinWord = "Justin"
 
@@ -163,6 +163,9 @@ final class InputController {
     private func buildSuggestions() -> [Suggestion] {
         guard suggestionsAllowed, state.layer == .letters, let engine else { return [] }
         let composing = composingWord
+        if justinModeActive {
+            return [Suggestion(text: justin(matching: composing), kind: composing.isEmpty ? .prediction : .primary)]
+        }
         if composing.isEmpty {
             if case .swipe(let word, let alternates, _) = lastCommit {
                 var items = [Suggestion(text: word, kind: .primary)]
@@ -173,9 +176,6 @@ final class InputController {
             return engine.predictor.nextWords(after: previousWord, isSentenceStart: isSentenceStart).map { Suggestion(text: $0, kind: .prediction) }
         }
 
-        if justinModeActive {
-            return [Suggestion(text: composing, kind: .literal), Suggestion(text: justin(matching: composing), kind: .primary)]
-        }
         guard let keyMap else { return [] }
         let previous = previousWord
         let start = isSentenceStart
@@ -310,7 +310,7 @@ final class InputController {
             if proxy.textBefore.hasSuffix(corrected + trigger) {
                 delete(count: corrected.count + trigger.count)
                 proxy.insert(original)
-                if !justinModeActive { engine?.user.rejectCorrection(typed: original) }
+                engine?.user.rejectCorrection(typed: original)
                 lastCommit = nil
                 afterEdit(lastWasSpace: false)
                 return
@@ -406,7 +406,7 @@ final class InputController {
         }
         let cased = justinModeActive ? applyCase(to: Self.justinWord) : applyCase(to: best.word)
         proxy.insert(cased + " ")
-        let alternates = justinModeActive ? candidates.map { applyCase(to: $0.word) } : candidates.dropFirst().map { applyCase(to: $0.word) }
+        let alternates = justinModeActive ? [] : candidates.dropFirst().map { applyCase(to: $0.word) }
         lastCommit = .swipe(word: cased, alternates: Array(alternates), autoSpace: true)
         autoSpacePending = true
         learn(word: cased, after: previous)
@@ -429,6 +429,15 @@ final class InputController {
     func accept(_ suggestion: Suggestion) {
         let composing = composingWord
         let previous = previousWord
+        if justinModeActive {
+            if composing.isEmpty, case .swipe = lastCommit { return }   // already „Justin“
+            if !composing.isEmpty { delete(count: composing.count) }
+            proxy.insert(justin(matching: composing) + " ")
+            lastCommit = .suggestion(word: Self.justinWord)
+            autoSpacePending = true
+            afterEdit(lastWasSpace: true, consumedShift: true)
+            return
+        }
         switch (suggestion.kind, lastCommit) {
         case (_, .swipe(let word, _, let autoSpace)) where composing.isEmpty:
             let expected = word + (autoSpace ? " " : "")
@@ -447,7 +456,7 @@ final class InputController {
             learn(word: suggestion.text, after: previous)
         case (.literal, _):
             proxy.insert(" ")
-            if settings.learnWords, !justinModeActive { engine?.user.add(word: composing) }
+            if settings.learnWords { engine?.user.add(word: composing) }
             lastCommit = nil
             autoSpacePending = true
         default:
@@ -473,7 +482,6 @@ final class InputController {
             guard replacement != composing else { return }
             delete(count: composing.count)
             proxy.insert(replacement)
-            lastCommit = .autocorrect(original: composing, corrected: replacement, trigger: trigger)
             return
         }
         guard suggestionsAllowed, let keyMap, let engine else { return }
