@@ -15,7 +15,9 @@ public struct Correction: Hashable, Sendable {
 /// Costs: substitutions between adjacent keys are cheap (fat fingers), transpositions are cheap
 /// (fast typing), the language's digraph spellings ("ue"→"ü", "ss"→"ß" in German) and casing
 /// fixes are nearly free.
-public final class Autocorrect {
+/// Immutable after `init` (the personal dictionary guards its own state), so one instance may
+/// serve searches on a background queue.
+public final class Autocorrect: @unchecked Sendable {
 
     public struct Parameters: Sendable {
         public var adjacentSubstitution: Float = 0.45

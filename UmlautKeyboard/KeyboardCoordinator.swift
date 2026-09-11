@@ -44,8 +44,9 @@ final class KeyboardCoordinator: NSObject {
         input = InputController(engine: engine?.language == language ? engine : nil, settings: settings, proxy: proxy, tapMap: tapMap)
         input.language = language
         // The suggestion strip is computed off the main thread; a tap returns as soon as the
-        // character is in the document and the next touch is never queued behind a dictionary search.
-        input.suggestionQueue = DispatchQueue(label: "de.codext.umlaut.suggestions", qos: .userInteractive)
+        // character is in the document and the next touch is never queued behind a dictionary
+        // search. One step below the main thread's QoS, so the search never outranks touches.
+        input.suggestionQueue = DispatchQueue(label: "de.codext.umlaut.suggestions", qos: .userInitiated)
         super.init()
         input.delegate = self
         view.grid.delegate = self
@@ -233,15 +234,13 @@ extension KeyboardCoordinator: KeyGridDelegate {
 
 extension KeyboardCoordinator: EmojiPanelDelegate {
     func emojiPanel(_ panel: EmojiPanelView, didPick emoji: String) {
-        input.proxy.insert(emoji)
+        input.insertFromPanel(emoji)
         feedback.keyTap()
-        input.textDidChangeExternally()
     }
 
     func emojiPanelDidTapBackspace(_ panel: EmojiPanelView) {
-        input.proxy.deleteBackward()
+        input.deleteBackwardFromPanel()
         feedback.deleteTap()
-        input.textDidChangeExternally()
     }
 
     func emojiPanelDidTapLetters(_ panel: EmojiPanelView) {

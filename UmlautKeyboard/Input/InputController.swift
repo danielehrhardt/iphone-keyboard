@@ -40,7 +40,7 @@ final class InputController {
     /// must match the engine's language once it is there.
     var language: KeyboardLanguage = .default
     let settings: KeyboardSettings
-    let proxy: TextProxy
+    private let proxy: TextProxy
     weak var delegate: InputControllerDelegate?
     /// Where the suggestion strip is computed. nil runs it inline before the key event returns
     /// (deterministic, for tests); the coordinator sets a serial background queue so a tap costs
@@ -67,8 +67,17 @@ final class InputController {
     /// True while the last tap-map update came from an autocorrection the user may still revert.
     private var canUndoTapLearning = false
     private static let unknownTap = CGPoint(x: CGFloat.nan, y: CGFloat.nan)
-    /// Counts suggestion requests so a result that arrives after a newer request is ignored.
-    private var suggestionGeneration = 0
+    /// Counts suggestion requests so a result that arrives after a newer request is ignored, and
+    /// so a request that is already outdated when the queue reaches it is skipped altogether.
+    private let suggestionGeneration = Generation()
+
+    private final class Generation {
+        private let lock = NSLock()
+        private var value = 0
+        /// Bumps and returns the new generation (main thread).
+        func next() -> Int { lock.lock(); defer { lock.unlock() }; value += 1; return value }
+        var current: Int { lock.lock(); defer { lock.unlock() }; return value }
+    }
 
     init(engine: KeyboardEngine?, settings: KeyboardSettings, proxy: TextProxy, tapMap: TapMap? = nil) {
         self.engine = engine
@@ -231,22 +240,26 @@ final class InputController {
         s.tapOffsets = buildTapOffsets()
         let input = suggestionInput(layer: s.layer)
         refreshedContext = context
-        suggestionGeneration += 1
-        let generation = suggestionGeneration
-        if let queue = suggestionQueue {
-            state = s
-            queue.async { [weak self] in
-                let suggestions = Self.buildSuggestions(input)
-                DispatchQueue.main.async { self?.deliver(suggestions, generation: generation) }
-            }
-        } else {
+        let generation = suggestionGeneration.next()
+        // No engine, or a field/layer without a strip: the answer is empty and must show at
+        // once (leaving a password field's neighbour's words on screen is not an option).
+        guard input.allowed, input.engine != nil, let queue = suggestionQueue else {
             s.suggestions = Self.buildSuggestions(input)
             state = s
+            return
+        }
+        state = s
+        let counter = suggestionGeneration
+        queue.async { [weak self] in
+            // Typing faster than the search runs leaves a backlog; only the newest request matters.
+            guard counter.current == generation else { return }
+            let suggestions = Self.buildSuggestions(input)
+            DispatchQueue.main.async { self?.deliver(suggestions, generation: generation) }
         }
     }
 
     private func deliver(_ suggestions: [Suggestion], generation: Int) {
-        guard generation == suggestionGeneration else { return }
+        guard generation == suggestionGeneration.current else { return }
         var s = state
         s.suggestions = suggestions
         state = s
@@ -284,13 +297,15 @@ final class InputController {
     /// Everything the strip depends on, captured on the main thread so the search can run on
     /// the suggestion queue without touching mutable state. The engine's parts are read-only or
     /// lock-protected; the key-map-bound autocorrect is fetched here so its cache stays main-only.
+    /// The engine is held weakly: a language switch drops it, and a queued search must not keep
+    /// a second lexicon alive in the extension's tight memory budget – it simply finds nothing.
     private struct SuggestionInput {
         var composing: String
         var previous: String?
         var isSentenceStart: Bool
         var lastCommit: Commit?
-        var engine: KeyboardEngine?
-        var autocorrect: Autocorrect?
+        weak var engine: KeyboardEngine?
+        weak var autocorrect: Autocorrect?
         var allowed: Bool
         var autocorrectAllowed: Bool
         var predictions: Bool
@@ -534,6 +549,7 @@ final class InputController {
     }
 
     func lockShift() {
+        invalidateContext()
         var s = state
         s.shift = .locked
         shiftTouchedManually = true
@@ -566,6 +582,21 @@ final class InputController {
         autoSpacePending = false
         wordTaps.removeAll()
         refreshNow()
+    }
+
+    // MARK: Edits from outside the key grid (emoji panel)
+
+    /// Inserts text the emoji panel picked; the document snapshot and the UI state follow.
+    func insertFromPanel(_ text: String) {
+        invalidateContext()
+        insertText(text)
+        textDidChangeExternally()
+    }
+
+    func deleteBackwardFromPanel() {
+        invalidateContext()
+        deleteBackwardOnce()
+        textDidChangeExternally()
     }
 
     // MARK: Swipe

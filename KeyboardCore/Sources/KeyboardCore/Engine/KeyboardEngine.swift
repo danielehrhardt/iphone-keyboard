@@ -4,7 +4,9 @@ import CoreGraphics
 /// One-stop facade for the keyboard extension: owns the lexicon, personal dictionary and the
 /// three engines of one language. Loading a bundled lexicon takes a few hundred milliseconds
 /// and about 14 MB, so create one per language and keep only the active one around.
-public final class KeyboardEngine {
+/// Safe to use from a background queue: immutable after `init` apart from `autocorrect(for:)`'s
+/// cache, which is only ever touched on the main thread; `UserLexicon` guards its own state.
+public final class KeyboardEngine: @unchecked Sendable {
     public let language: KeyboardLanguage
     public let lexicon: Lexicon
     public let user: UserLexicon

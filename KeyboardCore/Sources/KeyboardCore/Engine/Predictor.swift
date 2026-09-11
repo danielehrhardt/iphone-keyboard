@@ -1,7 +1,8 @@
 import Foundation
 
 /// Next-word and completion suggestions for the suggestion strip.
-public final class Predictor {
+/// Immutable after `init` (the personal dictionary guards its own state); usable off the main thread.
+public final class Predictor: @unchecked Sendable {
     public let lexicon: Lexicon
     public var user: UserLexicon?
 

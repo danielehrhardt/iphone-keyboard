@@ -70,7 +70,7 @@ final class KeyGridView: UIView {
         var mode: Mode = .pending
         let startFrame: KeyFrame
         let startPoint: CGPoint
-        let startTime: CFTimeInterval
+        var startTime: CFTimeInterval
         var currentFrame: KeyFrame
         var points: [CGPoint] = []
         var longPressTimer: Timer?
@@ -91,6 +91,9 @@ final class KeyGridView: UIView {
     }
 
     private var touches: [UITouch: TouchState] = [:]
+    /// Taps lifted while a glide was still in flight. They are typed once the glide commits, so
+    /// the text keeps the order the fingers landed in – and none of them is ever dropped.
+    private var tapsBehindGlide: [(key: Key, point: CGPoint?)] = []
     private var lastShiftTap: CFTimeInterval = 0
     private(set) var isTrackpadMode = false
     /// Digit reached by holding a top-row letter, by key label: q → 1 … p → 0 on every layout
@@ -197,6 +200,7 @@ final class KeyGridView: UIView {
         popup.hide()
         trail.end()
         setTrackpadMode(false)
+        flushTapsBehindGlide()
     }
 
     /// While the space bar drives the cursor the caps go blank, so it reads as a trackpad.
@@ -215,6 +219,14 @@ final class KeyGridView: UIView {
         // A second finger while a key is pending commits that key (fast typing with both thumbs);
         // an open alternates popup commits its selection so the shared popup is free again.
         for (touch, state) in touches where state.mode == .pending || state.mode == .shiftSlide || state.mode == .alternates {
+            // A finger already travelling across a letter key is a glide in the making, not a
+            // tap to commit: let it go on and decide at its lift (a short path types the key
+            // under the finger then; the new tap queues up behind it, see `tapsBehindGlide`).
+            if state.mode == .pending, state.startFrame.key.isLetter, delegate?.swipeTypingEnabled ?? true,
+               let last = state.points.last, hypot(last.x - state.startPoint.x, last.y - state.startPoint.y) > slideThreshold(geometry) {
+                beginGlide(state)
+                continue
+            }
             finish(touch: touch, state: state, at: state.points.last ?? state.startPoint)
         }
         // A glide in flight never blocks the other thumb: its tap is tracked alongside and
@@ -288,14 +300,7 @@ final class KeyGridView: UIView {
                         feedback.selectionTick()
                     }
                 } else if key.isLetter, (delegate?.swipeTypingEnabled ?? true), dist > glideThreshold(geometry) {
-                    state.mode = .swiping
-                    state.invalidate()
-                    popup.hide()
-                    keyViews[state.currentFrame.key.id]?.setPressed(false)
-                    if delegate?.swipeTrailEnabled ?? true {
-                        trail.begin(at: state.startPoint)
-                        state.points.forEach { trail.add(point: $0) }
-                    }
+                    beginGlide(state)
                 } else if dist > slideThreshold(geometry) {
                     // Slide to a neighbouring key (system behaviour): the key under the finger wins.
                     // Resolved like the landing itself, so a wobble on a key the prior awarded
@@ -360,9 +365,41 @@ final class KeyGridView: UIView {
         popup.hide()
         trail.end()
         setTrackpadMode(false)
+        flushTapsBehindGlide()
     }
 
     // MARK: Gesture completion
+
+    private func beginGlide(_ state: TouchState) {
+        state.mode = .swiping
+        state.invalidate()
+        popup.hide()
+        keyViews[state.currentFrame.key.id]?.setPressed(false)
+        if delegate?.swipeTrailEnabled ?? true {
+            trail.begin(at: state.startPoint)
+            state.points.forEach { trail.add(point: $0) }
+        }
+    }
+
+    private var isGlideInFlight: Bool { touches.values.contains { $0.mode == .swiping } }
+
+    /// Types a plain tap – or holds it back while a glide is still in flight.
+    private func deliverTap(_ key: Key, at point: CGPoint?) {
+        if isGlideInFlight {
+            tapsBehindGlide.append((key, point))
+        } else if let point {
+            delegate?.keyGrid(self, didTap: key, at: point)
+        } else {
+            delegate?.keyGrid(self, didTap: key)
+        }
+    }
+
+    private func flushTapsBehindGlide() {
+        guard !tapsBehindGlide.isEmpty, !isGlideInFlight else { return }
+        let taps = tapsBehindGlide
+        tapsBehindGlide.removeAll()
+        for tap in taps { deliverTap(tap.key, at: tap.point) }
+    }
 
     private func finish(touch: UITouch, state: TouchState, at point: CGPoint) {
         guard state.mode != .finished else { return }
@@ -384,18 +421,25 @@ final class KeyGridView: UIView {
             } else if state.currentFrame.key.id == state.startFrame.key.id {
                 // The finger stayed on the key it landed on: the landing point tells the tap map
                 // where this user aims. A slide to a neighbour is an eyes-on fix and teaches nothing.
-                delegate?.keyGrid(self, didTap: key, at: state.startPoint)
+                deliverTap(key, at: state.startPoint)
             } else {
-                delegate?.keyGrid(self, didTap: key)
+                deliverTap(key, at: nil)
             }
         case .swiping:
             trail.end()
             var path = state.points
             path.append(point)
-            if let keyMap {
+            if let geometry, hypot(point.x - state.startPoint.x, point.y - state.startPoint.y) < glideThreshold(geometry) {
+                // Too short to spell a word: a sloppy tap that started moving. The key under the
+                // finger is typed, as it would have been had the finger stayed put.
+                if let kf = geometry.keyFrame(at: point, prior: letterPrior, offsets: tapOffsets) {
+                    deliverTap(kf.key, at: nil)
+                }
+            } else if let keyMap {
                 delegate?.keyGrid(self, didSwipe: path, keyMap: keyMap)
                 feedback.swipeCommit()
             }
+            flushTapsBehindGlide()
         case .alternates:
             if let option = popup.selectedOption {
                 delegate?.keyGrid(self, didInsertAlternate: option, for: state.startFrame.key)
@@ -442,8 +486,13 @@ final class KeyGridView: UIView {
             guard let self, let state, state.mode == .pending else { return }
             // Firing far too late means the run loop was stalled, and the lift that ends this
             // tap is most likely queued right behind: a quick tap must stay a quick tap and
-            // never turn into a hold that swallows it or opens the bubble.
-            if CACurrentMediaTime() - state.startTime > Self.longPressDelay + 0.3 { return }
+            // never turn into a hold that swallows it or opens the bubble. A finger that really
+            // is still down gets a fresh, correctly timed window.
+            if CACurrentMediaTime() - state.startTime > Self.longPressDelay + 0.3 {
+                state.startTime = CACurrentMediaTime()
+                self.scheduleLongPress(for: state)
+                return
+            }
             self.beginLongPress(state)
         }
     }

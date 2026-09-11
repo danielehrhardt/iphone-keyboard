@@ -10,6 +10,8 @@ private final class FakeTouch: UITouch {
 
 private final class GridRecorder: KeyGridDelegate {
     var taps: [String] = []
+    /// Taps and glides in the order they were delivered.
+    var events: [String] = []
     var alternates: [String] = []
     var longPresses: [String] = []
     var swipes = 0
@@ -18,9 +20,9 @@ private final class GridRecorder: KeyGridDelegate {
     var swipeTrailEnabled = true
     var longPressNumbersEnabled = true
 
-    func keyGrid(_ grid: KeyGridView, didTap key: Key) { taps.append(key.id) }
+    func keyGrid(_ grid: KeyGridView, didTap key: Key) { taps.append(key.id); events.append(key.id) }
     func keyGrid(_ grid: KeyGridView, didInsertAlternate text: String, for key: Key) { alternates.append(text) }
-    func keyGrid(_ grid: KeyGridView, didSwipe path: [CGPoint], keyMap: KeyMap) { swipes += 1 }
+    func keyGrid(_ grid: KeyGridView, didSwipe path: [CGPoint], keyMap: KeyMap) { swipes += 1; events.append("glide") }
     func keyGrid(_ grid: KeyGridView, didLongPress key: Key) { longPresses.append(key.id) }
     func keyGridBackspaceRepeat(_ grid: KeyGridView, wordwise: Bool) {}
     func keyGrid(_ grid: KeyGridView, moveCursorBy offset: Int) {}
@@ -205,16 +207,72 @@ final class KeyGridViewTests: XCTestCase {
         XCTAssertEqual(recorder.swipes, 1)
     }
 
-    /// The other thumb keeps typing while a glide is in flight.
-    func testTapWhileAnotherFingerGlidesIsTyped() {
+    /// The other thumb keeps typing while a glide is in flight; the text keeps the order the
+    /// fingers landed in, so the glide word goes first and the tap follows it.
+    func testTapWhileAnotherFingerGlidesIsTypedAfterTheGlide() {
         let a = center(of: "a")
         let glide = press("a")
         for i in 1...6 { glide.point = CGPoint(x: a.x + CGFloat(i) * 14, y: a.y); grid.touchesMoved([glide], with: nil) }
         let tap = press("l")
         release(tap)
-        XCTAssertEqual(recorder.taps, ["l"])
+        XCTAssertEqual(recorder.taps, [], "held back until the glide commits")
         release(glide)
-        XCTAssertEqual(recorder.swipes, 1)
+        XCTAssertEqual(recorder.events, ["glide", "l"])
+    }
+
+    /// A finger that is already travelling when the other thumb lands is a glide in the making;
+    /// it is not cut short into a single letter. Its lift decides: here a real glide.
+    func testSecondFingerDoesNotCutAStartedGlideShort() {
+        let a = center(of: "a")
+        let glide = press("a")
+        glide.point = CGPoint(x: a.x + 14, y: a.y)      // past the slide threshold, before the glide one
+        grid.touchesMoved([glide], with: nil)
+        let tap = press("l")
+        XCTAssertEqual(recorder.taps, [], "the moving finger was not committed as a tap")
+        for i in 2...6 { glide.point = CGPoint(x: a.x + CGFloat(i) * 14, y: a.y); grid.touchesMoved([glide], with: nil) }
+        release(tap)
+        release(glide)
+        XCTAssertEqual(recorder.events, ["glide", "l"])
+    }
+
+    /// … and here a sloppy tap: too short for a word, so the key under the finger is typed,
+    /// still ahead of the other thumb's tap.
+    func testSecondFingerLeavesAShortSlideAsATap() {
+        let a = center(of: "a")
+        let slide = press("a")
+        slide.point = CGPoint(x: a.x + 14, y: a.y)
+        grid.touchesMoved([slide], with: nil)
+        let tap = press("l")
+        release(tap)
+        slide.point = CGPoint(x: a.x + 22, y: a.y)      // ends over "s"
+        grid.touchesMoved([slide], with: nil)
+        release(slide)
+        XCTAssertEqual(recorder.events, ["s", "l"])
+        XCTAssertEqual(recorder.swipes, 0)
+    }
+
+    /// A glide that gets cancelled (layout switch, rotation) still types the taps queued behind it.
+    func testTapsBehindACancelledGlideAreNotLost() {
+        let a = center(of: "a")
+        let glide = press("a")
+        for i in 1...6 { glide.point = CGPoint(x: a.x + CGFloat(i) * 14, y: a.y); grid.touchesMoved([glide], with: nil) }
+        let tap = press("l")
+        release(tap)
+        grid.cancelAllTouches()
+        XCTAssertEqual(recorder.events, ["l"])
+    }
+
+    /// A stalled main thread must not kill a genuine hold either: the timer is re-armed.
+    func testOverdueLongPressTimerReArmsForARealHold() {
+        let t = press("e")
+        Thread.sleep(forTimeInterval: KeyGridView.longPressDelay + 0.5)
+        spin(0.02)
+        XCTAssertEqual(recorder.alternates, [])
+        spin(KeyGridView.longPressDelay + 0.1)
+        release(t)
+        // The fresh window opened the bubble; a lift without moving commits its first option.
+        XCTAssertEqual(recorder.alternates, ["3"])
+        XCTAssertEqual(recorder.taps, [])
     }
 
     /// When the main thread stalls, the long-press timer can fire before the lift that is
