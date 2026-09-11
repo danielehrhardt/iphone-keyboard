@@ -131,6 +131,10 @@ public struct KeyMap: Sendable {
     public let centers: [CGPoint]          // indexed by letter code
     public let keyWidth: CGFloat
     public let keyHeight: CGFloat
+    /// Centre-to-centre distance of horizontal / vertical neighbours (key plus gap). The tap map
+    /// measures touch offsets in these units so one map serves every key-size setting.
+    public let pitchX: CGFloat
+    public let pitchY: CGFloat
 
     /// nil when the layout doesn't place every letter exactly once (swipe is then unavailable).
     public init?(geometry: KeyboardGeometry) {
@@ -145,12 +149,16 @@ public struct KeyMap: Sendable {
         self.centers = centers
         keyWidth = geometry.unitWidth
         keyHeight = geometry.rowHeight
+        pitchX = geometry.unitWidth + geometry.horizontalGap
+        pitchY = geometry.rowHeight + geometry.verticalGap
     }
 
-    public init(centers: [CGPoint], keyWidth: CGFloat, keyHeight: CGFloat) {
+    public init(centers: [CGPoint], keyWidth: CGFloat, keyHeight: CGFloat, pitchX: CGFloat? = nil, pitchY: CGFloat? = nil) {
         self.centers = centers
         self.keyWidth = keyWidth
         self.keyHeight = keyHeight
+        self.pitchX = pitchX ?? keyWidth * 1.2
+        self.pitchY = pitchY ?? keyHeight * 1.25
     }
 
     /// Standard German letters layout at a reference size, for tests and offline tools.

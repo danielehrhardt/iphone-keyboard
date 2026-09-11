@@ -14,6 +14,8 @@ final class KeyView: UIView {
     let key: Key
     private let label = UILabel()
     private let hintLabel = UILabel()
+    /// Corner glyph for keys whose hold performs an action (smiley on the comma key).
+    private let hintIcon = UIImageView()
     private let iconView = UIImageView()
     private var theme: KeyboardTheme
     private(set) var isPressed = false
@@ -35,6 +37,7 @@ final class KeyView: UIView {
         accessibilityTraits = .keyboardKey
         accessibilityIdentifier = "key-\(key.id)"
         accessibilityLabel = Self.accessibilityName(for: key)
+        if key.longPressAction == .emoji { accessibilityHint = "Halten für Emoji" }
         layer.cornerRadius = theme.cornerRadius
         layer.cornerCurve = .continuous
         layer.shadowOffset = CGSize(width: 0, height: 1)
@@ -51,6 +54,12 @@ final class KeyView: UIView {
         hintLabel.textAlignment = .right
         hintLabel.isHidden = true
         addSubview(hintLabel)
+
+        hintIcon.contentMode = .center
+        hintIcon.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 9, weight: .medium)
+        hintIcon.isHidden = key.longPressAction != .emoji
+        if key.longPressAction == .emoji { hintIcon.image = Self.symbolImage("face.smiling") }
+        addSubview(hintIcon)
 
         iconView.contentMode = .center
         iconView.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 18, weight: .regular)
@@ -82,7 +91,7 @@ final class KeyView: UIView {
     /// Trackpad mode (dragging on the space bar) blanks the caps like the system keyboard does.
     func setContentHidden(_ hidden: Bool, animated: Bool) {
         let alpha: CGFloat = hidden ? 0 : 1
-        let changes = { self.label.alpha = alpha; self.hintLabel.alpha = alpha; self.iconView.alpha = alpha }
+        let changes = { self.label.alpha = alpha; self.hintLabel.alpha = alpha; self.hintIcon.alpha = alpha; self.iconView.alpha = alpha }
         if animated {
             UIView.animate(withDuration: 0.18, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction], animations: changes)
         } else {
@@ -95,6 +104,7 @@ final class KeyView: UIView {
         label.frame = bounds
         iconView.frame = bounds
         hintLabel.frame = CGRect(x: 0, y: 2, width: bounds.width - 4, height: 12)
+        hintIcon.frame = CGRect(x: bounds.width - 16, y: 2, width: 12, height: 12)
         let r = layer.cornerRadius
         layer.shadowPath = UIBezierPath(roundedRect: bounds, cornerRadius: r).cgPath
     }
@@ -145,6 +155,7 @@ final class KeyView: UIView {
         let textColor: UIColor = accentFill ? theme.onAccent : (shiftFill ? .black : (isFunction ? theme.functionKeyText : theme.keyText))
         label.textColor = textColor
         hintLabel.textColor = theme.hintText
+        hintIcon.tintColor = theme.hintText
         iconView.tintColor = textColor
 
         // Content

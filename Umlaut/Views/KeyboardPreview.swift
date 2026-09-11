@@ -19,6 +19,7 @@ struct KeyboardPreview: View {
     var animatesTrail = false
     var cornerRadius: CGFloat = 16
     var showsCommaKey = true
+    var emojiOnCommaKey = true
 
     @Environment(\.colorScheme) private var environmentScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -30,7 +31,9 @@ struct KeyboardPreview: View {
     /// Reference width of an iPhone keyboard; all metrics are scaled from it.
     private static let referenceWidth: CGFloat = 390
     private static let referenceHeight: CGFloat = 216
-    private var layout: KeyboardLayout { GermanLayouts.letters(options: LayoutOptions(showsCommaKey: showsCommaKey)) }
+    private var layout: KeyboardLayout {
+        GermanLayouts.letters(options: LayoutOptions(showsCommaKey: showsCommaKey, emojiOnCommaKey: emojiOnCommaKey))
+    }
 
     private var isDark: Bool { (scheme ?? environmentScheme) == .dark }
     private var accentColor: Color { accent.color }
@@ -81,6 +84,14 @@ struct KeyboardPreview: View {
                 .shadow(color: .black.opacity(isDark ? 0.42 : 0.28), radius: max(0.3, scale * 0.6), x: 0, y: max(0.5, scale))
             label(for: key, rowHeight: geometry.rowHeight)
                 .foregroundStyle(isReturn ? Color.white : (isDark ? Color.white : Color.black))
+            if key.longPressAction == .emoji {
+                // Same corner smiley the real key shows for "hold for emoji".
+                Image(systemName: "face.smiling")
+                    .font(.system(size: geometry.rowHeight * 0.2, weight: .medium))
+                    .foregroundStyle((isDark ? Color.white : Color.black).opacity(0.45))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .padding(max(1, 2 * scale))
+            }
         }
     }
 

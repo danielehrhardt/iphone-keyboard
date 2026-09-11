@@ -42,7 +42,8 @@ final class KeyGridView: UIView {
     // MARK: Touch state
 
     private final class TouchState {
-        enum Mode { case pending, swiping, alternates, spaceCursor, backspaceHold, shiftSlide, globe, finished }
+        /// `held`: the key's `longPressAction` fired; the lift does nothing more.
+        enum Mode { case pending, swiping, alternates, spaceCursor, backspaceHold, shiftSlide, globe, held, finished }
         var mode: Mode = .pending
         let startFrame: KeyFrame
         let startPoint: CGPoint
@@ -299,7 +300,7 @@ final class KeyGridView: UIView {
                 }
             case .globe:
                 delegate?.keyGrid(self, globeTouchEvent: event)
-            case .backspaceHold, .finished:
+            case .backspaceHold, .held, .finished:
                 break
             }
         }
@@ -371,7 +372,7 @@ final class KeyGridView: UIView {
                 if steps != 0 { delegate?.keyGrid(self, moveCursorBy: steps) }
             }
             setTrackpadMode(false)
-        case .backspaceHold, .globe:
+        case .backspaceHold, .globe, .held:
             break
         case .shiftSlide:
             let key = state.currentFrame.key
@@ -414,6 +415,14 @@ final class KeyGridView: UIView {
             keyViews[visual.key.id]?.setPressed(true)
         }
         let kf = state.currentFrame
+        if kf.key.longPressAction != nil {
+            // The hold *is* the action (emoji on the comma key): fire it and swallow the tap.
+            state.mode = .held
+            popup.hide()
+            feedback.selectionTick()
+            delegate?.keyGrid(self, didLongPress: kf.key)
+            return
+        }
         var options: [String] = []
         let shifted = shiftState.isActive && kf.key.isLetter
         if kf.key.isLetter, delegate?.longPressNumbersEnabled ?? true, let digit = Self.topRowDigits[kf.key.label] {
