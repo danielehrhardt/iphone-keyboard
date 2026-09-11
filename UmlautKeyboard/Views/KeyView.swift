@@ -7,11 +7,15 @@ enum ShiftState {
 }
 
 /// A single key cap. Pure presentation; touches are handled by `KeyGridView`.
+///
+/// Drawn as a frosted glass cap on top of the system keyboard material: a translucent fill,
+/// a hairline bright rim and a soft drop shadow. Presses animate the fill.
 final class KeyView: UIView {
     let key: Key
     private let label = UILabel()
     private let hintLabel = UILabel()
     private let iconView = UIImageView()
+    private let rim = CAShapeLayer()
     private var theme: KeyboardTheme
     private(set) var isPressed = false
 
@@ -35,9 +39,12 @@ final class KeyView: UIView {
         layer.cornerRadius = theme.cornerRadius
         layer.cornerCurve = .continuous
         layer.shadowOffset = CGSize(width: 0, height: 1)
-        layer.shadowRadius = 0
-        layer.shadowOpacity = 1
+        layer.shadowRadius = 0.6
         layer.masksToBounds = false
+
+        rim.fillColor = nil
+        rim.lineWidth = 1
+        layer.addSublayer(rim)
 
         label.textAlignment = .center
         label.adjustsFontSizeToFitWidth = true
@@ -45,7 +52,7 @@ final class KeyView: UIView {
         label.baselineAdjustment = .alignCenters
         addSubview(label)
 
-        hintLabel.font = .systemFont(ofSize: 10, weight: .regular)
+        hintLabel.font = .systemFont(ofSize: 10, weight: .medium)
         hintLabel.textAlignment = .right
         hintLabel.isHidden = true
         addSubview(hintLabel)
@@ -67,7 +74,25 @@ final class KeyView: UIView {
     func setPressed(_ pressed: Bool) {
         guard pressed != isPressed else { return }
         isPressed = pressed
-        refresh()
+        // Press instantly, release with a short fade — feels snappy and never lags a fast typist.
+        if pressed {
+            refresh()
+        } else {
+            UIView.animate(withDuration: 0.16, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction, .curveEaseOut]) {
+                self.refresh()
+            }
+        }
+    }
+
+    /// Trackpad mode (dragging on the space bar) blanks the caps like the system keyboard does.
+    func setContentHidden(_ hidden: Bool, animated: Bool) {
+        let alpha: CGFloat = hidden ? 0 : 1
+        let changes = { self.label.alpha = alpha; self.hintLabel.alpha = alpha; self.iconView.alpha = alpha }
+        if animated {
+            UIView.animate(withDuration: 0.18, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction], animations: changes)
+        } else {
+            changes()
+        }
     }
 
     override func layoutSubviews() {
@@ -75,7 +100,24 @@ final class KeyView: UIView {
         label.frame = bounds
         iconView.frame = bounds
         hintLabel.frame = CGRect(x: 0, y: 2, width: bounds.width - 4, height: 12)
-        layer.shadowPath = UIBezierPath(roundedRect: bounds, cornerRadius: layer.cornerRadius).cgPath
+        let r = layer.cornerRadius
+        layer.shadowPath = UIBezierPath(roundedRect: bounds, cornerRadius: r).cgPath
+        // The rim is a rounded rect inset by half a point, drawn only along its upper half
+        // (a full stroke looks like a border; a top-only highlight looks like light on glass).
+        rim.frame = bounds
+        rim.path = Self.topRimPath(in: bounds.insetBy(dx: 0.5, dy: 0.5), radius: max(0, r - 0.5))
+    }
+
+    private static func topRimPath(in rect: CGRect, radius r: CGFloat) -> CGPath {
+        let path = UIBezierPath()
+        let start = CGPoint(x: rect.minX, y: rect.midY)
+        path.move(to: start)
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + r))
+        path.addArc(withCenter: CGPoint(x: rect.minX + r, y: rect.minY + r), radius: r, startAngle: .pi, endAngle: 1.5 * .pi, clockwise: true)
+        path.addLine(to: CGPoint(x: rect.maxX - r, y: rect.minY))
+        path.addArc(withCenter: CGPoint(x: rect.maxX - r, y: rect.minY + r), radius: r, startAngle: 1.5 * .pi, endAngle: 2 * .pi, clockwise: true)
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        return path.cgPath
     }
 
     static func accessibilityName(for key: Key) -> String {
@@ -109,9 +151,9 @@ final class KeyView: UIView {
         let shiftFill = key.action == .shift && shiftState.isActive
         let base: UIColor
         if accentFill {
-            base = theme.accent
+            base = isPressed ? theme.accentPressed : theme.accent
         } else if shiftFill {
-            base = .white
+            base = isPressed ? UIColor(white: 0.92, alpha: 1) : .white
         } else if isFunction {
             base = isPressed ? theme.functionKeyPressedBackground : theme.functionKeyBackground
         } else {
@@ -119,6 +161,8 @@ final class KeyView: UIView {
         }
         backgroundColor = base
         layer.shadowColor = theme.keyShadow.cgColor
+        layer.shadowOpacity = theme.keyShadowOpacity
+        rim.strokeColor = (accentFill ? UIColor(white: 1, alpha: 0.35) : theme.keyRim).cgColor
 
         let textColor: UIColor = accentFill ? theme.onAccent : (shiftFill ? .black : (isFunction ? theme.functionKeyText : theme.keyText))
         label.textColor = textColor
@@ -139,9 +183,9 @@ final class KeyView: UIView {
             if let returnLabel { text = returnLabel; symbol = nil }
         case .shift:
             symbol = shiftState == .locked ? "capslock.fill" : (shiftState == .on ? "shift.fill" : "shift")
-        case .switchLayer, .dismiss:
+        case .switchLayer:
             text = key.label
-        case .backspace, .globe, .emoji:
+        case .backspace, .globe, .emoji, .dismiss:
             break
         }
         label.text = text
@@ -155,6 +199,7 @@ final class KeyView: UIView {
             label.font = .systemFont(ofSize: size, weight: .regular)
         } else if key.action == .space {
             label.font = .systemFont(ofSize: isPad ? 17 : 16, weight: .regular)
+            label.textColor = textColor.withAlphaComponent(0.8)
         } else {
             label.font = .systemFont(ofSize: isPad ? 17 : 16, weight: .regular)
         }

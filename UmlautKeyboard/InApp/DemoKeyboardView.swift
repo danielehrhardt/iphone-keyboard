@@ -3,18 +3,27 @@ import KeyboardCore
 
 /// The real keyboard, hosted inside the app as a text view's `inputView`, so people can try
 /// swipe typing before enabling the extension. Compiled into the app target only.
-final class DemoKeyboardView: UIView {
+///
+/// A `UIInputView` in keyboard style, so the system paints the same translucent material
+/// behind it that the extension gets for free.
+final class DemoKeyboardView: UIInputView {
     private let coordinator: KeyboardCoordinator
+    private let settings: KeyboardSettings
     private weak var textView: UITextView?
     private var observers: [NSObjectProtocol] = []
+    /// Keys + suggestion bar; the bottom safe area is added on top once known.
+    private var contentHeight: CGFloat
 
     init(textView: UITextView, engine: KeyboardEngine?, settings: KeyboardSettings = .shared) {
         self.textView = textView
+        self.settings = settings
         coordinator = KeyboardCoordinator(settings: settings, proxy: TextViewProxy(textView: textView), engine: engine, traits: textView.traitCollection)
         let screen = textView.window?.windowScene?.screen.bounds.size ?? UIScreen.main.bounds.size
-        let height = coordinator.updateEnvironment(traits: textView.traitCollection, screenSize: screen)
-        super.init(frame: CGRect(x: 0, y: 0, width: screen.width, height: height))
+        contentHeight = coordinator.updateEnvironment(traits: textView.traitCollection, screenSize: screen)
+        super.init(frame: CGRect(x: 0, y: 0, width: screen.width, height: contentHeight), inputViewStyle: .keyboard)
         autoresizingMask = [.flexibleWidth]
+        backgroundColor = .clear
+        overrideUserInterfaceStyle = KeyboardTheme.interfaceStyle(for: settings)
         coordinator.needsGlobeKey = false
         coordinator.onDismiss = { [weak textView] in textView?.resignFirstResponder() }
         var traits = FieldTraits()
@@ -44,10 +53,23 @@ final class DemoKeyboardView: UIView {
 
     /// Re-reads theme/accent/key size from settings.
     func settingsChanged() {
+        overrideUserInterfaceStyle = KeyboardTheme.interfaceStyle(for: settings)
         let screen = window?.windowScene?.screen.bounds.size ?? UIScreen.main.bounds.size
-        let h = coordinator.updateEnvironment(traits: traitCollection, screenSize: screen)
+        contentHeight = coordinator.updateEnvironment(traits: traitCollection, screenSize: screen)
+        applyHeight()
+    }
+
+    override func safeAreaInsetsDidChange() {
+        super.safeAreaInsetsDidChange()
+        applyHeight()
+    }
+
+    /// Grows the input view by the home-indicator inset when the system lets it reach the screen edge.
+    private func applyHeight() {
+        let h = contentHeight + safeAreaInsets.bottom
         if abs(h - bounds.height) > 0.5 {
             frame.size.height = h
+            invalidateIntrinsicContentSize()
             textView?.reloadInputViews()
         }
     }

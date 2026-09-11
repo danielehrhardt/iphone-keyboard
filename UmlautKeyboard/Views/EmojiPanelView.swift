@@ -16,6 +16,7 @@ final class EmojiPanelView: UIView, UICollectionViewDataSource, UICollectionView
     private let titleLabel = UILabel()
     private var categoryButtons: [UIButton] = []
     private var sections: [EmojiData.Category] = []
+    private var selectedCategory = 0
     private let defaults = UserDefaults(suiteName: KeyboardSettings.appGroup) ?? .standard
     private static let recentsKey = "recentEmoji"
 
@@ -83,27 +84,66 @@ final class EmojiPanelView: UIView, UICollectionViewDataSource, UICollectionView
 
     func apply(theme: KeyboardTheme) {
         self.theme = theme
-        backgroundColor = theme.background
-        categoryBar.arrangedSubviews.forEach { ($0 as? UIButton)?.tintColor = theme.functionKeyText.withAlphaComponent(0.8) }
+        backgroundColor = .clear
+        for b in categoryBar.arrangedSubviews {
+            guard let b = b as? UIButton else { continue }
+            b.tintColor = theme.functionKeyText.withAlphaComponent(0.8)
+            b.layer.cornerCurve = .continuous
+            b.layer.cornerRadius = 8
+        }
+        highlightCategory()
         collection.reloadData()
+    }
+
+    /// The active category gets a soft pill in the bar (first bar button is ABC, last is delete).
+    private func highlightCategory() {
+        for (i, b) in categoryButtons.enumerated() {
+            b.backgroundColor = i == selectedCategory ? theme.suggestionHighlight : .clear
+        }
     }
 
     func refreshRecents() {
         rebuildSections()
         buildCategoryBar()
-        collection.reloadData()
+        selectedCategory = 0
+        apply(theme: theme)
         collection.setContentOffset(.zero, animated: false)
+    }
+
+    override func safeAreaInsetsDidChange() {
+        super.safeAreaInsetsDidChange()
+        setNeedsLayout()
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
         let barHeight: CGFloat = 40
-        collection.frame = CGRect(x: 0, y: 0, width: bounds.width, height: bounds.height - barHeight)
-        categoryBar.frame = CGRect(x: 4, y: bounds.height - barHeight, width: bounds.width - 8, height: barHeight - 2)
+        let insets = safeAreaInsets
+        let width = max(0, bounds.width - insets.left - insets.right)
+        let contentHeight = max(0, bounds.height - insets.bottom)
+        collection.frame = CGRect(x: insets.left, y: 0, width: width, height: contentHeight - barHeight)
+        categoryBar.frame = CGRect(x: insets.left + 4, y: contentHeight - barHeight, width: width - 8, height: barHeight - 4)
         if let layout = collection.collectionViewLayout as? UICollectionViewFlowLayout {
             let columns: CGFloat = traitCollection.userInterfaceIdiom == .pad ? 12 : 8
-            let side = floor((bounds.width - 12) / columns)
+            let side = floor((width - 12) / columns)
             layout.itemSize = CGSize(width: side, height: side)
+        }
+    }
+
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        // Track which category is at the top so its bar button stays highlighted.
+        guard !sections.isEmpty else { return }
+        let y = scrollView.contentOffset.y + 1
+        var current = 0
+        for i in sections.indices {
+            let ip = IndexPath(item: 0, section: i)
+            if let attrs = collection.layoutAttributesForSupplementaryElement(ofKind: UICollectionView.elementKindSectionHeader, at: ip), attrs.frame.minY <= y {
+                current = i
+            }
+        }
+        if current != selectedCategory {
+            selectedCategory = current
+            highlightCategory()
         }
     }
 

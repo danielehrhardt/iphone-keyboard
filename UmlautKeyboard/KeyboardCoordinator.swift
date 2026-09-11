@@ -39,6 +39,11 @@ final class KeyboardCoordinator: NSObject {
         view.grid.delegate = self
         view.emojiDelegate = self
         view.suggestionBar.onSelect = { [weak self] s in self?.input.accept(s) }
+        view.suggestionBar.onDismiss = { [weak self] in
+            guard let self else { return }
+            self.feedback.keyTap()
+            self.onDismiss?()
+        }
         view.onLayout = { [weak self] in self?.rebuildGridIfNeeded() }
     }
 

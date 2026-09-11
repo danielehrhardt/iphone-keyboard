@@ -68,10 +68,16 @@ struct KeyboardPreview: View {
     private func cap(for keyFrame: KeyFrame, geometry: KeyboardGeometry, scale: CGFloat) -> some View {
         let key = keyFrame.key
         let isReturn = key.action == .newline
+        let radius = max(2, 8 * scale)
         ZStack {
-            RoundedRectangle(cornerRadius: max(2, 5 * scale), style: .continuous)
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
                 .fill(capColor(for: key, isReturn: isReturn))
-                .shadow(color: .black.opacity(isDark ? 0.4 : 0.25), radius: 0, x: 0, y: max(0.5, scale))
+                .overlay(
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .strokeBorder(Color.white.opacity(isDark ? 0.16 : 0.7), lineWidth: max(0.5, scale * 0.8))
+                        .mask(LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: .center))
+                )
+                .shadow(color: .black.opacity(isDark ? 0.42 : 0.28), radius: max(0.3, scale * 0.6), x: 0, y: max(0.5, scale))
             label(for: key, rowHeight: geometry.rowHeight)
                 .foregroundStyle(isReturn ? Color.white : (isDark ? Color.white : Color.black))
         }
@@ -94,12 +100,15 @@ struct KeyboardPreview: View {
 
     private func capColor(for key: Key, isReturn: Bool) -> Color {
         if isReturn { return accentColor }
-        if key.isFunction { return isDark ? Color(white: 0.27) : Color(red: 0.68, green: 0.70, blue: 0.73) }
-        return isDark ? Color(white: 0.42) : .white
+        if key.isFunction { return isDark ? Color.white.opacity(0.13) : Color(red: 0.56, green: 0.60, blue: 0.66).opacity(0.42) }
+        return isDark ? Color.white.opacity(0.30) : Color.white.opacity(0.94)
     }
 
-    private var backgroundColor: Color {
-        isDark ? Color(red: 0.11, green: 0.11, blue: 0.12) : Color(red: 0.82, green: 0.83, blue: 0.85)
+    /// Stands in for the translucent system material the real keyboard sits on.
+    private var backgroundColor: some ShapeStyle {
+        isDark
+            ? LinearGradient(colors: [Color(red: 0.15, green: 0.15, blue: 0.17), Color(red: 0.10, green: 0.10, blue: 0.12)], startPoint: .top, endPoint: .bottom)
+            : LinearGradient(colors: [Color(red: 0.86, green: 0.87, blue: 0.90), Color(red: 0.80, green: 0.82, blue: 0.86)], startPoint: .top, endPoint: .bottom)
     }
 
     // MARK: Swipe trail

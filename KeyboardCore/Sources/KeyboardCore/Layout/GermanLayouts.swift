@@ -98,7 +98,7 @@ public enum GermanLayouts {
         case .phonePad: bottomLeft = Key(id: "plus", action: .character("+"), label: "+ * #", alternates: ["*", "#", ";", ","], width: 1)
         default: bottomLeft = needsGlobeKey
             ? Key(id: "globe", action: .globe, label: "🌐", width: 1, isFunction: true, symbolName: "globe")
-            : Key(id: "pad-blank", action: .dismiss, label: "", width: 1, isFunction: true)
+            : Key(id: "pad-dismiss", action: .dismiss, label: "", width: 1, isFunction: true, symbolName: "keyboard.chevron.compact.down")
         }
         let rows = [
             KeyRow([d("1"), d("2"), d("3")]),

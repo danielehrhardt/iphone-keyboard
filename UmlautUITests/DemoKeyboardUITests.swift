@@ -18,13 +18,26 @@ final class DemoKeyboardUITests: XCTestCase {
         try? png.write(to: Self.outDir.appendingPathComponent("\(name).png"))
     }
 
-    /// Screen-point coordinate of a key on the demo keyboard (keyboard is bottom-aligned).
+    /// Screen-point coordinate of a key on the demo keyboard. `keyboardFrame` is the key grid's
+    /// frame on screen (see `gridFrame`), so the maths stays right whether or not the keyboard
+    /// grows by the home-indicator safe area.
     func keyPoint(_ label: String, layout: KeyboardLayout, keyboardFrame: CGRect, suggestionHeight: CGFloat) -> XCUICoordinate {
         let gridSize = CGSize(width: keyboardFrame.width, height: keyboardFrame.height - suggestionHeight)
         let g = KeyboardGeometry(layout: layout, size: gridSize, metrics: .phonePortrait)
         let kf = g.keyFrames.first { $0.key.label == label || $0.key.id == label }!
         let p = CGPoint(x: keyboardFrame.minX + kf.center.x, y: keyboardFrame.minY + suggestionHeight + kf.center.y)
         return app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: p.x, dy: p.y))
+    }
+
+    /// Suggestion bar + key grid frame on screen, derived from where the real "q" key cap is.
+    func gridFrame(layout: KeyboardLayout, heights: (keys: CGFloat, suggestions: CGFloat)) -> CGRect {
+        let q = app.descendants(matching: .any)["key-q"]
+        XCTAssertTrue(q.waitForExistence(timeout: 5), "demo keyboard not showing")
+        let width = app.frame.width
+        let g = KeyboardGeometry(layout: layout, size: CGSize(width: width, height: heights.keys), metrics: .phonePortrait)
+        let qf = g.keyFrame(for: g.keyFrames.first { $0.key.id == "q" }!.key)!.frame
+        let originY = q.frame.midY - qf.midY - heights.suggestions
+        return CGRect(x: 0, y: originY, width: width, height: heights.keys + heights.suggestions)
     }
 
     func testTypeCorrectAndSwipe() throws {
@@ -35,13 +48,11 @@ final class DemoKeyboardUITests: XCTestCase {
         sleep(2)   // engine load + keyboard animation
         shot("01-keyboard")
 
-        // The demo keyboard is the input view: bottom of the screen, height from KeyboardMetrics.
-        let screen = app.frame
-        // Mirrors KeyboardMetrics for a tall phone in portrait (216 pt keys + 44 pt suggestion strip).
+        // Mirrors KeyboardMetrics for a tall phone in portrait (216 pt keys + 44 pt suggestion strip);
+        // the grid's position comes from the live "q" key so the safe-area strip below doesn't matter.
         let heights = (keys: CGFloat(216), suggestions: CGFloat(44))
-        let total = heights.keys + heights.suggestions
-        let kb = CGRect(x: 0, y: screen.height - total, width: screen.width, height: total)
         let letters = GermanLayouts.letters(options: LayoutOptions(needsGlobeKey: false, showsEmojiKey: true, isEmailOrURL: false))
+        let kb = gridFrame(layout: letters, heights: heights)
 
         func tap(_ k: String) { keyPoint(k, layout: letters, keyboardFrame: kb, suggestionHeight: heights.suggestions).tap() }
 
@@ -78,5 +89,31 @@ final class DemoKeyboardUITests: XCTestCase {
         tap("emoji")
         sleep(1)
         shot("07-emoji")
+    }
+
+    /// The keyboard can be closed from its own dismiss button and by tapping outside the editor.
+    func testDismissKeyboard() throws {
+        app.tabBars.buttons["Ausprobieren"].tap()
+        let textView = app.textViews.firstMatch
+        XCTAssertTrue(textView.waitForExistence(timeout: 5))
+
+        let dismiss = app.buttons["dismiss-keyboard"]
+        textView.tap()
+        XCTAssertTrue(dismiss.waitForExistence(timeout: 5), "dismiss button should be in the suggestion bar")
+        shot("08-dismiss-button")
+        dismiss.tap()
+        XCTAssertTrue(waitUntilGone(dismiss), "keyboard should hide after tapping the dismiss button")
+        shot("09-dismissed-by-button")
+
+        textView.tap()
+        XCTAssertTrue(dismiss.waitForExistence(timeout: 5))
+        app.staticTexts["Wischen"].tap()   // a tip card, outside the editor
+        XCTAssertTrue(waitUntilGone(dismiss), "keyboard should hide after tapping outside the editor")
+        shot("10-dismissed-by-tap-outside")
+    }
+
+    private func waitUntilGone(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        let gone = NSPredicate(format: "exists == false")
+        return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: gone, object: element)], timeout: timeout) == .completed
     }
 }

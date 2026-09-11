@@ -31,6 +31,10 @@ final class KeyboardViewController: UIInputViewController {
         }
         coordinator.onDismiss = { [weak self] in self?.dismissKeyboard() }
 
+        // Transparent: the system draws its keyboard material (Liquid Glass on iOS 26) behind us,
+        // and follows the forced light/dark theme via the interface-style override.
+        view.backgroundColor = .clear
+        view.overrideUserInterfaceStyle = KeyboardTheme.interfaceStyle(for: settings)
         let kv = coordinator.view
         kv.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(kv)
@@ -54,6 +58,7 @@ final class KeyboardViewController: UIInputViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        view.overrideUserInterfaceStyle = KeyboardTheme.interfaceStyle(for: settings)
         coordinator.willAppear()
         coordinator.needsGlobeKey = needsInputModeSwitchKey
         coordinator.setFieldTraits(FieldTraits(proxy: textDocumentProxy))
@@ -79,6 +84,13 @@ final class KeyboardViewController: UIInputViewController {
         if previous?.userInterfaceStyle != traitCollection.userInterfaceStyle {
             updateHeight()
         }
+    }
+
+    /// The home indicator strip (and the notch in landscape) only become known once the view is
+    /// in the keyboard window; grow the keyboard so the keys sit above it like the system keyboard.
+    override func viewSafeAreaInsetsDidChange() {
+        super.viewSafeAreaInsetsDidChange()
+        updateHeight()
     }
 
     override func textDidChange(_ textInput: UITextInput?) {
@@ -141,7 +153,7 @@ final class KeyboardViewController: UIInputViewController {
         } else {
             screen = current
         }
-        let total = coordinator.updateEnvironment(traits: traitCollection, screenSize: screen)
+        let total = coordinator.updateEnvironment(traits: traitCollection, screenSize: screen) + view.safeAreaInsets.bottom
         if let c = heightConstraint {
             c.constant = total
         } else {

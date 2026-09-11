@@ -66,6 +66,7 @@ final class KeyGridView: UIView {
 
     private var touches: [UITouch: TouchState] = [:]
     private var lastShiftTap: CFTimeInterval = 0
+    private(set) var isTrackpadMode = false
     private static let topRowDigits: [String: String] = [
         "q": "1", "w": "2", "e": "3", "r": "4", "t": "5", "z": "6", "u": "7", "i": "8", "o": "9", "p": "0",
     ]
@@ -102,6 +103,7 @@ final class KeyGridView: UIView {
             for kf in geometry.keyFrames {
                 let v = KeyView(key: kf.key, theme: theme)
                 v.shiftState = shiftState
+                if isTrackpadMode, kf.key.id != "space" { v.setContentHidden(true, animated: false) }
                 if kf.key.id == "return" { v.returnLabel = returnLabel; v.isAccented = isReturnAccented }
                 insertSubview(v, belowSubview: popup)
                 keyViews[kf.key.id] = v
@@ -115,7 +117,7 @@ final class KeyGridView: UIView {
             v?.hint = (delegate?.longPressNumbersEnabled ?? true) && layout.layer == .letters ? Self.topRowDigits[kf.key.label] : nil
         }
         trail.frame = bounds
-        popup.frame = bounds
+        layoutPopup()
         // Keep the trail above keys, popup on top.
         layer.insertSublayer(trail, below: popup.layer)
     }
@@ -130,6 +132,14 @@ final class KeyGridView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         trail.frame = bounds
+        layoutPopup()
+    }
+
+    /// The popup covers the grid; only touch its frame when the size changed, and never while it
+    /// is mid-animation with a transform (frame is undefined then).
+    private func layoutPopup() {
+        guard popup.bounds.size != bounds.size else { return }
+        popup.transform = .identity
         popup.frame = bounds
     }
 
@@ -143,6 +153,16 @@ final class KeyGridView: UIView {
         touches.removeAll()
         popup.hide()
         trail.end()
+        setTrackpadMode(false)
+    }
+
+    /// While the space bar drives the cursor the caps go blank, so it reads as a trackpad.
+    private func setTrackpadMode(_ on: Bool) {
+        guard on != isTrackpadMode else { return }
+        isTrackpadMode = on
+        for (id, v) in keyViews where id != "space" {
+            v.setContentHidden(on, animated: true)
+        }
     }
 
     // MARK: Touch handling
@@ -221,6 +241,7 @@ final class KeyGridView: UIView {
                         state.mode = .spaceCursor
                         state.cursorAnchorX = p.x
                         state.invalidate()
+                        setTrackpadMode(true)
                         feedback.selectionTick()
                     }
                 } else if key.isLetter, (delegate?.swipeTypingEnabled ?? true), dist > threshold {
@@ -293,6 +314,7 @@ final class KeyGridView: UIView {
         }
         popup.hide()
         trail.end()
+        setTrackpadMode(false)
     }
 
     // MARK: Gesture completion
@@ -338,6 +360,7 @@ final class KeyGridView: UIView {
                 let steps = Int((point.x - state.cursorAnchorX) / step)
                 if steps != 0 { delegate?.keyGrid(self, moveCursorBy: steps) }
             }
+            setTrackpadMode(false)
         case .backspaceHold, .globe:
             break
         case .shiftSlide:
@@ -393,6 +416,7 @@ final class KeyGridView: UIView {
                 // Holding space arms cursor movement; the following drag moves the caret.
                 state.mode = .spaceCursor
                 state.cursorAnchorX = state.points.last?.x ?? state.startPoint.x
+                setTrackpadMode(true)
                 feedback.selectionTick()
             }
             return

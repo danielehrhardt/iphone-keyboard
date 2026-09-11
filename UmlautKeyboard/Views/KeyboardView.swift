@@ -2,6 +2,9 @@ import UIKit
 import KeyboardCore
 
 /// Root view of the extension: suggestion strip on top, key grid below, emoji panel as an overlay.
+///
+/// The view is transparent so the system's keyboard material shows through, and it respects the
+/// safe area: keys stay above the home indicator and clear of the notch in landscape.
 final class KeyboardView: UIView {
     let suggestionBar: SuggestionBarView
     let grid: KeyGridView
@@ -34,7 +37,7 @@ final class KeyboardView: UIView {
         grid = KeyGridView(theme: theme, feedback: feedback)
         super.init(frame: .zero)
         clipsToBounds = false
-        backgroundColor = theme.background
+        backgroundColor = .clear
         addSubview(suggestionBar)
         addSubview(grid)
     }
@@ -43,16 +46,24 @@ final class KeyboardView: UIView {
 
     func apply(theme: KeyboardTheme) {
         self.theme = theme
-        backgroundColor = theme.background
         suggestionBar.apply(theme: theme)
         grid.apply(theme: theme)
         emojiPanel?.apply(theme: theme)
     }
 
+    override func safeAreaInsetsDidChange() {
+        super.safeAreaInsetsDidChange()
+        setNeedsLayout()
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
-        suggestionBar.frame = CGRect(x: 0, y: 0, width: bounds.width, height: suggestionHeight)
-        grid.frame = CGRect(x: 0, y: suggestionHeight, width: bounds.width, height: bounds.height - suggestionHeight)
+        let insets = safeAreaInsets
+        let x = insets.left
+        let width = max(0, bounds.width - insets.left - insets.right)
+        let gridHeight = max(0, bounds.height - suggestionHeight - insets.bottom)
+        suggestionBar.frame = CGRect(x: x, y: 0, width: width, height: suggestionHeight)
+        grid.frame = CGRect(x: x, y: suggestionHeight, width: width, height: gridHeight)
         emojiPanel?.frame = bounds
         onLayout?()
     }

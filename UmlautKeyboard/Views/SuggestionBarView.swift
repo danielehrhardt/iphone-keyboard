@@ -8,28 +8,35 @@ struct Suggestion: Equatable {
 }
 
 /// Three suggestion cells with hairline dividers, the primary one in the middle and bold.
+/// Cells highlight as soft pills and new suggestions fade in instead of snapping. A small
+/// "hide keyboard" button sits at the trailing edge (iPhone has no system dismiss key).
 final class SuggestionBarView: UIView {
     var onSelect: ((Suggestion) -> Void)?
+    var onDismiss: (() -> Void)?
     private var buttons: [UIButton] = []
     private var dividers: [UIView] = []
+    private let dismissButton = UIButton(type: .system)
+    private static let dismissWidth: CGFloat = 46
+    private static let dismissInset: CGFloat = 6
     private(set) var suggestions: [Suggestion] = []
     private var theme: KeyboardTheme
 
     init(theme: KeyboardTheme) {
         self.theme = theme
         super.init(frame: .zero)
+        backgroundColor = .clear
         for i in 0..<3 {
             let b = UIButton(type: .custom)
             b.tag = i
             b.titleLabel?.lineBreakMode = .byTruncatingTail
             b.titleLabel?.adjustsFontSizeToFitWidth = true
             b.titleLabel?.minimumScaleFactor = 0.7
-            b.contentEdgeInsets = UIEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
+            b.contentEdgeInsets = UIEdgeInsets(top: 0, left: 10, bottom: 0, right: 10)
             b.addTarget(self, action: #selector(tapped(_:)), for: .touchUpInside)
             b.addTarget(self, action: #selector(highlight(_:)), for: [.touchDown, .touchDragEnter])
             b.addTarget(self, action: #selector(unhighlight(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel, .touchDragExit])
-            b.layer.cornerRadius = 6
             b.layer.cornerCurve = .continuous
+            b.accessibilityIdentifier = "suggestion-\(i)"
             addSubview(b)
             buttons.append(b)
         }
@@ -38,6 +45,10 @@ final class SuggestionBarView: UIView {
             addSubview(d)
             dividers.append(d)
         }
+        dismissButton.accessibilityLabel = "Tastatur ausblenden"
+        dismissButton.accessibilityIdentifier = "dismiss-keyboard"
+        dismissButton.addTarget(self, action: #selector(dismissTapped), for: .touchUpInside)
+        addSubview(dismissButton)
         apply(theme: theme)
     }
 
@@ -46,13 +57,41 @@ final class SuggestionBarView: UIView {
     func apply(theme: KeyboardTheme) {
         self.theme = theme
         dividers.forEach { $0.backgroundColor = theme.suggestionDivider }
+        configureDismissButton()
         render()
+    }
+
+    /// Liquid-glass capsule on iOS 26, a flat translucent capsule before that.
+    private func configureDismissButton() {
+        let image = UIImage(systemName: "keyboard.chevron.compact.down",
+                            withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .medium))
+        var config: UIButton.Configuration
+        if #available(iOS 26.0, *) {
+            config = .glass()
+        } else {
+            config = .plain()
+            config.background.backgroundColor = theme.suggestionHighlight
+        }
+        config.cornerStyle = .capsule
+        config.image = image
+        config.baseForegroundColor = theme.suggestionText
+        config.contentInsets = .zero
+        dismissButton.configuration = config
+        dismissButton.tintColor = theme.suggestionText
     }
 
     func set(_ new: [Suggestion]) {
         guard new != suggestions else { return }
+        let hadContent = !suggestions.isEmpty
         suggestions = new
         render()
+        // A soft fade when the strip fills after being empty (e.g. first letter of a word).
+        if !hadContent, !new.isEmpty {
+            buttons.forEach { $0.titleLabel?.alpha = 0 }
+            UIView.animate(withDuration: 0.16, delay: 0, options: [.allowUserInteraction, .curveEaseOut]) {
+                self.buttons.forEach { $0.titleLabel?.alpha = 1 }
+            }
+        }
     }
 
     private func render() {
@@ -73,13 +112,19 @@ final class SuggestionBarView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let w = bounds.width / 3
-        let inset: CGFloat = 4
+        let reserved = Self.dismissWidth + Self.dismissInset * 2
+        let w = max(bounds.width - reserved, 0) / 3
+        let inset: CGFloat = 6
+        let h = bounds.height - 12
+        dismissButton.frame = CGRect(x: bounds.width - Self.dismissInset - Self.dismissWidth,
+                                     y: (bounds.height - min(h, 32)) / 2,
+                                     width: Self.dismissWidth, height: min(h, 32))
         for (i, b) in buttons.enumerated() {
-            b.frame = CGRect(x: CGFloat(i) * w + inset, y: 4, width: w - inset * 2, height: bounds.height - 8)
+            b.frame = CGRect(x: CGFloat(i) * w + inset, y: 6, width: w - inset * 2, height: h)
+            b.layer.cornerRadius = min(h / 2, 12)
         }
         for (i, d) in dividers.enumerated() {
-            d.frame = CGRect(x: w * CGFloat(i + 1) - 0.5, y: bounds.height * 0.25, width: 1, height: bounds.height * 0.5)
+            d.frame = CGRect(x: w * CGFloat(i + 1) - 0.5, y: bounds.height * 0.3, width: 1, height: bounds.height * 0.4)
         }
     }
 
@@ -88,6 +133,15 @@ final class SuggestionBarView: UIView {
         onSelect?(suggestions[sender.tag])
     }
 
-    @objc private func highlight(_ sender: UIButton) { sender.backgroundColor = theme.suggestionHighlight }
-    @objc private func unhighlight(_ sender: UIButton) { sender.backgroundColor = .clear }
+    @objc private func dismissTapped() { onDismiss?() }
+
+    @objc private func highlight(_ sender: UIButton) {
+        sender.backgroundColor = theme.suggestionHighlight
+    }
+
+    @objc private func unhighlight(_ sender: UIButton) {
+        UIView.animate(withDuration: 0.18, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]) {
+            sender.backgroundColor = .clear
+        }
+    }
 }

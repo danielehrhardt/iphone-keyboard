@@ -1,11 +1,13 @@
 import UIKit
 
 /// A comet-like trail that follows the finger during glide typing: recent points are drawn
-/// wide and opaque, older ones thin and faded, then the whole thing dissolves on release.
+/// wide and opaque, older ones thin and faded, with a soft glow underneath; the whole thing
+/// dissolves on release.
 final class SwipeTrailLayer: CALayer {
     private struct Sample { let point: CGPoint; let time: CFTimeInterval }
     private var samples: [Sample] = []
     private var segments: [CAShapeLayer] = []
+    private var glows: [CAShapeLayer] = []
     var color: UIColor = .systemBlue
     var maxAge: CFTimeInterval = 0.45
     var maxWidth: CGFloat = 9
@@ -45,8 +47,16 @@ final class SwipeTrailLayer: CALayer {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         let now = CACurrentMediaTime()
-        // Draw in ~12 chunks with decreasing width/alpha.
+        // Draw in ~12 chunks with decreasing width/alpha; a wider, fainter copy underneath glows.
         let chunkCount = 12
+        while glows.count < chunkCount {
+            let g = CAShapeLayer()
+            g.fillColor = nil
+            g.lineCap = .round
+            g.lineJoin = .round
+            addSublayer(g)
+            glows.append(g)
+        }
         while segments.count < chunkCount {
             let s = CAShapeLayer()
             s.fillColor = nil
@@ -58,6 +68,7 @@ final class SwipeTrailLayer: CALayer {
         let n = samples.count
         guard n >= 2 else {
             segments.forEach { $0.path = nil }
+            glows.forEach { $0.path = nil }
             CATransaction.commit()
             return
         }
@@ -71,14 +82,19 @@ final class SwipeTrailLayer: CALayer {
             for i in (start + 1)...end { path.addLine(to: samples[i].point) }
             let age = now - samples[end].time
             let life = CGFloat(max(0, 1 - age / maxAge))
+            let width = max(1.5, maxWidth * (0.35 + 0.65 * life))
             let layer = segments[chunk]
             layer.path = path.cgPath
-            layer.lineWidth = max(1.5, maxWidth * (0.35 + 0.65 * life))
+            layer.lineWidth = width
             layer.strokeColor = color.withAlphaComponent(0.25 + 0.75 * life).cgColor
+            let glow = glows[chunk]
+            glow.path = path.cgPath
+            glow.lineWidth = width * 2.4
+            glow.strokeColor = color.withAlphaComponent(0.05 + 0.17 * life).cgColor
             chunk += 1
             start = end
         }
-        while chunk < chunkCount { segments[chunk].path = nil; chunk += 1 }
+        while chunk < chunkCount { segments[chunk].path = nil; glows[chunk].path = nil; chunk += 1 }
         CATransaction.commit()
     }
 }

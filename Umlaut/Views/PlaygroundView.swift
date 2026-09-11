@@ -33,7 +33,11 @@ struct PlaygroundView: View {
                 }
             }
             .padding(20)
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+            .onTapGesture { endEditing() }   // tapping outside the editor closes the keyboard
         }
+        .scrollDismissesKeyboard(.interactively)
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Ausprobieren")
         .toolbar {
@@ -111,6 +115,10 @@ struct PlaygroundView: View {
         h.combine(settings.theme); h.combine(settings.accent); h.combine(settings.keySize)
         h.combine(settings.swipeTrail); h.combine(settings.keyPreview); h.combine(settings.longPressNumbers)
         return h.finalize()
+    }
+
+    private func endEditing() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
     private var wordCount: Int {
