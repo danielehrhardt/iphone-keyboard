@@ -1,0 +1,154 @@
+import UIKit
+import os.log
+import KeyboardCore
+
+private let log = Logger(subsystem: "de.codext.umlaut.keyboard", category: "engine")
+
+/// Entry point of the extension: hosts a `KeyboardCoordinator` bound to the document proxy and
+/// keeps the keyboard height right for the current device and orientation.
+final class KeyboardViewController: UIInputViewController {
+
+    /// The engine survives across text fields while the extension process is alive.
+    private static var sharedEngine: KeyboardEngine?
+    private static var engineLoading = false
+    private static var engineWaiters: [(KeyboardEngine) -> Void] = []
+
+    private let settings = KeyboardSettings.shared
+    private var coordinator: KeyboardCoordinator!
+    private var heightConstraint: NSLayoutConstraint?
+
+    // MARK: Lifecycle
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        log.notice("keyboard view loading, footprint \(Self.footprintMB, format: .fixed(precision: 1)) MB")
+        let proxy = DocumentProxyAdapter(proxy: { [unowned self] in self.textDocumentProxy })
+        coordinator = KeyboardCoordinator(settings: settings, proxy: proxy, engine: Self.sharedEngine, traits: traitCollection)
+        coordinator.onGlobe = { [weak self] in self?.advanceToNextInputMode() }
+        coordinator.onGlobeEvent = { [weak self] from, event in
+            guard let self else { return }
+            if let event { self.handleInputModeList(from: from, with: event) }
+        }
+        coordinator.onDismiss = { [weak self] in self?.dismissKeyboard() }
+
+        let kv = coordinator.view
+        kv.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(kv)
+        NSLayoutConstraint.activate([
+            kv.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            kv.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            kv.topAnchor.constraint(equalTo: view.topAnchor),
+            kv.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+        (inputView as? UIInputView)?.allowsSelfSizing = true
+
+        Self.loadEngine { [weak self] engine in
+            self?.coordinator.engine = engine
+            for delay in [3.0, 8.0] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    log.notice("footprint \(Int(delay))s after engine load \(Self.footprintMB, format: .fixed(precision: 1)) MB")
+                }
+            }
+        }
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        coordinator.willAppear()
+        coordinator.needsGlobeKey = needsInputModeSwitchKey
+        coordinator.setFieldTraits(FieldTraits(proxy: textDocumentProxy))
+        updateHeight()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // Only reliable once the view is in the hierarchy.
+        coordinator.needsGlobeKey = needsInputModeSwitchKey
+    }
+
+    override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
+        super.viewWillTransition(to: size, with: coordinator)
+        self.coordinator.cancelTouches()
+        coordinator.animate(alongsideTransition: { _ in
+            self.updateHeight(for: size)
+        })
+    }
+
+    override func traitCollectionDidChange(_ previous: UITraitCollection?) {
+        super.traitCollectionDidChange(previous)
+        if previous?.userInterfaceStyle != traitCollection.userInterfaceStyle {
+            updateHeight()
+        }
+    }
+
+    override func textDidChange(_ textInput: UITextInput?) {
+        coordinator.needsGlobeKey = needsInputModeSwitchKey
+        coordinator.setFieldTraits(FieldTraits(proxy: textDocumentProxy))
+        coordinator.input.textDidChangeExternally()
+    }
+
+    // MARK: Engine
+
+    private static func loadEngine(_ completion: @escaping (KeyboardEngine) -> Void) {
+        if let e = sharedEngine { completion(e); return }
+        engineWaiters.append(completion)
+        guard !engineLoading else { return }
+        engineLoading = true
+        DispatchQueue.global(qos: .userInitiated).async {
+            let start = CFAbsoluteTimeGetCurrent()
+            let engine: KeyboardEngine?
+            do {
+                engine = try KeyboardEngine()
+                log.notice("engine loaded in \(CFAbsoluteTimeGetCurrent() - start, format: .fixed(precision: 3))s, \(engine?.lexicon.count ?? 0) words, footprint \(Self.footprintMB, format: .fixed(precision: 1)) MB")
+            } catch {
+                engine = nil
+                log.error("engine failed to load: \(String(describing: error))")
+            }
+            DispatchQueue.main.async {
+                engineLoading = false
+                guard let engine else { engineWaiters.removeAll(); return }
+                sharedEngine = engine
+                let waiters = engineWaiters
+                engineWaiters.removeAll()
+                waiters.forEach { $0(engine) }
+            }
+        }
+    }
+
+    /// Physical memory footprint of this process in MB (keyboard extensions are killed around 60–70 MB).
+    private static var footprintMB: Double {
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
+        let result = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count) }
+        }
+        return result == KERN_SUCCESS ? Double(info.phys_footprint) / 1_048_576 : -1
+    }
+
+    // MARK: Height
+
+    private var screenSize: CGSize {
+        view.window?.windowScene?.screen.bounds.size ?? UIScreen.main.bounds.size
+    }
+
+    private func updateHeight(for size: CGSize? = nil) {
+        // During rotation `size` is the new keyboard width; derive the matching screen orientation.
+        let current = screenSize
+        let longSide = max(current.width, current.height), shortSide = min(current.width, current.height)
+        let screen: CGSize
+        if let size {
+            screen = size.width > shortSide ? CGSize(width: longSide, height: shortSide) : CGSize(width: shortSide, height: longSide)
+        } else {
+            screen = current
+        }
+        let total = coordinator.updateEnvironment(traits: traitCollection, screenSize: screen)
+        if let c = heightConstraint {
+            c.constant = total
+        } else {
+            let c = view.heightAnchor.constraint(equalToConstant: total)
+            c.priority = UILayoutPriority(999)
+            c.isActive = true
+            heightConstraint = c
+        }
+    }
+}
