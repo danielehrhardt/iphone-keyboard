@@ -70,20 +70,28 @@ public struct KeyboardGeometry: Hashable, Sendable {
             let hasSpace = row.keys.contains { $0.action == .space }
             let spaceWidth = hasSpace ? max(unit, usableWidth - fixedTotal - insets) : 0
             let rowWidth = fixedTotal + spaceWidth + insets
-            var x = metrics.sideInset + (usableWidth - rowWidth) / 2 + row.leadingInset * (unit + horizontalGap)
+            // Rows framed by function keys fill the width, the slack sitting next to those keys.
+            let flankGap = row.expandsFlankGaps && !hasSpace && row.keys.count > 2
+                ? max(0, usableWidth - rowWidth) / 2 : 0
+            var x = metrics.sideInset + (usableWidth - rowWidth - flankGap * 2) / 2 + row.leadingInset * (unit + horizontalGap)
 
+            var caps: [CGRect] = []
             for (i, key) in row.keys.enumerated() {
+                if i == 1 || i == row.keys.count - 1 { x += flankGap }
                 let w = key.action == .space ? spaceWidth : fixedWidths[i]
-                let frame = CGRect(x: x, y: y, width: w, height: rh)
-                let isFirst = i == 0, isLast = i == row.keys.count - 1
-                let hit = CGRect(
-                    x: isFirst ? 0 : frame.minX - horizontalGap / 2,
-                    y: frame.minY - verticalGap / 2,
-                    width: (isFirst ? frame.maxX : frame.width + horizontalGap / 2) + (isLast ? size.width - frame.maxX : horizontalGap / 2),
-                    height: rh + verticalGap
-                ).integral
-                frames.append(KeyFrame(key: key, frame: frame, hitFrame: hit))
+                caps.append(CGRect(x: x, y: y, width: w, height: rh))
                 x += w + horizontalGap
+            }
+
+            // Gaps are split between neighbours, so no touch inside the row falls between keys.
+            for (i, key) in row.keys.enumerated() {
+                let frame = caps[i]
+                let isFirst = i == 0, isLast = i == row.keys.count - 1
+                let left = isFirst ? 0 : (caps[i - 1].maxX + frame.minX) / 2
+                let right = isLast ? size.width : (frame.maxX + caps[i + 1].minX) / 2
+                let hit = CGRect(x: left, y: frame.minY - verticalGap / 2,
+                                 width: right - left, height: rh + verticalGap).integral
+                frames.append(KeyFrame(key: key, frame: frame, hitFrame: hit))
             }
         }
         keyFrames = frames

@@ -87,7 +87,8 @@ final class KeyboardCoordinator: NSObject {
 
     private func refreshLayoutOptions() {
         layoutOptions = LayoutOptions(needsGlobeKey: needsGlobeKey, showsEmojiKey: true,
-                                      isEmailOrURL: input.traits.isEmailOrURL, showsCommaKey: settings.commaKey)
+                                      isEmailOrURL: input.traits.isEmailOrURL, showsCommaKey: settings.commaKey,
+                                      emojiOnCommaKey: settings.emojiOnCommaKey)
         view.setNeedsLayout()
     }
 
@@ -122,7 +123,12 @@ extension KeyboardCoordinator: InputControllerDelegate {
     }
 
     func inputControllerRequestsGlobe(_ c: InputController) { onGlobe?() }
-    func inputControllerRequestsEmoji(_ c: InputController) { view.isEmojiVisible = true }
+    func inputControllerRequestsEmoji(_ c: InputController) {
+        // Reached from a hold on the comma key with the finger still down: the grid is about to be
+        // hidden, so end its touches here rather than waiting for a lift it may never see.
+        view.grid.cancelAllTouches()
+        view.isEmojiVisible = true
+    }
     func inputControllerRequestsDismiss(_ c: InputController) { onDismiss?() }
 }
 
@@ -140,9 +146,10 @@ extension KeyboardCoordinator: KeyGridDelegate {
         let fallback = path.last.flatMap { grid.geometry?.keyFrame(at: $0)?.key }
         input.handleSwipe(path: path, keyMap: keyMap, fallbackKey: fallback)
     }
-    /// Keys without alternates (space, return …) have no long-press action; the touch stays pending
-    /// and commits as a normal tap on release.
-    func keyGrid(_ grid: KeyGridView, didLongPress key: Key) {}
+    /// Keys with a `longPressAction` (emoji on the comma key) perform it here and swallow the tap.
+    /// Other keys without alternates (space, return …) do nothing; the touch stays pending and
+    /// commits as a normal tap on release.
+    func keyGrid(_ grid: KeyGridView, didLongPress key: Key) { input.handleLongPress(key: key) }
     func keyGrid(_ grid: KeyGridView, globeTouchEvent event: UIEvent?) { onGlobeEvent?(grid, event) }
     func keyGridBackspaceRepeat(_ grid: KeyGridView, wordwise: Bool) { input.backspaceRepeat(wordwise: wordwise) }
     func keyGrid(_ grid: KeyGridView, moveCursorBy offset: Int) { input.moveCursor(by: offset) }

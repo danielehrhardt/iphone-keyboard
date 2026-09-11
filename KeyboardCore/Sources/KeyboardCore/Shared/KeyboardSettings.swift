@@ -74,7 +74,7 @@ public final class KeyboardSettings: @unchecked Sendable {
             Keys.predictions: true, Keys.doubleSpacePeriod: true, Keys.keyPreview: true,
             Keys.haptics: true, Keys.sound: true, Keys.swipeTrail: true, Keys.learnWords: true,
             Keys.theme: Theme.system.rawValue, Keys.accent: Accent.blue.rawValue, Keys.keySize: KeySize.regular.rawValue,
-            Keys.longPressNumbers: true, Keys.commaKey: true, Keys.smartHitTargets: true, Keys.justinMode: false, Keys.onboardingDone: false,
+            Keys.longPressNumbers: true, Keys.commaKey: true, Keys.emojiOnCommaKey: true, Keys.smartHitTargets: true, Keys.justinMode: false, Keys.onboardingDone: false,
         ])
     }
 
@@ -94,6 +94,7 @@ public final class KeyboardSettings: @unchecked Sendable {
         static let keySize = "keySize"
         static let longPressNumbers = "longPressNumbers"
         static let commaKey = "commaKey"
+        static let emojiOnCommaKey = "emojiOnCommaKey"
         static let smartHitTargets = "smartHitTargets"
         static let justinMode = "justinMode"
         static let onboardingDone = "onboardingDone"
@@ -112,6 +113,9 @@ public final class KeyboardSettings: @unchecked Sendable {
     public var longPressNumbers: Bool { get { defaults.bool(forKey: Keys.longPressNumbers) } set { defaults.set(newValue, forKey: Keys.longPressNumbers) } }
     /// Shows a comma key left of the space bar.
     public var commaKey: Bool { get { defaults.bool(forKey: Keys.commaKey) } set { defaults.set(newValue, forKey: Keys.commaKey) } }
+    /// One key for both: tapping the comma key types ",", holding it opens the emoji picker.
+    /// Off shows a separate emoji key instead (where the bottom row has room for one).
+    public var emojiOnCommaKey: Bool { get { defaults.bool(forKey: Keys.emojiOnCommaKey) } set { defaults.set(newValue, forKey: Keys.emojiOnCommaKey) } }
     /// Letter keys grow their touch area towards likely next letters (like the system keyboard).
     public var smartHitTargets: Bool { get { defaults.bool(forKey: Keys.smartHitTargets) } set { defaults.set(newValue, forKey: Keys.smartHitTargets) } }
     /// Every typed or swiped word is replaced by „Justin“.

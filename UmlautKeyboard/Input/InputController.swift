@@ -221,8 +221,16 @@ final class InputController {
 
     // MARK: Key events
 
-    func handle(key: Key) {
-        switch key.action {
+    func handle(key: Key) { perform(key.action, from: key) }
+
+    /// Runs the key's hold action (e.g. emoji on the comma key); keys without one are ignored.
+    func handleLongPress(key: Key) {
+        guard let action = key.longPressAction else { return }
+        perform(action, from: key)
+    }
+
+    private func perform(_ action: KeyAction, from key: Key) {
+        switch action {
         case .character(let text):
             insertCharacter(text, fromKey: key)
         case .space:

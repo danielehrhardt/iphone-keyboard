@@ -34,13 +34,21 @@ public enum GermanLayouts {
     public static let emoji = Key(id: "emoji", action: .emoji, label: "☺", width: 1.25, isFunction: true, symbolName: "face.smiling")
     public static let toSymbols = Key(id: "123", action: .switchLayer(.symbols), label: "123", width: 1.5, isFunction: true)
     public static let toLetters = Key(id: "ABC", action: .switchLayer(.letters), label: "ABC", width: 1.5, isFunction: true)
-    public static let toExtra = Key(id: "#+=", action: .switchLayer(.extraSymbols), label: "#+=", width: 1.5, isFunction: true)
+    public static let toExtra = Key(id: "#+=", action: .switchLayer(.extraSymbols), label: "#+=", width: symbolFunctionWidth, isFunction: true)
+    /// Punctuation row of the symbol layers: five keys framed by the layer switch and backspace,
+    /// sized so the row spans the full width like the system keyboard.
+    static let punctuationWidth: CGFloat = 1.35
+    static let symbolFunctionWidth: CGFloat = 1.25
+    static let symbolBackspace = Key(id: "backspace", action: .backspace, label: "⌫", width: symbolFunctionWidth, isFunction: true, symbolName: "delete.left")
     public static let period = Key.symbol(".", alternates: ["…", ",", "?", "!", ";", ":"])
     public static let comma = Key(id: "comma", action: .character(","), label: ",", alternates: [";", ":"], width: 1)
+    /// Comma key that doubles as the emoji key: tap types ",", holding opens the emoji picker.
+    /// Same id as `comma` so the key view (and UI tests) keep addressing it as the comma key.
+    public static let commaEmoji = Key(id: "comma", action: .character(","), label: ",", width: 1, longPressAction: .emoji)
 
     /// Letters layer. Row 3 is centred with shift/backspace on the flanks like Apple's German keyboard.
     public static func letters(options: LayoutOptions = LayoutOptions()) -> KeyboardLayout {
-        let row3 = KeyRow([shift] + letterRows[2] + [backspace], leadingInset: 0, trailingInset: 0)
+        let row3 = KeyRow([shift] + letterRows[2] + [backspace], expandsFlankGaps: true)
         return KeyboardLayout(
             layer: .letters,
             rows: [KeyRow(letterRows[0]), KeyRow(letterRows[1]), row3, bottomRow(options: options, layerSwitch: toSymbols)],
@@ -54,14 +62,16 @@ public enum GermanLayouts {
         ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"].map { Key.symbol($0, alternates: superscripts[$0] ?? []) },
         [.symbol("-", alternates: ["–", "—", "•"]), .symbol("/", alternates: ["\\"]), .symbol(":"), .symbol(";"), .symbol("("), .symbol(")"),
          .symbol("€", alternates: ["$", "£", "¥", "₩", "₽"]), .symbol("&", alternates: ["§"]), .symbol("@"), .symbol("\"", alternates: ["„", "“", "”", "«", "»"])],
-        [.symbol(".", alternates: ["…"]), .symbol(",", alternates: [";"]), .symbol("?", alternates: ["¿"]), .symbol("!", alternates: ["¡"]),
-         .symbol("'", alternates: ["‚", "‘", "’", "‹", "›", "`", "´"])],
+        [.symbol(".", id: "sym.", alternates: ["…"], width: punctuationWidth),
+         .symbol(",", id: "sym,", alternates: [";"], width: punctuationWidth),
+         .symbol("?", id: "sym?", alternates: ["¿"], width: punctuationWidth),
+         .symbol("!", id: "sym!", alternates: ["¡"], width: punctuationWidth),
+         .symbol("'", id: "sym'", alternates: ["‚", "‘", "’", "‹", "›", "`", "´"], width: punctuationWidth)],
     ]
 
     static let symbolRows2: [[Key]] = [
         [.symbol("["), .symbol("]"), .symbol("{"), .symbol("}"), .symbol("#"), .symbol("%", alternates: ["‰"]), .symbol("^"), .symbol("*"), .symbol("+"), .symbol("=", alternates: ["≠", "≈"])],
         [.symbol("_"), .symbol("\\"), .symbol("|"), .symbol("~"), .symbol("<", alternates: ["≤"]), .symbol(">", alternates: ["≥"]), .symbol("$"), .symbol("£"), .symbol("¥"), .symbol("•", alternates: ["◦", "·"])],
-        [.symbol("."), .symbol(",", alternates: [";"]), .symbol("?"), .symbol("!"), .symbol("'"), .symbol("§"), .symbol("°")],
     ]
 
     static let superscripts: [String: [String]] = [
@@ -72,7 +82,7 @@ public enum GermanLayouts {
         KeyboardLayout(
             layer: .symbols,
             rows: [KeyRow(symbolRows1[0]), KeyRow(symbolRows1[1]),
-                   KeyRow([toExtra] + symbolRows1[2] + [backspace]),
+                   KeyRow([toExtra] + symbolRows1[2] + [symbolBackspace], expandsFlankGaps: true),
                    bottomRow(options: options, layerSwitch: toLetters)],
             columns: 10
         )
@@ -82,7 +92,8 @@ public enum GermanLayouts {
         KeyboardLayout(
             layer: .extraSymbols,
             rows: [KeyRow(symbolRows2[0]), KeyRow(symbolRows2[1]),
-                   KeyRow([Key(id: "123b", action: .switchLayer(.symbols), label: "123", width: 1.5, isFunction: true)] + symbolRows2[2] + [backspace]),
+                   KeyRow([Key(id: "123b", action: .switchLayer(.symbols), label: "123", width: symbolFunctionWidth, isFunction: true)]
+                       + symbolRows1[2] + [symbolBackspace], expandsFlankGaps: true),
                    bottomRow(options: options, layerSwitch: toLetters)],
             columns: 10
         )
@@ -113,12 +124,16 @@ public enum GermanLayouts {
 
     static func bottomRow(options: LayoutOptions, layerSwitch: Key) -> KeyRow {
         var keys: [Key] = [layerSwitch]
+        let showsComma = options.showsCommaKey && !options.isEmailOrURL
+        // With the emoji key folded into the comma key there is no separate emoji key; without a
+        // comma key (or in e-mail fields, where "@" replaces it) the separate key comes back.
+        let emojiOnComma = options.showsEmojiKey && options.emojiOnCommaKey && showsComma
         if options.needsGlobeKey { keys.append(globe) }
-        if options.showsEmojiKey && !options.needsGlobeKey { keys.append(emoji) }
+        if options.showsEmojiKey && !options.needsGlobeKey && !emojiOnComma { keys.append(emoji) }
         if options.isEmailOrURL {
             keys.append(Key(id: "at", action: .character("@"), label: "@", width: 1))
-        } else if options.showsCommaKey {
-            keys.append(comma)
+        } else if showsComma {
+            keys.append(emojiOnComma ? commaEmoji : comma)
         }
         keys.append(space)
         if options.isEmailOrURL {
@@ -143,6 +158,6 @@ public enum GermanLayouts {
 extension Key {
     func renamed(_ newID: String) -> Key {
         Key(id: newID, action: action, label: label, alternates: alternates, width: width,
-            isLetter: isLetter, isFunction: isFunction, symbolName: symbolName)
+            isLetter: isLetter, isFunction: isFunction, symbolName: symbolName, longPressAction: longPressAction)
     }
 }

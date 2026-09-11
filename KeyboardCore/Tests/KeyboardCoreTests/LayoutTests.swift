@@ -23,6 +23,28 @@ final class LayoutTests: XCTestCase {
         XCTAssertEqual(g.keyFrame(at: CGPoint(x: 20, y: 30))?.key.label, "q")
     }
 
+    func testShiftAndBackspaceSitAtTheRowEdges() {
+        let width: CGFloat = 390
+        let metrics = KeyboardGeometry.Metrics.phonePortrait
+        for layer in [KeyboardLayer.letters, .symbols, .extraSymbols] {
+            let g = KeyboardGeometry(layout: GermanLayouts.layout(for: layer), size: CGSize(width: width, height: 216))
+            let row = g.layout.rows[2]
+            let first = g.keyFrame(for: row.keys.first!)!
+            let last = g.keyFrame(for: row.keys.last!)!
+            // Flush with the row edges, like the system keyboard.
+            XCTAssertEqual(first.frame.minX, metrics.sideInset, accuracy: 0.5, "\(layer) leading key")
+            XCTAssertEqual(last.frame.maxX, width - metrics.sideInset, accuracy: 0.5, "\(layer) trailing key")
+            // The slack sits in the gaps next to them, not at the edges.
+            let secondKey = g.keyFrame(for: row.keys[1])!
+            XCTAssertGreaterThan(secondKey.frame.minX - first.frame.maxX, g.horizontalGap + 1, "\(layer) leading gap")
+            let penultimate = g.keyFrame(for: row.keys[row.keys.count - 2])!
+            XCTAssertGreaterThan(last.frame.minX - penultimate.frame.maxX, g.horizontalGap + 1, "\(layer) trailing gap")
+            // Touches at the very edge still belong to them.
+            XCTAssertEqual(g.keyFrame(at: CGPoint(x: 0, y: first.frame.midY))?.key.id, first.key.id)
+            XCTAssertEqual(g.keyFrame(at: CGPoint(x: width - 1, y: last.frame.midY))?.key.id, last.key.id)
+        }
+    }
+
     func testCommaKeySitsLeftOfSpaceAndCanBeDisabled() {
         let bottom = GermanLayouts.letters().rows[3].keys
         let space = bottom.firstIndex { $0.action == .space }!
@@ -54,5 +76,46 @@ final class LayoutTests: XCTestCase {
         XCTAssertEqual(KeyAlphabet.swipeCodes("Hallo"), KeyAlphabet.codes("halo"))
         XCTAssertEqual(KeyAlphabet.codes("Straße"), KeyAlphabet.codes("strase"))
         XCTAssertEqual(KeyAlphabet.code(for: "é"), KeyAlphabet.code(for: "e"))
+    }
+    // MARK: Symbol layers
+
+    func testSymbolPunctuationRowMatchesSystemKeyboard() {
+        for layout in [GermanLayouts.symbols(), GermanLayouts.extraSymbols()] {
+            let row = layout.rows[2]
+            XCTAssertEqual(row.keys.map(\.label), ["#+=", ".", ",", "?", "!", "'"] .enumerated().map { $0.offset == 0 ? (layout.layer == .symbols ? "#+=" : "123") : $0.element } + ["⌫"])
+            XCTAssertEqual(row.keys.first?.action, .switchLayer(layout.layer == .symbols ? .extraSymbols : .symbols))
+            XCTAssertEqual(row.keys.last?.action, .backspace)
+
+            let geometry = KeyboardGeometry(layout: layout, size: CGSize(width: 393, height: 216))
+            let frames = geometry.keyFrames.filter { row.keys.contains($0.key) }
+            // Layer switch on the left, backspace on the right, row spanning the full width like iOS.
+            XCTAssertEqual(frames.first?.key.action, row.keys.first?.action)
+            XCTAssertEqual(frames.last?.key.action, .backspace)
+            XCTAssertEqual(frames.first!.frame.minX, geometry.keyFrames[0].frame.minX, accuracy: 0.5)
+            XCTAssertEqual(frames.last!.frame.maxX, geometry.keyFrames[9].frame.maxX, accuracy: 0.5)
+            // The punctuation keys are wider than a digit and evenly spaced.
+            let punctuation = frames.dropFirst().dropLast()
+            for kf in punctuation { XCTAssertGreaterThan(kf.frame.width, geometry.unitWidth) }
+            let pitches = zip(punctuation, punctuation.dropFirst()).map { $1.frame.minX - $0.frame.minX }
+            for pitch in pitches { XCTAssertEqual(pitch, pitches[0], accuracy: 0.5) }
+        }
+    }
+
+    /// Key views are keyed by id, so a layout that repeats a character must not repeat an id.
+    func testKeyIDsAreUniqueWithinEveryLayer() {
+        for layer in KeyboardLayer.allCases {
+            let ids = GermanLayouts.layout(for: layer).allKeys.map(\.id)
+            XCTAssertEqual(ids.count, Set(ids).count, "duplicate key id in \(layer)")
+        }
+    }
+
+    /// Every point inside the keyboard belongs to exactly one key, gaps included.
+    func testNoDeadZonesBetweenKeys() {
+        let layout = GermanLayouts.symbols()
+        let geometry = KeyboardGeometry(layout: layout, size: CGSize(width: 393, height: 216))
+        let y = geometry.keyFrames.first { $0.key.id == "sym." }!.frame.midY
+        for x in stride(from: CGFloat(1), to: 392, by: 1) {
+            XCTAssertNotNil(geometry.keyFrames.first { $0.hitFrame.contains(CGPoint(x: x, y: y)) }, "dead zone at x=\(x)")
+        }
     }
 }

@@ -113,6 +113,26 @@ final class KeyGridViewTests: XCTestCase {
         release(n)
     }
 
+    /// The alternates bubble is laid out so the option nearest the key sits directly over it —
+    /// that alignment is what lets the stem grow straight out of the key instead of drawing a
+    /// notched, cut-off bubble. It also has to agree with the bubble's hit regions, so the option
+    /// under the finger is the one that gets committed.
+    func testAlternatesRowLinesUpWithTheKey() {
+        let kf = grid.geometry!.keyFrames.first { $0.key.id == "w" }!
+        let optionWidth = max(kf.frame.width * 1.1, 38)
+        // "w" is on the left half, so the row grows rightwards from the key: ["2", "w"].
+        for (step, expected) in [(0 as CGFloat, "2"), (optionWidth, "w")] {
+            recorder.alternates = []
+            let t = press("w")
+            spin(0.5)
+            t.point = CGPoint(x: kf.center.x + step, y: kf.center.y)
+            grid.touchesMoved([t], with: nil)
+            release(t)
+            spin(0.02)
+            XCTAssertEqual(recorder.alternates, [expected], "option \(step)pt right of the key centre")
+        }
+    }
+
     func testPreviewDisabledStillTypes() {
         recorder.keyPreviewEnabled = false
         for id in ["o", "k"] {
@@ -121,5 +141,81 @@ final class KeyGridViewTests: XCTestCase {
             release(t)
         }
         XCTAssertEqual(recorder.taps, ["o", "k"])
+    }
+}
+
+/// The popup is drawn as one bubble-plus-stem outline. The stem's shoulders flare outwards into
+/// the bubble's bottom edge, so they have to sit inside the straight part of that edge: when a
+/// shoulder was allowed past a rounded corner the outline doubled back on itself and the bubble
+/// rendered with a notch cut out of it.
+@MainActor
+final class KeyPopupShapeTests: XCTestCase {
+    private func makePopup() -> KeyPopupView {
+        let settings = KeyboardSettings(defaults: UserDefaults(suiteName: "popup-tests-\(UUID())")!)
+        let theme = KeyboardTheme.current(traits: UITraitCollection(userInterfaceStyle: .dark), settings: settings)
+        let popup = KeyPopupView(theme: theme)
+        popup.frame = CGRect(x: 0, y: 0, width: 390, height: 216)
+        return popup
+    }
+
+    /// Walks the outline and returns the x of every point it puts on the bubble's bottom edge,
+    /// in path order. The path runs along that edge right-to-left, so x must never increase.
+    private func bottomEdgeXs(of popup: KeyPopupView) -> [CGFloat] {
+        guard let path = popup.outlinePath else { return [] }
+        let y = popup.stemTop
+        var xs: [CGFloat] = []
+        path.applyWithBlock { element in
+            let e = element.pointee
+            let count: Int
+            switch e.type {
+            case .moveToPoint, .addLineToPoint: count = 1
+            case .addQuadCurveToPoint: count = 2
+            case .addCurveToPoint: count = 3
+            case .closeSubpath: count = 0
+            @unknown default: count = 0
+            }
+            for i in 0..<count where abs(e.points[i].y - y) < 0.001 {
+                xs.append(e.points[i].x)
+            }
+        }
+        return xs
+    }
+
+    private func assertOutlineIsWellFormed(_ popup: KeyPopupView, _ label: String,
+                                           file: StaticString = #filePath, line: UInt = #line) {
+        let xs = bottomEdgeXs(of: popup)
+        XCTAssertGreaterThanOrEqual(xs.count, 4, "\(label): expected shoulders on the bottom edge", file: file, line: line)
+        for (a, b) in zip(xs, xs.dropFirst()) {
+            XCTAssertLessThanOrEqual(b, a + 0.001,
+                                     "\(label): outline doubles back along the bottom edge (\(xs))",
+                                     file: file, line: line)
+        }
+    }
+
+    func testAlternatesOutlineDoesNotDoubleBack() {
+        let container = CGRect(x: 0, y: 0, width: 390, height: 216)
+        // A narrow key at the left edge is the tight case: the bubble barely overhangs the key.
+        let key = CGRect(x: 3, y: 60, width: 32, height: 42)
+        let popup = makePopup()
+        popup.showAlternates(["2", "w"], keyFrame: key, in: container, preferLeft: false)
+        assertOutlineIsWellFormed(popup, "alternates growing right")
+
+        let rightKey = CGRect(x: container.maxX - 35, y: 60, width: 32, height: 42)
+        popup.showAlternates(["0", "p"], keyFrame: rightKey, in: container, preferLeft: true)
+        assertOutlineIsWellFormed(popup, "alternates growing left")
+
+        // A wide key (space) with a single narrow bubble is the opposite extreme.
+        let wide = CGRect(x: 80, y: 160, width: 200, height: 42)
+        popup.showAlternates(["a", "b", "c"], keyFrame: wide, in: container, preferLeft: false)
+        assertOutlineIsWellFormed(popup, "alternates on a wide key")
+    }
+
+    func testPreviewOutlineDoesNotDoubleBack() {
+        let container = CGRect(x: 0, y: 0, width: 390, height: 216)
+        for x in [CGFloat(0), 3, 180, 355, 358] {
+            let popup = makePopup()
+            popup.showPreview(text: "w", keyFrame: CGRect(x: x, y: 60, width: 32, height: 42), in: container)
+            assertOutlineIsWellFormed(popup, "preview at x=\(x)")
+        }
     }
 }

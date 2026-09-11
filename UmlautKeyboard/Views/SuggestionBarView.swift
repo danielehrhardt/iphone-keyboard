@@ -14,6 +14,9 @@ final class SuggestionBarView: UIView {
     var onSelect: ((Suggestion) -> Void)?
     var onDismiss: (() -> Void)?
     private var buttons: [UIButton] = []
+    /// Visual pill per cell. The button itself spans the whole cell so the tap target is large;
+    /// only this inset view shows the highlight.
+    private var pills: [UIView] = []
     private var dividers: [UIView] = []
     private let dismissButton = UIButton(type: .system)
     private static let dismissWidth: CGFloat = 46
@@ -35,8 +38,12 @@ final class SuggestionBarView: UIView {
             b.addTarget(self, action: #selector(tapped(_:)), for: .touchUpInside)
             b.addTarget(self, action: #selector(highlight(_:)), for: [.touchDown, .touchDragEnter])
             b.addTarget(self, action: #selector(unhighlight(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel, .touchDragExit])
-            b.layer.cornerCurve = .continuous
             b.accessibilityIdentifier = "suggestion-\(i)"
+            let pill = UIView()
+            pill.isUserInteractionEnabled = false
+            pill.layer.cornerCurve = .continuous
+            b.insertSubview(pill, at: 0)
+            pills.append(pill)
             addSubview(b)
             buttons.append(b)
         }
@@ -119,9 +126,13 @@ final class SuggestionBarView: UIView {
         dismissButton.frame = CGRect(x: bounds.width - Self.dismissInset - Self.dismissWidth,
                                      y: (bounds.height - min(h, 32)) / 2,
                                      width: Self.dismissWidth, height: min(h, 32))
+        // The button covers its whole third of the strip (full height, no gaps) so a tap anywhere
+        // near the word registers; the pill inside carries the inset look.
         for (i, b) in buttons.enumerated() {
-            b.frame = CGRect(x: CGFloat(i) * w + inset, y: 6, width: w - inset * 2, height: h)
-            b.layer.cornerRadius = min(h / 2, 12)
+            b.frame = CGRect(x: CGFloat(i) * w, y: 0, width: w, height: bounds.height)
+            let pill = pills[i]
+            pill.frame = CGRect(x: inset, y: 6, width: max(w - inset * 2, 0), height: max(h, 0))
+            pill.layer.cornerRadius = min(max(h, 0) / 2, 12)
         }
         for (i, d) in dividers.enumerated() {
             d.frame = CGRect(x: w * CGFloat(i + 1) - 0.5, y: bounds.height * 0.3, width: 1, height: bounds.height * 0.4)
@@ -136,12 +147,17 @@ final class SuggestionBarView: UIView {
     @objc private func dismissTapped() { onDismiss?() }
 
     @objc private func highlight(_ sender: UIButton) {
-        sender.backgroundColor = theme.suggestionHighlight
+        pills[safe: sender.tag]?.backgroundColor = theme.suggestionHighlight
     }
 
     @objc private func unhighlight(_ sender: UIButton) {
+        guard let pill = pills[safe: sender.tag] else { return }
         UIView.animate(withDuration: 0.18, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]) {
-            sender.backgroundColor = .clear
+            pill.backgroundColor = .clear
         }
     }
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? { indices.contains(index) ? self[index] : nil }
 }

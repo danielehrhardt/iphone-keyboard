@@ -17,6 +17,15 @@ final class KeyPopupView: UIView {
     private var bubbleRect: CGRect = .zero
     private var isShowing = false
 
+    /// Corner radius of the bubble.
+    private static let bubbleRadius: CGFloat = 11
+    /// How far the shoulders flare out from the stem into the bubble's bottom edge.
+    private static let stemShoulder: CGFloat = 6
+    /// Horizontal padding between the bubble's edge and the option cells. It is exactly the room a
+    /// shoulder plus a corner needs, so an option cell sitting flush against the key gives a stem
+    /// with vertical sides.
+    private static let sidePadding = bubbleRadius + stemShoulder
+
     init(theme: KeyboardTheme) {
         self.theme = theme
         super.init(frame: .zero)
@@ -64,9 +73,11 @@ final class KeyPopupView: UIView {
         options = alternates
         selectedIndex = 0
         optionWidth = max(keyFrame.width * 1.1, 38)
-        let w = optionWidth * CGFloat(alternates.count) + 8
+        let pad = Self.sidePadding
+        let w = optionWidth * CGFloat(alternates.count) + pad * 2
         let h = keyFrame.height * 1.15
-        var x = preferLeft ? keyFrame.maxX + 4 - w : keyFrame.minX - 4
+        // The cell nearest the key lines up with the key itself, so the stem grows straight out of it.
+        var x = preferLeft ? keyFrame.maxX + pad - w : keyFrame.minX - pad
         x = min(max(x, container.minX + 2), container.maxX - w - 2)
         if preferLeft {
             options = alternates.reversed()
@@ -83,7 +94,7 @@ final class KeyPopupView: UIView {
     @discardableResult
     func select(at point: CGPoint) -> Bool {
         guard isExpanded, options.count > 1 else { return false }
-        let rel = point.x - bubbleRect.minX - 4
+        let rel = point.x - bubbleRect.minX - Self.sidePadding
         let idx = max(0, min(options.count - 1, Int(floor(rel / optionWidth))))
         guard idx != selectedIndex else { return false }
         selectedIndex = idx
@@ -92,6 +103,12 @@ final class KeyPopupView: UIView {
     }
 
     var selectedOption: String? { options.indices.contains(selectedIndex) ? options[selectedIndex] : nil }
+
+    /// The bubble-and-stem outline, so tests can check the shape is well formed.
+    var outlinePath: CGPath? { shape.path }
+
+    /// The y the bubble's bottom edge and the stem's shoulders share.
+    var stemTop: CGFloat { bubbleRect.maxY }
 
     func hide() {
         guard isShowing else { return }
@@ -162,7 +179,7 @@ final class KeyPopupView: UIView {
     }
 
     private func layoutBubble() {
-        let r: CGFloat = 11
+        let r = Self.bubbleRadius
         let path = UIBezierPath()
         let b = bubbleRect
         let k = keyFrame
@@ -174,17 +191,24 @@ final class KeyPopupView: UIView {
         path.addQuadCurve(to: CGPoint(x: b.maxX, y: b.minY + r), controlPoint: CGPoint(x: b.maxX, y: b.minY))
         path.addLine(to: CGPoint(x: b.maxX, y: stemTop - r))
         path.addQuadCurve(to: CGPoint(x: b.maxX - r, y: stemTop), controlPoint: CGPoint(x: b.maxX, y: stemTop))
-        // Stem down to the key (right side)
-        let stemRight = min(b.maxX - r, k.maxX)
-        let stemLeft = max(b.minX + r, k.minX)
-        path.addLine(to: CGPoint(x: stemRight + 6, y: stemTop))
+        // Stem down to the key. The shoulders flare out from the stem into the bubble's bottom
+        // edge, so they have to sit inside the straight part of it: if a shoulder were allowed
+        // past a corner the path would double back on itself and the bubble would draw notched.
+        let shoulder = Self.stemShoulder
+        var innerLeft = b.minX + r + shoulder
+        var innerRight = b.maxX - r - shoulder
+        if innerLeft > innerRight { innerLeft = b.midX; innerRight = b.midX }
+        var stemLeft = min(max(k.minX, innerLeft), innerRight)
+        var stemRight = max(min(k.maxX, innerRight), innerLeft)
+        if stemLeft > stemRight { stemLeft = stemRight }
+        path.addLine(to: CGPoint(x: stemRight + shoulder, y: stemTop))
         path.addQuadCurve(to: CGPoint(x: stemRight, y: stemTop + 8), controlPoint: CGPoint(x: stemRight, y: stemTop))
         path.addLine(to: CGPoint(x: k.maxX, y: k.maxY - kr))
         path.addQuadCurve(to: CGPoint(x: k.maxX - kr, y: k.maxY), controlPoint: CGPoint(x: k.maxX, y: k.maxY))
         path.addLine(to: CGPoint(x: k.minX + kr, y: k.maxY))
         path.addQuadCurve(to: CGPoint(x: k.minX, y: k.maxY - kr), controlPoint: CGPoint(x: k.minX, y: k.maxY))
         path.addLine(to: CGPoint(x: stemLeft, y: stemTop + 8))
-        path.addQuadCurve(to: CGPoint(x: stemLeft - 6, y: stemTop), controlPoint: CGPoint(x: stemLeft, y: stemTop))
+        path.addQuadCurve(to: CGPoint(x: stemLeft - shoulder, y: stemTop), controlPoint: CGPoint(x: stemLeft, y: stemTop))
         path.addLine(to: CGPoint(x: b.minX + r, y: stemTop))
         path.addQuadCurve(to: CGPoint(x: b.minX, y: stemTop - r), controlPoint: CGPoint(x: b.minX, y: stemTop))
         path.addLine(to: CGPoint(x: b.minX, y: b.minY + r))
@@ -200,7 +224,8 @@ final class KeyPopupView: UIView {
 
         if isExpanded {
             for (i, l) in labels.enumerated() {
-                l.frame = CGRect(x: b.minX + 4 + CGFloat(i) * optionWidth, y: b.minY + 4, width: optionWidth, height: b.height - 8)
+                l.frame = CGRect(x: b.minX + Self.sidePadding + CGFloat(i) * optionWidth,
+                                 y: b.minY + 4, width: optionWidth, height: b.height - 8)
             }
         } else {
             labels.first?.frame = b.insetBy(dx: 2, dy: 2)
