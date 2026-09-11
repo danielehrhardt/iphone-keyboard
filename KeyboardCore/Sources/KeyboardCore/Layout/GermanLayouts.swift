@@ -151,12 +151,19 @@ public enum GermanLayouts {
     public static let comma = LayoutParts.comma
     public static let commaEmoji = LayoutParts.commaEmoji
 
+    /// The family knows its language: the bottom row is built for German whatever `options` say.
+    private static func german(_ options: LayoutOptions) -> LayoutOptions {
+        var o = options
+        o.language = .german
+        return o
+    }
+
     /// Letters layer. Row 3 is centred with shift/backspace on the flanks like Apple's German keyboard.
     public static func letters(options: LayoutOptions = LayoutOptions()) -> KeyboardLayout {
         let row3 = KeyRow([shift] + letterRows[2] + [backspace], expandsFlankGaps: true)
         return KeyboardLayout(
             layer: .letters,
-            rows: [KeyRow(letterRows[0]), KeyRow(letterRows[1]), row3, LayoutParts.bottomRow(options: options, layerSwitch: toSymbols)],
+            rows: [KeyRow(letterRows[0]), KeyRow(letterRows[1]), row3, LayoutParts.bottomRow(options: german(options), layerSwitch: toSymbols)],
             columns: 11
         )
     }
@@ -180,7 +187,7 @@ public enum GermanLayouts {
             layer: .symbols,
             rows: [KeyRow(symbolRows1[0]), KeyRow(symbolRows1[1]),
                    KeyRow([toExtra] + symbolRows1[2] + [LayoutParts.symbolBackspace], expandsFlankGaps: true),
-                   LayoutParts.bottomRow(options: options, layerSwitch: toLetters)],
+                   LayoutParts.bottomRow(options: german(options), layerSwitch: toLetters)],
             columns: 10
         )
     }
@@ -190,7 +197,7 @@ public enum GermanLayouts {
             layer: .extraSymbols,
             rows: [KeyRow(symbolRows2[0]), KeyRow(symbolRows2[1]),
                    KeyRow([LayoutParts.toSymbolsFromExtra] + symbolRows1[2] + [LayoutParts.symbolBackspace], expandsFlankGaps: true),
-                   LayoutParts.bottomRow(options: options, layerSwitch: toLetters)],
+                   LayoutParts.bottomRow(options: german(options), layerSwitch: toLetters)],
             columns: 10
         )
     }

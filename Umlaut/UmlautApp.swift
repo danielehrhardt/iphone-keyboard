@@ -7,8 +7,11 @@ struct UmlautApp: App {
     init() {
         // UI tests pass this to start from a clean personal dictionary.
         if CommandLine.arguments.contains("--reset-user-lexicon") {
-            UserLexicon.shared(appGroup: KeyboardSettings.appGroup).removeAll()
-            UserLexicon.shared(appGroup: KeyboardSettings.appGroup).saveNow()
+            for language in KeyboardLanguage.allCases {
+                let lexicon = UserLexicon.shared(appGroup: KeyboardSettings.appGroup, language: language)
+                lexicon.removeAll()
+                lexicon.saveNow()
+            }
         }
     }
 

@@ -152,10 +152,24 @@ def pick_casing(lower):
         return [(cap, 1.0)]
     return [(lower if lower in forms else (cap if cap in forms else sorted(forms)[0]), 1.0)]
 
+# Apostrophe-less spellings of contractions ("dont", "thats") are typos the keyboard should fix,
+# not words it should offer. Hunspell lists many contractions literally; the rest are named here.
+CONTRACTION_TYPOS = {"thats", "whats", "hes", "shes", "theres", "heres", "wheres", "whos", "hows", "lets",
+                     "youll", "theyll", "itll", "youve", "theyve", "weve", "youd", "theyd", "im", "ive"}
+
+def is_contraction_typo(lower):
+    if "'" not in C['inner'] or "'" in lower or lower in hunspell:
+        return False
+    if lower in CONTRACTION_TYPOS:
+        return True
+    return any(len(lower) > k and (lower[:-k] + "'" + lower[-k:]) in hunspell for k in (1, 2))
+
 def is_valid(lower, subs_freq):
     ltotal = leipzig_any.get(lower, 0)
     if lower in hunspell:
         return subs_freq >= 3 or ltotal >= 3
+    if is_contraction_typo(lower):
+        return False
     if lower in wordlist:
         # word lists carry some proper-noun noise ("Suu"); very short entries need real usage.
         if len(lower) <= 3:

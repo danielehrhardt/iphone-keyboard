@@ -49,7 +49,8 @@ final class KeyboardViewController: UIInputViewController {
         ])
         (inputView as? UIInputView)?.allowsSelfSizing = true
 
-        Self.loadEngine { [weak self] engine in
+        Self.loadEngine(language: coordinator.language) { [weak self] engine in
+            guard let engine else { return }
             self?.coordinator.engine = engine
             for delay in [3.0, 8.0] {
                 DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
@@ -104,28 +105,34 @@ final class KeyboardViewController: UIInputViewController {
 
     // MARK: Engine
 
-    private static func loadEngine(_ completion: @escaping (KeyboardEngine) -> Void) {
-        if let e = sharedEngine { completion(e); return }
-        engineWaiters.append(completion)
-        guard !engineLoading else { return }
-        engineLoading = true
+    /// Hands out the engine for `language`, loading it in the background if it isn't the one
+    /// kept in memory. Loads run one at a time so two lexicons never sit in memory together;
+    /// a request for another language queues up behind the running load.
+    private static func loadEngine(language: KeyboardLanguage, _ completion: @escaping (KeyboardEngine?) -> Void) {
+        if let e = sharedEngine, e.language == language { completion(e); return }
+        engineWaiters.append((language, completion))
+        guard loadingLanguage == nil else { return }
+        loadingLanguage = language
         DispatchQueue.global(qos: .userInitiated).async {
             let start = CFAbsoluteTimeGetCurrent()
             let engine: KeyboardEngine?
             do {
-                engine = try KeyboardEngine()
-                log.notice("engine loaded in \(CFAbsoluteTimeGetCurrent() - start, format: .fixed(precision: 3))s, \(engine?.lexicon.count ?? 0) words, footprint \(Self.footprintMB, format: .fixed(precision: 1)) MB")
+                engine = try KeyboardEngine(language: language)
+                log.notice("\(language.rawValue) engine loaded in \(CFAbsoluteTimeGetCurrent() - start, format: .fixed(precision: 3))s, \(engine?.lexicon.count ?? 0) words, footprint \(Self.footprintMB, format: .fixed(precision: 1)) MB")
             } catch {
                 engine = nil
-                log.error("engine failed to load: \(String(describing: error))")
+                log.error("\(language.rawValue) engine failed to load: \(String(describing: error))")
             }
             DispatchQueue.main.async {
-                engineLoading = false
-                guard let engine else { engineWaiters.removeAll(); return }
-                sharedEngine = engine
-                let waiters = engineWaiters
+                loadingLanguage = nil
+                if let engine { sharedEngine = engine }      // replaces the previous language's engine
+                let served = engineWaiters.filter { $0.language == language }
+                engineWaiters.removeAll { $0.language == language }
+                served.forEach { $0.completion(engine) }
+                // Requests for another language that queued up behind this load.
+                let pending = engineWaiters
                 engineWaiters.removeAll()
-                waiters.forEach { $0(engine) }
+                pending.forEach { loadEngine(language: $0.language, $0.completion) }
             }
         }
     }

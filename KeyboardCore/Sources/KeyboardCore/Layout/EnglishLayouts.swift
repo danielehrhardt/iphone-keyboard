@@ -32,8 +32,16 @@ public enum EnglishLayouts {
     public static let shift = Key(id: "shift", action: .shift, label: "⇧", width: flankWidth, isFunction: true, symbolName: "shift")
     public static let backspace = Key(id: "backspace", action: .backspace, label: "⌫", width: flankWidth, isFunction: true, symbolName: "delete.left")
 
+    /// The family knows its language: the bottom row is built for English whatever `options` say.
+    private static func english(_ options: LayoutOptions) -> LayoutOptions {
+        var o = options
+        o.language = .english
+        return o
+    }
+
     /// Letters layer: 10 / 9 / 7 letters, the home row inset by half a key.
     public static func letters(options: LayoutOptions = LayoutOptions()) -> KeyboardLayout {
+        let options = english(options)
         let row3 = KeyRow([shift] + letterRows[2] + [backspace], expandsFlankGaps: true)
         return KeyboardLayout(
             layer: .letters,
@@ -65,7 +73,7 @@ public enum EnglishLayouts {
             layer: .symbols,
             rows: [KeyRow(LayoutParts.digitRow), KeyRow(symbolRow2),
                    KeyRow([LayoutParts.toExtra] + LayoutParts.punctuationRow + [LayoutParts.symbolBackspace], expandsFlankGaps: true),
-                   LayoutParts.bottomRow(options: options, layerSwitch: LayoutParts.toLetters)],
+                   LayoutParts.bottomRow(options: english(options), layerSwitch: LayoutParts.toLetters)],
             columns: 10
         )
     }
@@ -75,7 +83,7 @@ public enum EnglishLayouts {
             layer: .extraSymbols,
             rows: [KeyRow(LayoutParts.extraRow1), KeyRow(extraRow2),
                    KeyRow([LayoutParts.toSymbolsFromExtra] + LayoutParts.punctuationRow + [LayoutParts.symbolBackspace], expandsFlankGaps: true),
-                   LayoutParts.bottomRow(options: options, layerSwitch: LayoutParts.toLetters)],
+                   LayoutParts.bottomRow(options: english(options), layerSwitch: LayoutParts.toLetters)],
             columns: 10
         )
     }

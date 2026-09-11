@@ -15,10 +15,12 @@ final class DemoKeyboardView: UIInputView {
     private var contentHeight: CGFloat
     private var heightConstraint: NSLayoutConstraint!
 
-    init(textView: UITextView, engine: KeyboardEngine?, settings: KeyboardSettings = .shared) {
+    init(textView: UITextView, engine: KeyboardEngine?, settings: KeyboardSettings = .shared,
+         engineProvider: ((KeyboardLanguage, @escaping (KeyboardEngine?) -> Void) -> Void)? = nil) {
         self.textView = textView
         self.settings = settings
         coordinator = KeyboardCoordinator(settings: settings, proxy: TextViewProxy(textView: textView), engine: engine, traits: textView.traitCollection)
+        coordinator.engineProvider = engineProvider
         let screen = textView.window?.windowScene?.screen.bounds.size ?? UIScreen.main.bounds.size
         contentHeight = coordinator.updateEnvironment(traits: textView.traitCollection, screenSize: screen)
         super.init(frame: CGRect(x: 0, y: 0, width: screen.width, height: contentHeight), inputViewStyle: .keyboard)
@@ -55,14 +57,18 @@ final class DemoKeyboardView: UIInputView {
         set { coordinator.engine = newValue }
     }
 
+    /// The language the demo keyboard is typing in.
+    var language: KeyboardLanguage { coordinator.language }
+
     /// Call when the text view's selection changed (e.g. from `textViewDidChangeSelection`).
     func selectionChanged() { coordinator.input.textDidChangeExternally() }
 
-    /// Re-reads theme/accent/key size from settings.
+    /// Re-reads theme/accent/key size and the language settings.
     func settingsChanged() {
         overrideUserInterfaceStyle = KeyboardTheme.interfaceStyle(for: settings)
         let screen = window?.windowScene?.screen.bounds.size ?? UIScreen.main.bounds.size
         contentHeight = coordinator.updateEnvironment(traits: traitCollection, screenSize: screen)
+        coordinator.willAppear()
         applyHeight()
     }
 

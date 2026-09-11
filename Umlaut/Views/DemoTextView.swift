@@ -2,16 +2,34 @@ import SwiftUI
 import UIKit
 import KeyboardCore
 
-/// Loads the shared engine once for the in-app demo keyboard.
+/// Loads the engines for the in-app demo keyboard, one per language, each once. The app has no
+/// extension memory budget, so engines of every language the user tried stay cached.
 @MainActor
 final class DemoEngineLoader: ObservableObject {
     static let shared = DemoEngineLoader()
+    /// The engine of the current typing language, once loaded.
     @Published private(set) var engine: KeyboardEngine?
 
+    private var engines: [KeyboardLanguage: KeyboardEngine] = [:]
+    private var waiters: [KeyboardLanguage: [(KeyboardEngine?) -> Void]] = [:]
+
     init() {
+        load(KeyboardSettings.shared.currentLanguage) { [weak self] in self?.engine = $0 }
+    }
+
+    /// Hands out the engine for `language`, loading it in the background on first use.
+    func load(_ language: KeyboardLanguage, completion: @escaping (KeyboardEngine?) -> Void) {
+        if let engine = engines[language] { completion(engine); return }
+        let isLoading = waiters[language] != nil
+        waiters[language, default: []].append(completion)
+        guard !isLoading else { return }
         Task.detached(priority: .userInitiated) {
-            let engine = try? KeyboardEngine()
-            await MainActor.run { self.engine = engine }
+            let engine = try? KeyboardEngine(language: language)
+            await MainActor.run {
+                if let engine { self.engines[language] = engine }
+                let pending = self.waiters.removeValue(forKey: language) ?? []
+                pending.forEach { $0(engine) }
+            }
         }
     }
 }
@@ -59,10 +77,16 @@ struct DemoTextView: UIViewRepresentable {
 
         init(_ parent: DemoTextView) { self.parent = parent }
 
+        private func makeDemo(_ tv: UITextView, engine: KeyboardEngine?) -> DemoKeyboardView {
+            DemoKeyboardView(textView: tv, engine: engine) { language, completion in
+                DemoEngineLoader.shared.load(language, completion: completion)
+            }
+        }
+
         func attach(_ tv: UITextView, useUmlaut: Bool, engine: KeyboardEngine?) {
             usingUmlaut = useUmlaut
             if useUmlaut {
-                let d = DemoKeyboardView(textView: tv, engine: engine)
+                let d = makeDemo(tv, engine: engine)
                 demo = d
                 tv.inputView = d
             }
@@ -72,7 +96,7 @@ struct DemoTextView: UIViewRepresentable {
             if useUmlaut != usingUmlaut {
                 usingUmlaut = useUmlaut
                 if useUmlaut {
-                    let d = DemoKeyboardView(textView: tv, engine: engine)
+                    let d = makeDemo(tv, engine: engine)
                     demo = d
                     tv.inputView = d
                 } else {
@@ -81,7 +105,7 @@ struct DemoTextView: UIViewRepresentable {
                 }
                 tv.reloadInputViews()
             }
-            if let demo, demo.engine == nil, let engine { demo.engine = engine }
+            if let demo, demo.engine == nil, let engine, engine.language == demo.language { demo.engine = engine }
             if settingsVersion != lastSettingsVersion {
                 lastSettingsVersion = settingsVersion
                 demo?.settingsChanged()

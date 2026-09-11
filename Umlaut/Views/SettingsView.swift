@@ -8,6 +8,34 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section {
+                ForEach(KeyboardLanguage.allCases) { language in
+                    Toggle(isOn: Binding(
+                        get: { settings.isEnabled(language) },
+                        set: { settings.setEnabled($0, for: language) }
+                    )) {
+                        HStack(spacing: 10) {
+                            Text(language.badge)
+                                .font(.caption.weight(.semibold))
+                                .monospaced()
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(Color.secondary.opacity(0.15), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            Text(language.title)
+                        }
+                    }
+                    // The last enabled language stays on: the keyboard always needs one.
+                    .disabled(settings.isEnabled(language) && settings.enabledLanguages.count == 1)
+                    .accessibilityIdentifier("language-\(language.rawValue)")
+                }
+            } header: {
+                Text("Sprachen")
+            } footer: {
+                Text(settings.enabledLanguages.count > 1
+                     ? "Mit mehreren Sprachen zeigt die Leertaste die aktuelle Sprache, und ein Kürzel neben der Ausblenden-Taste wechselt zur nächsten. Layout, Wörterbuch, Autokorrektur und gelernte Wörter folgen der Sprache."
+                     : "Schalte weitere Sprachen ein, um in der Tastatur zwischen ihnen zu wechseln. Layout, Wörterbuch, Autokorrektur und gelernte Wörter folgen der Sprache.")
+            }
+
             Section("Eingabe") {
                 Toggle("Swipe-Eingabe", isOn: $settings.swipeTyping)
                 Toggle("Autokorrektur", isOn: $settings.autocorrect)
@@ -52,7 +80,9 @@ struct SettingsView: View {
                                 scheme: settings.theme.colorScheme,
                                 trail: settings.swipeTrail ? .hallo : .none,
                                 showsCommaKey: settings.commaKey,
-                                emojiOnCommaKey: settings.emojiOnCommaKey)
+                                emojiOnCommaKey: settings.emojiOnCommaKey,
+                                language: settings.currentLanguage,
+                                showsLanguageName: settings.enabledLanguages.count > 1)
                     .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
                     .listRowBackground(Color.clear)
                     .animation(.easeInOut(duration: 0.25), value: settings.keySize)

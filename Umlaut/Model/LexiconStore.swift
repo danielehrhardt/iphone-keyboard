@@ -1,15 +1,21 @@
 import Foundation
 import KeyboardCore
 
-/// Observable view of the personal dictionary shared with the keyboard extension.
+/// Observable view of one language's personal dictionary shared with the keyboard extension.
 @MainActor
 final class LexiconStore: ObservableObject {
 
     @Published private(set) var entries: [UserLexicon.Entry] = []
+    /// Which language's dictionary is shown; each language learns its own words.
+    @Published var language: KeyboardLanguage {
+        didSet { if language != oldValue { lexicon = UserLexicon.shared(appGroup: KeyboardSettings.appGroup, language: language); reload() } }
+    }
 
-    private let lexicon = UserLexicon.shared(appGroup: KeyboardSettings.appGroup)
+    private var lexicon: UserLexicon
 
-    init() {
+    init(language: KeyboardLanguage = KeyboardSettings.shared.currentLanguage) {
+        self.language = language
+        lexicon = UserLexicon.shared(appGroup: KeyboardSettings.appGroup, language: language)
         reload()
     }
 

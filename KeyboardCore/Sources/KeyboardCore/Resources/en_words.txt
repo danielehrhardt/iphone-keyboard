@@ -350,7 +350,6 @@ abuse	32175
 abused	8123
 abuser	726
 abusers	918
-abuses	2778
 abusing	3051
 abusive	4962
 abusively	9
@@ -1318,14 +1317,12 @@ affectionate	2137
 affectionately	987
 affections	1219
 affective	98
-affects	8922
 affianced	29
 affiant	7
 affidavit	3345
 affidavits	714
 affiliate	2250
 affiliated	2899
-affiliates	717
 affiliating	6
 affiliation	1474
 affiliations	1050
@@ -1703,7 +1700,6 @@ Ain	166906
 ain't	2313
 aine	17
 ainee	54
-aint	426
 ainu	112
 ainus	15
 aioli	151
@@ -3885,7 +3881,6 @@ appointee	717
 appointees	877
 appointing	1851
 appointment	31961
-appointments	8234
 appoints	424
 appomattox	210
 apport	8
@@ -4212,7 +4207,6 @@ aren't	32383
 arena	18887
 arenas	496
 arend	83
-arent	358
 areola	211
 areolae	8
 areolas	39
@@ -4401,7 +4395,6 @@ armpit	917
 armpits	785
 armrest	114
 armrests	157
-arms	61285
 Armstrong	6474
 army	91239
 arna	22
@@ -4447,7 +4440,6 @@ arrame	8
 arrange	15814
 arranged	16974
 arrangement	10214
-arrangements	13489
 arranger	156
 arrangers	139
 arranges	585
@@ -4884,7 +4876,6 @@ assigned	19170
 assigning	1094
 assignment	12444
 assignments	3243
-assigns	250
 assimilate	744
 assimilated	483
 assimilates	12
@@ -4910,8 +4901,6 @@ assn	121
 assoc	254
 associate	14298
 associated	28819
-Associates	9775
-associates	3772
 associating	464
 association	40774
 associational	62
@@ -5229,7 +5218,6 @@ atte	32
 attempt	41375
 attempted	20598
 attempting	13495
-attempts	18807
 attend	35384
 attendance	11570
 attendances	142
@@ -6165,7 +6153,6 @@ baguettes	142
 baguio	264
 bah	2458
 Bahadur	731
-bahai	5
 bahama	275
 Bahamas	2391
 bahamian	351
@@ -6265,7 +6252,6 @@ balance	38501
 balanced	7634
 balancer	74
 balancers	5
-balances	2700
 Balanchine	222
 balancing	3044
 balarama	22
@@ -6494,7 +6480,6 @@ bandoleros	9
 bandolier	21
 bandon	84
 bandor	31
-bands	10929
 bandsaw	8
 bandsman	62
 bandsmen	62
@@ -6779,7 +6764,6 @@ Barker	3718
 barkers	167
 barking	16501
 Barkley	2462
-barks	5311
 barky	61
 barley	1753
 barleycorn	31
@@ -6905,7 +6889,6 @@ barrowman	36
 barrows	351
 Barry	23508
 Barrymore	1194
-bars	23998
 barsac	26
 barse	5
 barstool	603
@@ -6960,7 +6943,6 @@ basement	17195
 basements	722
 baseness	69
 baser	107
-bases	7677
 basest	100
 bash	5493
 bashaw	11
@@ -8617,7 +8599,6 @@ bindings	138
 bindis	7
 bindle	59
 bindles	11
-binds	1052
 bindweed	15
 bine	100
 Bing	4906
@@ -9315,7 +9296,6 @@ blockheads	182
 blockhouse	171
 blockhouses	23
 blocking	9737
-blocks	19186
 blocky	95
 blocs	198
 Bloemfontein	313
@@ -9880,7 +9860,6 @@ bolter	27
 bolthole	10
 bolting	221
 Bolton	3439
-bolts	2650
 bolty	8
 Boltzmann	78
 bolus	360
@@ -10156,7 +10135,6 @@ bootlickers	31
 bootlicking	27
 bootmaker	20
 bootprint	9
-boots	21260
 bootstrap	68
 bootstrapped	123
 bootstrapping	71
@@ -10279,7 +10257,6 @@ bosniak	7
 Bosnian	834
 bosom	2073
 bosomed	13
-bosoms	362
 bosomy	17
 boson	235
 bosonic	5
@@ -11055,7 +11032,6 @@ briefing	7668
 briefings	824
 briefly	8687
 briefness	8
-briefs	1584
 brier	190
 briers	203
 bries	63
@@ -11546,7 +11522,6 @@ buckland	471
 buckle	3771
 buckled	845
 buckler	41
-buckles	586
 Buckley	2526
 buckling	246
 Buckner	622
@@ -11660,7 +11635,6 @@ bugler	367
 buglers	19
 bugles	151
 bugling	15
-bugs	10640
 Bugzilla	6
 buhl	28
 buick	1092
@@ -11895,7 +11869,6 @@ bunking	293
 bunkmate	83
 bunkmates	38
 bunko	51
-bunks	444
 bunkum	33
 bunn	29
 bunnell	65
@@ -11939,7 +11912,6 @@ burd	107
 burden	16379
 burdened	1286
 burdening	197
-burdens	1731
 burdensome	427
 burdock	203
 burdocks	10
@@ -12252,7 +12224,6 @@ buttonholes	56
 buttonholing	62
 buttonhook	38
 buttoning	73
-buttons	8249
 buttonwood	6
 buttress	86
 buttressed	67
@@ -12889,7 +12860,6 @@ camponotus	11
 camporee	24
 campos	616
 campout	51
-camps	9876
 campsite	1779
 campsites	659
 camptosorus	5
@@ -13142,7 +13112,6 @@ cantos	13
 Cantrell	486
 cantrip	11
 cantrips	62
-cants	63
 Cantu	20
 cantus	14
 canty	72
@@ -14672,7 +14641,6 @@ chaine	65
 chained	2854
 chaines	5
 chaining	132
-chains	10720
 chainsaw	2048
 chair	53542
 chaired	2091
@@ -15016,7 +14984,6 @@ charter	7829
 chartered	2796
 charterhouse	166
 chartering	150
-charters	585
 charting	1079
 chartist	8
 chartists	21
@@ -16091,7 +16058,6 @@ cichlid	20
 cichlids	18
 cicuta	19
 cider	3133
-ciders	265
 cienega	70
 cigar	5712
 cigaret	32
@@ -16154,7 +16120,6 @@ cioppino	25
 cipher	1329
 ciphered	8
 ciphering	5
-ciphers	147
 ciphertext	7
 Cipro	83
 cir	208
@@ -16248,7 +16213,6 @@ citation	1272
 citations	876
 cite	1919
 cited	9812
-cites	1204
 cithara	5
 Citibank	273
 citicorp	10
@@ -16329,7 +16293,6 @@ claimed	45342
 claimer	12
 claimers	6
 claiming	18022
-claims	48765
 clair	1309
 clairaudient	5
 Claire	24733
@@ -16444,7 +16407,6 @@ clasped	332
 clasper	7
 claspers	12
 clasping	246
-clasps	101
 class	116464
 classed	887
 classes	25295
@@ -16522,7 +16484,6 @@ clawback	63
 clawed	852
 clawing	549
 clawlike	6
-claws	3834
 claxon	79
 Clay	8021
 clay	6626
@@ -16743,7 +16704,6 @@ cloaked	651
 cloaking	740
 cloakroom	555
 cloakrooms	70
-cloaks	372
 clobber	432
 clobbered	322
 clobbering	77
@@ -16772,7 +16732,6 @@ clog	689
 clogged	1265
 clogger	18
 clogging	480
-clogs	786
 cloisonne	14
 cloister	319
 cloistered	223
@@ -16943,7 +16902,6 @@ clutchy	6
 clutter	858
 cluttered	515
 cluttering	207
-clutters	26
 Clyde	6881
 clydesdale	208
 clydeside	69
@@ -17182,7 +17140,6 @@ codependency	96
 codependent	113
 coder	181
 coders	330
-codes	8296
 codeword	70
 codex	807
 codfish	231
@@ -17321,7 +17278,6 @@ coil	1702
 coiled	233
 coiler	8
 coiling	126
-coils	948
 Coimbatore	408
 coin	13515
 coinage	104
@@ -17467,7 +17423,6 @@ collectivized	11
 collector	6188
 collectorate	71
 collectors	3408
-collects	2412
 Colleen	3170
 colleens	13
 college	114370
@@ -17585,13 +17540,11 @@ colorful	4996
 colorfully	35
 colorfulness	12
 coloring	1406
-colorings	12
 colorist	123
 colorists	69
 colorization	10
 colorize	8
 colorless	318
-colors	17357
 colossal	2511
 colossally	46
 Colosseum	659
@@ -17670,7 +17623,6 @@ combinatorial	15
 combinatorics	32
 combine	8199
 combined	24719
-combines	2731
 combing	1510
 combings	8
 combining	4007
@@ -17700,7 +17652,6 @@ comedown	169
 comedy	25350
 comely	284
 Comer	2320
-comers	360
 comes	271855
 comestible	11
 comestibles	19
@@ -17712,7 +17663,6 @@ comeuppance	386
 comfier	18
 comfiest	15
 comfit	8
-comfits	6
 comfort	24805
 comfortability	72
 comfortable	47000
@@ -17839,7 +17789,6 @@ commissioned	5560
 commissioner	32853
 commissioners	5583
 commissioning	1313
-commissions	2385
 commissure	5
 commit	23334
 commitment	38839
@@ -17856,7 +17805,6 @@ committing	8055
 committment	11
 commo	45
 commode	312
-commodes	16
 commodification	22
 commodious	24
 commodities	3492
@@ -18291,7 +18239,6 @@ concertino	5
 concertmaster	41
 concerto	1302
 concertos	115
-concerts	6372
 concession	2616
 concessionaire	68
 concessionaires	7
@@ -18405,7 +18352,6 @@ conditioned	930
 conditioner	2206
 conditioners	608
 conditioning	4553
-conditions	58715
 condo	4369
 condole	27
 condoled	244
@@ -18969,7 +18915,6 @@ constructivism	13
 constructivist	6
 constructor	150
 constructors	326
-constructs	743
 construe	66
 construed	491
 construes	5
@@ -19226,7 +19171,6 @@ controlled	15980
 controller	5154
 controllers	2059
 controlling	8843
-controls	13459
 controversal	6
 controversial	13024
 controversially	340
@@ -19301,7 +19245,6 @@ convertible	2290
 convertibles	119
 converting	2474
 convertor	8
-converts	1132
 convex	146
 convey	4240
 conveyance	398
@@ -19376,7 +19319,6 @@ cooking	31501
 cookings	5
 cookout	444
 cookouts	210
-cooks	5030
 cookstove	6
 cookware	326
 cooky	63
@@ -19647,7 +19589,6 @@ corked	143
 corker	112
 corkers	6
 corking	28
-corks	303
 corkscrew	888
 corkscrewed	9
 corkscrewing	6
@@ -20051,7 +19992,6 @@ could've	2313
 couldn	233368
 couldn't	33629
 couldna	17
-couldnt	367
 couldst	81
 coulee	161
 couleur	75
@@ -20092,7 +20032,6 @@ countdowns	73
 counted	8521
 countenance	747
 countenanced	132
-countenances	11
 counter	15422
 counteract	988
 counteracted	32
@@ -20212,14 +20151,12 @@ couple's	3617
 coupled	4515
 coupler	141
 couplers	27
-couples	13158
 couplet	218
 couplets	93
 coupling	635
 couplings	128
 coupon	2438
 coupons	1630
-coups	882
 courage	25340
 courageous	4879
 courageously	388
@@ -20300,7 +20237,6 @@ covering	21200
 coverings	248
 coverlet	44
 coverlets	65
-covers	15615
 covert	2766
 covertly	407
 coverts	72
@@ -20651,7 +20587,6 @@ creation	16224
 Creation	4056
 creationism	168
 creationist	60
-creations	3050
 creative	33096
 creatively	812
 creativeness	82
@@ -21579,7 +21514,6 @@ curds	246
 cure	21676
 cured	7010
 curer	14
-cures	1528
 curettage	25
 curette	13
 curfew	3782
@@ -21610,7 +21544,6 @@ curlicued	6
 curlicues	22
 curlier	22
 curling	2333
-curls	1885
 curly	3760
 curmudgeon	83
 curmudgeonly	137
@@ -24680,7 +24613,6 @@ didle	6
 didn	1101176
 didn't	127103
 didna	34
-didnt	1493
 dido	303
 Didrikson	29
 didst	413
@@ -25921,11 +25853,9 @@ distribution	16201
 distributions	1346
 distributive	131
 distributor	1671
-distributors	1893
 distributorship	20
 district	81282
 district's	2491
-districts	9339
 distrito	62
 distrust	1885
 distrusted	219
@@ -26217,7 +26147,6 @@ does	601006
 doeskin	5
 doesn	471333
 doesn't	91931
-doesnt	830
 doest	72
 doeth	34
 doff	222
@@ -26309,7 +26238,6 @@ Dole	1184
 dole	296
 doled	412
 doleful	54
-doles	152
 dolf	145
 doli	31
 dolia	10
@@ -26463,7 +26391,6 @@ donors	5483
 Donovan	5591
 Dons	1381
 dons	508
-dont	9938
 donum	6
 donut	2312
 donuts	2692
@@ -26518,7 +26445,6 @@ doornails	14
 doorplate	9
 doorpost	18
 doorposts	10
-doors	42211
 doorsill	19
 doorsills	10
 doorstep	4669
@@ -26656,7 +26582,6 @@ doubled	10070
 Doubleday	62
 doubleheader	835
 doubler	10
-doubles	5542
 doublespeak	143
 doublet	142
 doublethink	19
@@ -26870,7 +26795,6 @@ draftees	237
 drafter	13
 drafters	182
 drafting	1899
-drafts	1502
 draftsman	110
 draftsmanship	11
 draftsmen	68
@@ -27344,7 +27268,6 @@ ductal	13
 ducted	7
 ductile	71
 ducting	84
-ducts	899
 ductus	20
 ductwork	80
 dud	1202
@@ -27536,7 +27459,6 @@ duplex	529
 duplexes	122
 duplicate	2160
 duplicated	486
-duplicates	646
 duplicating	236
 duplication	273
 duplications	123
@@ -28088,7 +28010,6 @@ editorially	13
 editorials	239
 editors	2956
 editorship	23
-edits	524
 edmond	1548
 Edmonton	4236
 edmund	3207
@@ -28479,7 +28400,6 @@ electrotherapy	25
 electrotype	24
 electroweak	5
 electrum	19
-elects	136
 elegance	2115
 elegancy	5
 elegant	7350
@@ -28945,7 +28865,6 @@ employes	6
 employing	2125
 employment	18576
 employments	18
-employs	2169
 emporia	81
 emporium	548
 emporiums	71
@@ -31436,7 +31355,6 @@ facepiece	70
 faceplate	26
 facer	82
 facers	24
-faces	43834
 facet	938
 faceted	14
 facetious	276
@@ -31483,7 +31401,6 @@ factorial	96
 factories	5658
 factoring	502
 factorization	18
-factors	22038
 factory	30186
 factotum	90
 facts	25498
@@ -31679,7 +31596,6 @@ Falwell	172
 fama	18
 fame	18344
 famed	2980
-fames	14
 familia	323
 familial	1313
 familiar	37641
@@ -32447,7 +32363,6 @@ fets	11
 fetter	56
 fettered	52
 fetterlock	6
-fetters	120
 fettle	140
 fettled	64
 fettles	8
@@ -32658,7 +32573,6 @@ figured	43970
 figurehead	411
 figureheads	138
 figurer	5
-figures	38296
 figurine	459
 figurines	614
 figuring	6021
@@ -32684,7 +32598,6 @@ filefish	6
 filename	7
 filer	162
 filers	242
-files	26154
 filet	1142
 fileted	5
 filets	99
@@ -32722,7 +32635,6 @@ filling	12155
 fillings	978
 fillip	146
 fillmore	617
-fills	4551
 filly	1006
 film	163576
 filmdom	14
@@ -32782,7 +32694,6 @@ finance	26213
 finance's	296
 financed	2062
 financer	15
-finances	7622
 financial	135036
 financially	6802
 financials	2896
@@ -32808,7 +32719,6 @@ fineness	37
 finer	2487
 fineries	24
 finery	311
-fines	5304
 finesse	1401
 finessed	97
 finessing	44
@@ -33883,7 +33793,6 @@ foghorns	12
 fogies	103
 fogle	178
 fogo	252
-fogs	114
 fogy	45
 foible	28
 foibles	183
@@ -33910,7 +33819,6 @@ folderols	5
 folders	845
 folding	2464
 foldout	32
-folds	1802
 Foley	2410
 Folgers	26
 foliage	1104
@@ -34249,7 +34157,6 @@ Forester	590
 forester	147
 foresters	542
 forestry	2474
-forests	7337
 foreswear	22
 foreswore	7
 foresworn	20
@@ -34374,7 +34281,6 @@ formless	117
 formlessness	7
 formol	16
 Formosa	183
-forms	22824
 formula	14692
 formulae	189
 formulaic	282
@@ -34651,7 +34557,6 @@ franchised	96
 franchisee	342
 franchisees	354
 franchiser	64
-franchises	2853
 franchising	377
 franchisor	65
 francia	224
@@ -34730,7 +34635,6 @@ fratricide	69
 frats	110
 frau	1786
 fraud	20986
-frauds	928
 fraudster	345
 fraudulence	15
 fraudulent	3882
@@ -34744,7 +34648,6 @@ frayed	591
 fraying	297
 frayn	49
 frayne	22
-frays	23
 fraze	6
 Frazer	1348
 Frazier	1634
@@ -34848,7 +34751,6 @@ freeze	21286
 freezed	36
 freezer	5178
 freezers	303
-freezes	1356
 freezing	13644
 freezy	29
 Freida	48
@@ -34962,7 +34864,6 @@ friendlies	479
 friendliest	297
 friendliness	470
 friendly	30045
-friends	309525
 friendship	29070
 friendships	3938
 frier	12
@@ -35007,7 +34908,6 @@ frim	13
 fringe	4015
 fringed	56
 fringehead	5
-fringes	672
 fringing	17
 fringy	7
 fripperies	19
@@ -35059,7 +34959,6 @@ frizzy	357
 fro	735
 Frobisher	678
 frock	724
-frocks	231
 Frodo	881
 frog	8346
 frogface	16
@@ -35109,7 +35008,6 @@ frontonasal	8
 frontoparietal	6
 frontotemporal	74
 frontrunner	1114
-fronts	2882
 frontward	6
 frontwards	26
 frontways	7
@@ -35127,7 +35025,6 @@ frostiness	64
 frosting	1117
 frostings	8
 frostproof	6
-frosts	256
 frosty	2135
 froth	336
 frothed	9
@@ -35228,7 +35125,6 @@ fueler	11
 fueling	1230
 fuelled	1296
 fuelling	1048
-fuels	7328
 Fuentes	1008
 fuerte	63
 fuff	37
@@ -35471,7 +35367,6 @@ fuse	4647
 fused	1098
 fusel	6
 fuselage	371
-fuses	1006
 Fushun	12
 fusible	5
 fusiform	15
@@ -35628,7 +35523,6 @@ Gainesville	453
 gainful	156
 gainfully	218
 gaining	9241
-gains	12682
 gainsaid	10
 gainsay	82
 gainsaying	122
@@ -35668,7 +35562,6 @@ Galen	1599
 galena	223
 galera	68
 galerie	24
-gales	457
 galette	49
 galey	69
 galga	10
@@ -37704,7 +37597,6 @@ gorgeous	21877
 gorgeously	221
 gorgeousness	39
 gorger	6
-gorges	297
 gorget	7
 gorgia	14
 gorging	129
@@ -37874,7 +37766,6 @@ grade	32887
 graded	1234
 grader	1617
 graders	1320
-grades	9760
 gradgrind	29
 gradient	1191
 gradients	39
@@ -39205,7 +39096,6 @@ habitate	5
 habitation	342
 habitations	19
 habitats	1769
-habits	9112
 habitual	637
 habitually	141
 habituate	9
@@ -39258,7 +39148,6 @@ hadj	86
 hadji	582
 hadjis	9
 hadn't	9074
-hadnt	66
 Hadrian	398
 hadron	163
 hadrons	7
@@ -39688,7 +39577,6 @@ handpress	8
 handprint	365
 handrail	132
 handrails	74
-hands	213063
 hands-on	2974
 handsaw	66
 handsel	12
@@ -40074,7 +39962,6 @@ Haskell	1529
 haslet	9
 hasn	70508
 hasn't	24198
-hasnt	83
 hasp	87
 hasps	19
 hassel	127
@@ -40206,7 +40093,6 @@ havelock	117
 haven	263800
 haven't	25088
 havens	541
-havent	421
 haver	168
 havering	150
 havers	368
@@ -40447,7 +40333,6 @@ hears	7715
 hearsay	969
 hearse	1311
 hearsed	6
-hearses	243
 hearst	1062
 heart	262845
 heartache	1777
@@ -40521,7 +40406,6 @@ heaths	8
 heathy	18
 heating	8927
 heatproof	64
-heats	1389
 heatstroke	578
 heatwave	1592
 heave	2176
@@ -40978,7 +40862,6 @@ herem	67
 hereof	22
 hereon	178
 herero	75
-heres	163
 heresies	72
 heresy	869
 heretic	852
@@ -41077,7 +40960,6 @@ hertz	554
 herve	161
 Herzegovina	321
 Herzl	160
-hes	1451
 Hesiod	44
 hesione	11
 hesitance	72
@@ -41401,7 +41283,6 @@ hiney	129
 hing	630
 hinge	1279
 hinged	317
-hinges	2270
 hinging	88
 hingle	18
 hinny	25
@@ -41457,7 +41338,6 @@ hireling	36
 hirelings	34
 hiren	77
 hirer	10
-hires	2251
 hiring	11617
 hirings	124
 hiro	1120
@@ -42038,7 +41918,6 @@ hookey	41
 hooking	2381
 hookman	8
 hooknose	5
-hooks	3292
 hookup	960
 hookups	271
 hookworm	141
@@ -42221,7 +42100,6 @@ horseplayer	6
 horsepower	2850
 horsepowers	20
 horseradish	428
-horses	32820
 horseshit	802
 horseshoe	873
 horseshoes	341
@@ -42419,7 +42297,6 @@ houseowner	6
 houseplant	162
 houser	228
 housers	6
-houses	35775
 housesit	23
 housesitting	39
 housetop	42
@@ -42470,7 +42347,6 @@ howlers	80
 howling	5933
 howls	1638
 Howrah	260
-hows	371
 howsoever	42
 howsomever	5
 Hoya	353
@@ -42895,7 +42771,6 @@ hydrants	616
 hydras	15
 hydrate	597
 hydrated	1432
-hydrates	154
 hydrating	500
 hydration	1428
 hydrator	7
@@ -43235,7 +43110,6 @@ iceman	753
 icemen	16
 iceni	47
 icepick	21
-ices	192
 ich	1303
 ichneumon	17
 ichneumonidae	8
@@ -43509,8 +43383,6 @@ illy	131
 illyrian	75
 Ilya	1131
 Ilyushin	16
-Im	5455
-im	2045
 image	46757
 imaged	171
 imagen	5
@@ -44156,7 +44028,6 @@ incense	1941
 incensed	671
 incenses	26
 incentive	5576
-incentives	4518
 incept	18
 incepting	6
 inception	2844
@@ -44213,7 +44084,6 @@ inclination	1034
 inclinations	284
 incline	577
 inclined	4413
-inclines	170
 inclining	212
 inclosed	6
 include	80964
@@ -45192,7 +45062,6 @@ inserted	2199
 inserting	733
 insertion	677
 insertions	75
-inserts	507
 inset	526
 inshore	296
 inside	228291
@@ -46335,7 +46204,6 @@ isms	50
 ismy	15
 isn	430069
 isn't	64055
-isnt	597
 isobars	5
 isobutane	5
 isocyanate	19
@@ -46433,7 +46301,6 @@ itinerant	258
 itinerants	12
 itineraries	225
 itinerary	1603
-itll	74
 ito	952
 Ito	571
 its	959939
@@ -47023,7 +46890,6 @@ jigaboos	15
 jigged	8
 jigger	331
 jiggered	51
-jiggers	61
 jigging	44
 jiggle	639
 jiggled	41
@@ -47032,7 +46898,6 @@ jiggles	109
 jiggling	261
 jiggly	298
 jiggy	247
-jigs	141
 jigsaw	1481
 jigsaws	54
 jihad	3243
@@ -47199,13 +47064,11 @@ joiner	220
 joiners	146
 joinery	29
 joining	28723
-joins	6754
 joint	34355
 jointed	125
 jointing	6
 jointly	2819
 jointress	8
-joints	3538
 jointure	9
 joist	41
 joists	59
@@ -49109,7 +48972,6 @@ labeling	1102
 labella	133
 labelled	2285
 labelling	715
-labels	4881
 labia	352
 labial	30
 labile	22
@@ -49155,7 +49017,6 @@ lacerates	9
 lacerating	31
 laceration	679
 lacerations	1044
-laces	1182
 lacewing	8
 lacewings	7
 lacework	14
@@ -50075,7 +49936,6 @@ learned	63407
 learner	1924
 learners	2431
 learning	53668
-learnings	613
 learns	4403
 learnt	8433
 learoyd	14
@@ -50234,7 +50094,6 @@ legatees	5
 legates	23
 legatine	9
 legation	201
-legations	7
 legato	57
 legatos	12
 legatus	39
@@ -50509,7 +50368,6 @@ lethean	16
 Leticia	499
 Letitia	771
 leto	368
-lets	20451
 lett	285
 letten	7
 letter	92493
@@ -50563,7 +50421,6 @@ leven	164
 lever	2641
 leverage	11002
 leveraged	1629
-leverages	368
 leveraging	3109
 levered	132
 leveret	17
@@ -50870,7 +50727,6 @@ lightheartedness	72
 lighthouse	3713
 lighthouses	270
 lighting	12844
-lightings	19
 lightish	12
 lightkeeper	17
 lightly	6226
@@ -50878,7 +50734,6 @@ lightman	570
 lightness	613
 lightning	16740
 lightnings	118
-lights	51578
 lightship	29
 lightsome	5
 lightweight	4190
@@ -50991,12 +50846,10 @@ limitation	1048
 limitations	6390
 limited	46356
 limiter	197
-limiters	36
 limiting	4113
 limitless	1558
 limitlessly	6
 limitlessness	6
-limits	18877
 limmer	5
 limo	4412
 Limoges	206
@@ -51356,7 +51209,6 @@ liverish	18
 Livermore	279
 Liverpool	16508
 liverpudlian	136
-livers	559
 liverworts	5
 liverwurst	162
 livery	855
@@ -51408,8 +51260,6 @@ loaded	18258
 loader	703
 loaders	91
 loading	5017
-loadings	7
-loads	9750
 loadstar	128
 loaf	3268
 loafed	16
@@ -51496,7 +51346,6 @@ locates	215
 locating	2133
 location	51640
 location's	177
-locations	23269
 locator	874
 locators	128
 locavore	8
@@ -51737,7 +51586,6 @@ longlegs	58
 longline	124
 Longmont	901
 longneck	28
-longs	1058
 longshanks	72
 longship	18
 longships	17
@@ -51975,7 +51823,6 @@ lours	5
 loury	6
 louse	884
 loused	79
-louses	43
 lousewort	6
 lousier	17
 lousiest	62
@@ -52501,7 +52348,6 @@ MA	119067
 ma'am	237
 maad	27
 Maalox	64
-maam	321
 maar	282
 maarten	172
 maat	87
@@ -52981,7 +52827,6 @@ makeover	3061
 maker	9643
 Maker	2410
 makers	6920
-makes	251876
 makeshift	1719
 makeup	19095
 makeups	441
@@ -53477,7 +53322,6 @@ manors	134
 manos	206
 manpower	2255
 manque	64
-Mans	1676
 mansard	11
 manscape	20
 manse	82
@@ -53516,7 +53360,6 @@ mantle	1882
 Mantle	470
 mantled	9
 mantlepiece	22
-mantles	28
 mantling	64
 manto	40
 manton	136
@@ -53583,7 +53426,6 @@ mappila	6
 mapping	2514
 Mapplethorpe	157
 mappy	6
-maps	8726
 mapuche	171
 Maputo	223
 maquette	78
@@ -54045,7 +53887,6 @@ masked	3671
 masker	13
 maskers	5
 masking	923
-masks	8314
 maslin	69
 masochism	199
 masochist	382
@@ -54595,7 +54436,6 @@ measureless	32
 measurement	2699
 measurements	2946
 measurer	19
-measures	31211
 measuring	4887
 meat	43548
 meatball	1651
@@ -54906,7 +54746,6 @@ melter	10
 melteth	13
 melting	4571
 Melton	1008
-melts	2151
 meltwater	109
 melungeon	6
 Melva	35
@@ -54914,7 +54753,6 @@ Melville	935
 Melvin	3053
 member	91345
 member's	711
-members	154760
 membership	11435
 memberships	951
 membrane	1073
@@ -55991,7 +55829,6 @@ mindless	1859
 mindlessly	330
 mindlessness	16
 Mindoro	252
-minds	23891
 mindset	6038
 Mindy	3451
 mine	183150
@@ -56492,7 +56329,6 @@ mistaking	932
 misted	79
 mistempered	5
 Mister	29213
-misters	141
 mistery	81
 mistfall	16
 mistico	7
@@ -56520,7 +56356,6 @@ mistrustful	80
 mistrusting	37
 mistrusts	34
 mistry	85
-mists	457
 Misty	1957
 misty	711
 mistyped	5
@@ -56641,7 +56476,6 @@ mobilized	1187
 mobilizer	5
 mobilizes	31
 mobilizing	536
-mobs	684
 mobster	674
 mobsters	421
 Mobutu	95
@@ -57455,7 +57289,6 @@ mortem	682
 mortgage	16388
 mortgaged	684
 mortgagee	68
-mortgages	2049
 mortgaging	126
 mortice	5
 mortician	382
@@ -57525,7 +57358,6 @@ mote	474
 motel	10300
 motels	788
 moter	6
-motes	76
 motet	10
 motets	70
 moth	2634
@@ -58277,7 +58109,6 @@ mustering	144
 musters	27
 musth	9
 mustiness	6
-mustnt	20
 musts	13
 musty	580
 muta	63
@@ -58572,7 +58403,6 @@ namelessly	7
 namely	4363
 nameplate	312
 nameplates	84
-names	63123
 namesake	1281
 namesakes	134
 Namibia	730
@@ -58810,7 +58640,6 @@ nature's	1245
 natured	173
 naturel	121
 naturellement	55
-natures	378
 naturism	100
 naturist	70
 naturopath	12
@@ -59021,7 +58850,6 @@ needlework	249
 needling	131
 needn	5234
 needn't	415
-neednt	11
 needs	207653
 needsome	5
 needy	2913
@@ -59029,7 +58857,6 @@ neela	917
 neele	66
 neem	68
 neeps	10
-neer	57
 neese	97
 NEET	811
 nefarious	1590
@@ -59199,7 +59026,6 @@ nerve	14571
 nerved	11
 nerveless	6
 nerver	6
-nerves	11718
 nerving	5
 nervosa	118
 nervous	52148
@@ -59867,7 +59693,6 @@ nominated	10212
 nominates	45
 nominating	744
 nomination	9914
-nominations	4973
 nominative	27
 nomine	364
 nominee	4769
@@ -60208,7 +60033,6 @@ notepad	329
 notepads	28
 notepaper	64
 noter	7
-notes	38067
 noteworthy	2300
 nother	438
 nothing	681310
@@ -61689,7 +61513,6 @@ orientations	343
 oriented	1189
 orienteering	108
 orienting	93
-orients	12
 orifice	332
 orifices	140
 oriflamme	7
@@ -62914,7 +62737,6 @@ packable	62
 package	27810
 packaged	1446
 packager	7
-packages	6141
 packaging	5953
 Packard	644
 packed	21001
@@ -62928,7 +62750,6 @@ packing	10273
 packinghouse	8
 packman	159
 packrat	34
-packs	6110
 packsaddle	9
 paco	2485
 pacos	8
@@ -63899,7 +63720,6 @@ Parton	1227
 partook	113
 partridge	1939
 partridges	157
-parts	61848
 parturition	12
 partway	185
 party	281022
@@ -64298,7 +64118,6 @@ PayPal	1350
 payphone	446
 payroll	5087
 payrolls	425
-pays	16150
 payslip	13
 Payton	3633
 paywall	422
@@ -65715,7 +65534,6 @@ phrase	10378
 phrasebook	13
 phrased	240
 phraseology	172
-phrases	2692
 phrasing	479
 phrasings	5
 phreatic	5
@@ -66136,7 +65954,6 @@ pinecone	98
 pinecones	138
 pined	144
 piner	6
-pines	2485
 pineta	7
 pinewood	333
 pinewoods	67
@@ -66450,7 +66267,6 @@ placenta	758
 placental	95
 placentas	40
 placer	127
-places	72297
 placet	38
 placid	421
 placidly	78
@@ -66524,7 +66340,6 @@ plane's	296
 planed	127
 planeload	48
 planer	35
-planes	13145
 planet	61679
 planeta	23
 planetarium	753
@@ -66858,7 +66673,6 @@ plows	401
 plowshare	8
 plowshares	33
 ploy	2279
-ploys	165
 pluck	2213
 plucked	1799
 plucker	36
@@ -66874,7 +66688,6 @@ plugging	1055
 pluggy	11
 plughole	61
 plugin	302
-plugs	1484
 plum	3623
 pluma	10
 plumage	232
@@ -67672,7 +67485,6 @@ portraying	1389
 portrays	1647
 portreeve	32
 portress	9
-ports	7202
 portside	128
 portsider	6
 Portsmouth	2335
@@ -67693,7 +67505,6 @@ posed	9153
 Poseidon	1344
 poser	440
 posers	153
-poses	7096
 poseur	141
 poseurs	44
 posey	396
@@ -67958,7 +67769,6 @@ pounded	1212
 pounder	482
 pounders	110
 pounding	6796
-pounds	33455
 poundstone	97
 pour	15081
 pourboire	5
@@ -68722,7 +68532,6 @@ price's	237
 priced	6144
 priceless	3798
 Priceline	64
-prices	59872
 pricey	2077
 pricier	321
 priciest	191
@@ -69044,7 +68853,6 @@ produce	31280
 produced	28912
 producer	23772
 producers	14143
-produces	7602
 producing	13449
 product	50163
 production	66373
@@ -70706,7 +70514,6 @@ quetzalcoatl	95
 queue	4263
 queued	396
 queueing	398
-queues	1908
 queuing	907
 Quezon	981
 quia	34
@@ -70879,7 +70686,6 @@ quotation	703
 quotations	313
 quote	12211
 quoted	6695
-quotes	4256
 quoth	123
 quotidian	197
 quotient	200
@@ -71152,7 +70958,6 @@ railroader	34
 railroaders	29
 railroading	155
 railroads	1197
-rails	3292
 railway	14340
 railwayman	46
 railwaymen	56
@@ -71364,7 +71169,6 @@ rangefinder	82
 rangeland	19
 ranger	9279
 Rangers	20168
-ranges	3267
 rangifer	5
 ranging	6306
 rangle	10
@@ -72616,7 +72420,6 @@ reelecting	62
 reelection	2727
 reeled	393
 reeling	2660
-reels	1651
 reem	256
 reemerge	90
 reemerged	86
@@ -75306,7 +75109,6 @@ Roberta	2453
 Roberto	4954
 Roberts	12270
 Robertson	5389
-robes	2310
 Robeson	538
 Robespierre	416
 Robin	16858
@@ -75435,7 +75237,6 @@ Roget	85
 rognons	12
 rogue	7367
 roguery	17
-rogues	1206
 roguish	86
 roguishly	11
 Rohan	1760
@@ -75852,7 +75653,6 @@ routed	1179
 routeing	64
 router	1742
 routers	365
-routes	11514
 routh	7
 routine	22105
 routinely	3103
@@ -76380,7 +76180,6 @@ saddled	1324
 saddler	121
 saddlers	121
 saddlery	71
-saddles	466
 saddling	135
 sadducee	5
 sadducees	25
@@ -76651,7 +76450,6 @@ saltman	24
 Salton	115
 saltpeter	120
 saltpetre	50
-salts	1414
 saltshaker	23
 saltwater	925
 saltworks	5
@@ -77328,7 +77126,6 @@ saying	313882
 sayings	681
 saynay	12
 sayonara	797
-says	414611
 sayst	7
 sayyid	74
 sazen	64
@@ -77369,7 +77166,6 @@ scaled	1677
 scalene	17
 scaler	97
 scalers	12
-scales	4604
 scaling	2217
 scallion	204
 scallions	116
@@ -77579,7 +77375,6 @@ schedule	32110
 scheduled	31858
 scheduler	105
 schedulers	64
-schedules	3797
 scheduling	2947
 scheffel	42
 scheherazade	173
@@ -77929,7 +77724,6 @@ scramble	2896
 scrambled	3723
 scrambler	397
 scramblers	92
-scrambles	428
 scrambling	2299
 scrammed	36
 scramming	7
@@ -78021,7 +77815,6 @@ screwhead	20
 screwier	11
 screwiest	19
 screwing	7078
-screws	3017
 screwworm	22
 screwy	618
 Scriabin	11
@@ -78035,7 +77828,6 @@ scribbling	501
 scribbly	9
 scribe	629
 scribed	129
-scribes	296
 scribing	13
 Scribner	231
 scrim	45
@@ -78255,7 +78047,6 @@ sealed	13113
 sealer	53
 sealers	9
 sealing	1791
-seals	3715
 sealskin	37
 sealy	169
 seam	973
@@ -78330,7 +78121,6 @@ seating	4887
 seatings	9
 seatmate	17
 SEATO	6
-seats	27323
 Seattle	15400
 seawall	412
 seawalls	5
@@ -78513,7 +78303,6 @@ seedling	231
 seedlings	1316
 seedpod	8
 seedpods	12
-seeds	11846
 seedy	736
 Seeger	302
 seeing	133149
@@ -78680,7 +78469,6 @@ selloff	477
 sellotape	71
 sellout	683
 sellouts	93
-sells	11740
 selly	82
 Selma	1782
 sels	12
@@ -79079,7 +78867,6 @@ served	51620
 server	5699
 servers	4030
 servery	17
-serves	20454
 servet	119
 servette	178
 servian	18
@@ -79144,7 +78931,6 @@ settlement	14200
 settlements	3127
 settler	1628
 settlers	4276
-settles	2769
 settling	6131
 setup	9227
 setups	376
@@ -79258,7 +79044,6 @@ shacked	351
 shacking	292
 shackle	354
 shackled	618
-shackles	1196
 Shackleton	521
 shackling	33
 shacks	389
@@ -79417,7 +79202,6 @@ Shanks	728
 shanna	271
 Shannon	7735
 shanny	6
-shant	35
 shanti	972
 shanties	408
 shantung	74
@@ -79433,7 +79217,6 @@ shapely	319
 shapen	7
 shaper	61
 shapers	75
-shapes	5385
 shapeshifter	177
 shapesmith	6
 shaping	4694
@@ -79708,7 +79491,6 @@ sherry	971
 sherwani	49
 Sherwood	1907
 Sheryl	971
-shes	773
 Shetland	772
 shetlander	6
 shetlands	14
@@ -79837,7 +79619,6 @@ shippers	456
 shipping	10572
 shippo	17
 shippy	6
-ships	22224
 shipshape	262
 shipworm	7
 shipwreck	926
@@ -80094,7 +79875,6 @@ shouldest	5
 shouldn	117088
 shouldn't	13938
 shouldna	11
-shouldnt	167
 shouldst	102
 shout	16999
 shouted	5920
@@ -80432,7 +80212,6 @@ sidemen	130
 sidepiece	14
 sider	137
 sidereal	27
-sides	36466
 sidesaddle	56
 sideshow	1212
 sideshows	115
@@ -80582,7 +80361,6 @@ signpost	276
 signposted	72
 signposting	121
 signposts	144
-signs	41275
 signum	17
 sigurd	484
 Sihanouk	19
@@ -80995,7 +80773,6 @@ size	57751
 sizeable	1383
 sized	2142
 sizer	21
-sizes	6956
 sizing	636
 sizz	32
 sizzle	937
@@ -81118,7 +80895,6 @@ skillful	832
 skillfully	825
 skilling	260
 skillings	5
-skills	45814
 skim	797
 skimmed	487
 skimmer	190
@@ -81995,7 +81771,6 @@ snapping	3379
 snappish	88
 Snapple	178
 snappy	2042
-snaps	9509
 snapshot	1741
 snapshots	549
 snare	884
@@ -82009,7 +81784,6 @@ snarky	477
 snarl	417
 snarled	254
 snarling	4496
-snarls	1602
 snarly	38
 snatch	4062
 snatched	3812
@@ -82549,7 +82323,6 @@ solum	14
 solus	49
 solute	15
 solution	39893
-solutions	30118
 solvable	105
 solve	28892
 solved	11778
@@ -82930,7 +82703,6 @@ sowers	14
 Soweto	927
 sowing	909
 sown	671
-sows	279
 Sox	8396
 soy	3908
 soya	430
@@ -83459,7 +83231,6 @@ spiralling	865
 spirally	7
 spirals	629
 spire	1138
-spires	245
 spiring	6
 spirit	57289
 Spirit's	296
@@ -83469,7 +83240,6 @@ spiriting	21
 spiritism	20
 spiritist	15
 spiritless	32
-spirits	19379
 spiritual	13781
 spiritualism	152
 spiritualist	194
@@ -83599,7 +83369,6 @@ spoiled	7079
 spoiler	1883
 spoilers	5737
 spoiling	1960
-spoils	2196
 spoilsport	284
 spoilsports	22
 spoilt	1659
@@ -83735,7 +83504,6 @@ sprayed	1935
 sprayer	112
 sprayers	31
 spraying	1635
-sprays	722
 spread	46227
 spreadable	30
 spreaded	26
@@ -84101,7 +83869,6 @@ staffer	1614
 staffers	2042
 staffing	5401
 Stafford	2783
-staffs	530
 stag	2598
 stage	94682
 Stagecoach	1002
@@ -84197,7 +83964,6 @@ Stallions	593
 stallman	30
 stallon	19
 Stallone	1049
-stalls	4209
 stalwart	907
 stalwarts	377
 stam	145
@@ -84827,7 +84593,6 @@ stillest	7
 stilling	100
 stillman	581
 stillness	543
-stills	994
 stillwater	339
 stilly	23
 stilt	65
@@ -84953,7 +84718,6 @@ stockpiles	796
 stockpiling	377
 stockpot	9
 stockroom	280
-stocks	24068
 stocktaking	102
 Stockton	1590
 stocky	404
@@ -85079,7 +84843,6 @@ stopper	595
 stoppered	11
 Stoppers	1760
 stopping	20776
-stops	30618
 stopwatch	456
 stopwatches	12
 stor	70
@@ -85098,7 +84861,6 @@ storekeepers	41
 storeman	7
 storeroom	1339
 storerooms	65
-stores	26950
 storey	1472
 storeyed	8
 storeys	467
@@ -85209,7 +84971,6 @@ strained	2854
 strainer	193
 strainers	18
 straining	2541
-strains	2042
 Strait	2324
 straitened	14
 straitjacket	604
@@ -85250,7 +85011,6 @@ strappado	12
 strapped	2768
 strapper	16
 strapping	738
-straps	1468
 Strasbourg	695
 strasburg	86
 strata	563
@@ -85522,7 +85282,6 @@ structuralist	5
 structurally	506
 structure	25968
 structured	2072
-structures	8700
 structuring	229
 strudel	534
 strudels	21
@@ -85679,7 +85438,6 @@ stygian	42
 style	51835
 styled	1772
 styler	86
-styles	8924
 stylet	18
 styling	1967
 stylings	159
@@ -86718,7 +86476,6 @@ surf	7179
 surfable	63
 surface	32860
 surfaced	2602
-surfaces	3064
 surfacing	655
 surfactant	80
 surfboard	864
@@ -86820,7 +86577,6 @@ surveyed	3310
 surveying	1119
 surveyor	1189
 surveyors	558
-surveys	3955
 survivability	244
 survivable	291
 survival	18055
@@ -87699,6 +87455,7 @@ tailpipe	427
 tailpipes	19
 tails	5226
 tailspin	339
+tailspins	5
 tailwind	911
 tailwinds	787
 tain	319
@@ -87736,6 +87493,7 @@ taken	212031
 takeoff	2140
 takeoffs	119
 takeout	1444
+takeouts	5
 takeover	4918
 takeovers	273
 taker	1207
@@ -87759,6 +87517,7 @@ talcing	6
 talcum	467
 tald	9
 tale	16611
+talebearer	5
 talebearing	10
 talent	42157
 talented	19400
@@ -87792,8 +87551,10 @@ talkings	12
 talks	41487
 talky	196
 tall	29506
+tallage	5
 Tallahassee	799
 tallboy	71
+tallboys	5
 Tallchief	7
 taller	5528
 tallest	1649
@@ -87836,6 +87597,7 @@ tamarind	255
 tamarinds	13
 tamarisk	72
 tamas	36
+tamasha	5
 tambo	189
 tambor	84
 tambour	25
@@ -87844,6 +87606,7 @@ tambourine	576
 tambourines	66
 tambura	9
 tamburello	8
+tamburitza	5
 tame	3712
 tamed	991
 Tameka	208
@@ -87895,6 +87658,7 @@ tanager	77
 tanagra	39
 tanaka	2010
 Tancred	102
+tandava	5
 tandem	2143
 tandems	128
 tandoor	23
@@ -87915,16 +87679,18 @@ tanger	12
 tangerine	690
 tangerines	334
 tangi	8
+tangibility	5
 tangible	3799
 tangibles	13
 tangibly	23
 tangie	19
 tangier	314
 tanginess	70
+tangka	5
 tangle	836
 tangled	2807
 tanglefoot	75
-tangles	494
+tangler	5
 tangling	176
 tangly	9
 tango	4010
@@ -87936,8 +87702,10 @@ Tangshan	62
 tangut	7
 tangy	937
 tanh	15
+tanha	5
 tania	1493
 Tanisha	212
+tanitic	5
 tanjong	9
 tank	24991
 tanka	77
@@ -87968,6 +87736,7 @@ tans	227
 tansey	21
 tansy	281
 tantalise	11
+tantalised	5
 tantalising	469
 tantalisingly	101
 tantalize	66
@@ -88025,6 +87794,7 @@ tapped	4707
 Tapper	733
 tappers	17
 tapping	6256
+tappings	5
 taproom	365
 taproot	31
 taps	3228
@@ -88042,10 +87812,12 @@ tarantella	73
 Tarantino	755
 tarantula	548
 tarantulas	144
+tarasco	5
 tarata	8
 Tarawa	94
 tarazed	36
 Tarbell	25
+tarble	5
 tarbrush	10
 tarde	57
 tardies	41
@@ -88056,6 +87828,8 @@ tardive	18
 tardo	12
 tardy	649
 tare	62
+tarea	5
+tared	5
 tareq	102
 tares	20
 targe	7
@@ -88132,6 +87906,7 @@ tartlets	39
 tartly	64
 tartness	32
 tartrate	8
+tartrazine	5
 tarts	1291
 tartuffe	122
 tarty	57
@@ -88188,10 +87963,12 @@ tates	329
 tatler	53
 tatoo	151
 tatoos	21
+tatou	5
 tats	318
 tatta	55
 tatted	50
 tatter	13
+tatterdemalion	5
 tattered	524
 tattering	6
 tatters	842
@@ -88248,6 +88025,7 @@ tavern	3103
 taverna	179
 taverner	23
 taverns	207
+tavers	5
 tawa	8
 tawdry	354
 tawn	11
@@ -88361,6 +88139,7 @@ teases	1785
 teashop	47
 teasing	4881
 teasingly	80
+teasle	5
 teaspoon	899
 teaspoonful	67
 teaspoonfuls	69
@@ -88370,6 +88149,7 @@ teat	272
 teather	62
 teatime	381
 teats	272
+teaze	5
 teca	41
 tech	35876
 teched	15
@@ -88412,6 +88192,7 @@ tectonics	213
 tecum	77
 Tecumseh	396
 Ted	23319
+teda	5
 tedder	107
 teddies	61
 Teddy	10653
@@ -88440,6 +88221,7 @@ teenagers	8320
 teener	20
 teeners	7
 teenie	172
+teenier	5
 teeniest	63
 teens	8372
 teensiest	23
@@ -88461,6 +88243,7 @@ teeth	36359
 teethe	8
 teethed	10
 teether	14
+teethes	5
 teething	571
 teethy	7
 teetotal	85
@@ -88480,6 +88263,7 @@ teheran	157
 Tehran	3647
 tehsil	177
 tehsildar	76
+teil	5
 tejano	37
 teju	9
 tekken	140
@@ -88503,6 +88287,7 @@ teleconference	77
 teleconferencing	13
 telefilm	23
 telefilms	125
+telega	5
 telegenic	30
 Telegram	7467
 telegramme	9
@@ -88540,6 +88325,7 @@ telephone	26011
 telephoned	1682
 telephones	1039
 telephonic	298
+telephonically	5
 telephoning	284
 telephonist	25
 telephonists	6
@@ -88552,6 +88338,7 @@ teleported	260
 teleporting	160
 teleports	216
 teleprinter	40
+teleprinters	5
 teleprompter	337
 teles	6
 telesales	70
@@ -88629,6 +88416,7 @@ temperately	18
 temperature	22893
 temperatures	20173
 tempered	1172
+temperer	5
 tempering	116
 tempers	628
 tempest	949
@@ -88638,7 +88426,6 @@ tempi	14
 templar	1052
 templars	527
 template	1697
-templates	833
 Temple	19344
 temple	10639
 temples	3143
@@ -88653,6 +88440,7 @@ temporaries	13
 temporarily	10696
 temporary	23674
 tempore	310
+temporise	5
 temporize	9
 temporomandibular	64
 temporoparietal	11
@@ -88677,6 +88465,7 @@ ten	125933
 tenable	227
 tenacious	851
 tenaciously	52
+tenaciousness	5
 tenacity	1537
 tenancies	190
 tenancy	481
@@ -88753,6 +88542,7 @@ tenpence	20
 tenpin	10
 tenpins	8
 tenrec	8
+tenrecs	5
 tens	8879
 tense	13041
 tensed	1468
@@ -88768,6 +88558,7 @@ tensional	6
 tensioned	7
 tensioner	6
 tensions	8693
+tensity	5
 tenso	21
 tensor	280
 tenspot	10
@@ -88802,11 +88593,14 @@ Tera	596
 terabyte	25
 terahertz	94
 terai	28
+teratology	5
 teratoma	55
 teratomas	11
 terawatt	11
+terce	5
 tercel	34
 tercio	17
+teredo	5
 terek	101
 terence	1432
 teres	17
@@ -88822,6 +88616,7 @@ Terkel	130
 term	50863
 terma	6
 termagant	17
+terman	5
 termed	1395
 termer	7
 termin	8
@@ -88841,6 +88636,7 @@ termine	8
 terminer	6
 terming	305
 termini	35
+termino	5
 terminologies	6
 terminology	1060
 terminus	480
@@ -88923,6 +88719,7 @@ Terry	19971
 terrycloth	81
 terse	205
 tersely	13
+terseness	5
 tertiary	996
 Tertiary	398
 tertio	6
@@ -88976,7 +88773,6 @@ testing	28444
 testings	13
 testis	20
 testosterone	2651
-tests	30332
 testudo	16
 testy	513
 tesuque	7
@@ -89017,6 +88813,7 @@ tetras	67
 tetrazzini	52
 tetrodotoxin	91
 tetroxide	9
+tetryl	5
 tetter	16
 tetty	8
 teuk	24
@@ -89063,11 +88860,13 @@ thak	30
 Thakur	1962
 thala	35
 thalamic	26
+thalamocortical	5
 thalamus	84
 thalassa	57
 thalassemia	80
 thalasso	62
 thalassotherapy	10
+thalatta	5
 thaler	304
 thalers	102
 Thales	60
@@ -89114,9 +88913,6 @@ Thatcher	2008
 thatcher	502
 thatchers	17
 thatching	19
-thatd	6
-thatll	9
-thats	4281
 thaught	23
 thaumaturgy	12
 thaw	1437
@@ -89174,6 +88970,7 @@ then	1568735
 thenar	8
 thence	397
 thenceforth	72
+thenceforward	5
 thens	13
 Theo	6356
 theobald	102
@@ -89192,6 +88989,7 @@ theologian	398
 theologians	256
 theological	746
 theologically	27
+theologies	5
 theologist	14
 theology	1432
 theophile	16
@@ -89243,7 +89041,6 @@ therell	14
 theremin	186
 thereof	1039
 thereon	141
-theres	1109
 Theresa	4946
 therese	1111
 therethrough	12
@@ -89277,6 +89074,7 @@ thermohaline	65
 thermometer	1492
 thermometers	293
 thermonuclear	237
+thermophilic	5
 thermoplastic	138
 Thermopylae	78
 thermoregulation	8
@@ -89313,10 +89111,6 @@ they'd	7829
 they'll	13760
 they're	86119
 they've	28231
-theyd	37
-theyll	114
-theyre	471
-theyve	67
 thiamin	9
 thiamine	105
 thick	17540
@@ -89324,6 +89118,7 @@ thicke	281
 thicken	158
 thickened	263
 thickener	140
+thickeners	5
 thickening	273
 thickens	367
 thicker	1983
@@ -89352,9 +89147,12 @@ thievish	16
 thig	16
 thigh	3558
 thighbone	44
+thighbones	5
 thighed	6
 thighs	3709
 thight	8
+thill	5
+thilly	5
 thimble	327
 thimbleful	42
 thimbles	50
@@ -89374,7 +89172,6 @@ thinkable	23
 thinker	1183
 thinkers	1245
 thinking	229622
-thinkings	17
 thinks	79029
 thinly	647
 thinned	296
@@ -89389,6 +89186,7 @@ thiocyanate	6
 thiokol	13
 thiopental	54
 thiopentone	8
+thioridazine	5
 thiosulfate	12
 thir	54
 third	169864
@@ -89399,6 +89197,7 @@ thirds	1073
 thirst	5054
 thirsted	35
 thirstier	108
+thirstiest	5
 thirstily	6
 thirsting	267
 thirsts	80
@@ -89419,6 +89218,7 @@ thither	235
 tho	567
 thob	7
 thoght	20
+thole	5
 thoman	6
 Thomas	50869
 Thompson	14855
@@ -89433,6 +89233,7 @@ thoom	6
 Thor	5107
 thoracentesis	29
 thoracic	589
+thoracolumbar	5
 thoracoplasty	6
 thoracostomy	28
 thoracotomies	8
@@ -89447,6 +89248,7 @@ thorn	2990
 thornbush	18
 thorned	6
 thorniest	8
+thornless	5
 thorns	1729
 Thornton	3593
 thorny	778
@@ -89486,6 +89288,7 @@ thow	26
 Thrace	288
 thracian	158
 thrain	34
+thraldom	5
 thrall	445
 thralls	59
 thrash	1857
@@ -89531,6 +89334,7 @@ thresh	42
 threshed	66
 thresher	131
 threshers	12
+threshes	5
 threshing	130
 threshold	6867
 thresholds	963
@@ -89558,6 +89362,8 @@ thriving	5848
 thro	146
 throat	43743
 throated	69
+throatier	5
+throating	5
 throats	2711
 throaty	264
 throb	268
@@ -89577,7 +89383,6 @@ thrombotic	13
 thrombus	43
 throne	11782
 throned	18
-Thrones	1675
 throng	332
 thronged	165
 thronging	82
@@ -89604,6 +89409,7 @@ thrower	457
 throwers	221
 throwing	29399
 thrown	25601
+throwout	5
 throws	12105
 thru	1222
 thrum	32
@@ -89713,6 +89519,7 @@ thwarts	29
 thy	18438
 thylacine	64
 thyme	811
+thymectomy	5
 thymine	20
 thymoma	10
 thymus	191
@@ -89725,6 +89532,7 @@ thyrotoxicosis	11
 thyself	959
 ti	573
 Tia	1200
+tiang	5
 Tianjin	307
 tiao	28
 tiar	7
@@ -89738,6 +89546,7 @@ Tibetan	1355
 tibetans	355
 tibey	19
 tibia	656
+tibiae	5
 tibial	73
 tibialis	10
 tibias	26
@@ -89771,6 +89580,7 @@ ticktock	301
 ticky	91
 Ticonderoga	51
 tics	293
+tictac	5
 tidal	2180
 tidally	13
 tidbit	466
@@ -89786,6 +89596,7 @@ tiddy	11
 tide	7330
 Tide	3665
 tided	15
+tideland	5
 tidemark	8
 tides	2438
 tidewater	121
@@ -89814,7 +89625,6 @@ tier	5348
 tierce	20
 tiered	157
 tiers	1121
-ties	20991
 tiff	1244
 Tiffany	5367
 tiffie	7
@@ -89822,6 +89632,7 @@ tiffin	232
 tiffins	13
 tiffs	131
 tiffy	150
+tifinagh	5
 tige	16
 tigella	31
 tiger	20509
@@ -89887,11 +89698,11 @@ Tillich	5
 tillicum	7
 tilling	146
 tillman	696
-tills	225
 Tilly	1607
 tilsit	28
 tilt	3273
 tilted	1384
+tilter	5
 tilters	8
 tilting	474
 tilts	187
@@ -89991,6 +89802,7 @@ tinging	14
 tingle	986
 tingled	37
 tingler	34
+tinglers	5
 tingles	268
 tingling	997
 tingly	395
@@ -90081,12 +89893,13 @@ tiredness	716
 tireless	1372
 tirelessly	3072
 tirer	6
-tires	21050
 tiresias	96
 tiresome	1246
+tiresomely	5
 tiring	2537
 tiro	21
 Tirol	19
+tiros	5
 tis	3492
 tisane	36
 Tisha	449
@@ -90140,11 +89953,13 @@ titling	10
 titmice	7
 titmouse	79
 Tito	2886
+titoism	5
 titoist	6
 titrate	92
 titrated	7
 titrating	9
 titration	6
+titre	5
 tits	9552
 titter	53
 tittering	174
@@ -90157,10 +89972,14 @@ titular	3088
 titurel	12
 Titus	2526
 Titusville	71
+tiver	5
 Tivoli	611
+tizwin	5
 tizz	51
+tizzies	5
 tizzy	185
 tlingit	107
+tmesis	5
 tn	1932
 to	27090639
 toad	3656
@@ -90239,6 +90058,7 @@ toff	139
 toffee	837
 toffees	260
 toffs	120
+toffy	5
 toft	80
 tofu	2065
 tofus	7
@@ -90365,8 +90185,10 @@ tomkin	8
 Tomlin	1675
 Tommie	332
 tommies	186
+tomming	5
 Tommy	40850
 tommyrot	31
+tomograph	5
 tomographic	9
 tomography	121
 tomorrow	262014
@@ -90387,7 +90209,6 @@ toned	1147
 toneless	9
 toner	447
 toners	15
-tones	2672
 tong	3075
 Tonga	948
 tongan	215
@@ -90428,6 +90249,7 @@ tonsured	36
 tonsuring	8
 tontine	47
 Tonto	943
+tonus	5
 Tony	54074
 Tonya	1455
 too	1177181
@@ -90445,7 +90267,8 @@ tooling	184
 toolkit	738
 toolmaker	27
 toolmakers	9
-tools	30778
+toolman	5
+toolmark	5
 toolshed	88
 toom	89
 Toon	887
@@ -90457,6 +90280,7 @@ toosie	6
 toot	1418
 tooted	35
 tooter	24
+tooters	5
 tooth	11483
 toothache	830
 toothaches	39
@@ -90472,6 +90296,7 @@ toothpaste	2169
 toothpastes	23
 toothpick	796
 toothpicks	469
+toothpowder	5
 tooths	21
 toothsome	76
 toothy	170
@@ -90562,11 +90387,13 @@ toran	39
 torc	30
 torch	7431
 torchbearer	142
+torchbearers	5
 torched	1150
 torcher	7
 torches	1736
 torching	230
 torchlight	87
+torchlit	5
 torchon	6
 torchwood	402
 torchy	20
@@ -90639,6 +90466,7 @@ torte	174
 tortellini	191
 tortes	13
 torticollis	14
+tortil	5
 tortilla	688
 tortillas	437
 tortious	43
@@ -90647,7 +90475,6 @@ tortoises	500
 tortoiseshell	49
 Tortola	74
 tortoni	40
-torts	77
 tortue	9
 Tortuga	195
 tortuous	150
@@ -90690,6 +90517,7 @@ totalitarian	444
 totalitarianism	282
 totalitarians	124
 totality	800
+totalizator	5
 totalled	588
 totalling	2551
 totally	82738
@@ -90704,6 +90532,7 @@ totes	491
 tother	12
 toting	225
 Toto	2312
+totoaba	5
 totoro	78
 tots	807
 totted	16
@@ -90730,6 +90559,7 @@ touched	26986
 toucher	28
 touchers	7
 touches	8409
+touchier	5
 touchiness	6
 touching	16669
 touchingly	102
@@ -90777,6 +90607,7 @@ touristic	22
 tourists	13749
 touristy	173
 tourmaline	147
+tourn	5
 tournai	14
 tournament	36402
 tournaments	3831
@@ -90791,6 +90622,7 @@ tourneys	14
 tourniquet	695
 tourniquets	93
 tours	6922
+touse	5
 tousle	21
 tousled	77
 tousling	7
@@ -90806,6 +90638,8 @@ tovarish	12
 tow	4646
 toward	43678
 towards	78642
+towaway	5
+towbar	5
 towboat	7
 towed	1734
 towel	10744
@@ -90862,9 +90696,11 @@ toxicants	67
 toxication	6
 toxicities	6
 toxicity	1631
+toxicodendron	5
 toxicological	44
 toxicologist	115
 toxicology	1270
+toxifera	5
 toxify	13
 toxin	1447
 toxins	2181
@@ -90906,6 +90742,7 @@ traces	7641
 Tracey	2253
 trachea	556
 tracheal	97
+tracheobronchial	5
 tracheostomy	90
 tracheotomy	165
 trachoma	17
@@ -90932,7 +90769,6 @@ traction	3458
 tractive	6
 tractor	5833
 tractors	1556
-tracts	392
 Tracy	10039
 trad	86
 tradable	245
@@ -90962,6 +90798,7 @@ traduction	91
 Trafalgar	1196
 traffic	58449
 trafficable	6
+traffick	5
 trafficked	723
 trafficker	511
 traffickers	1355
@@ -91034,6 +90871,7 @@ tramline	11
 tramlines	74
 trammel	54
 trammeled	7
+trammels	5
 tramontana	13
 tramp	3828
 tramped	62
@@ -91070,6 +90908,7 @@ tranquilliser	90
 tranquillity	732
 tranquillize	9
 tranquillizer	64
+tranquillizing	5
 tranquillo	16
 tranquilly	12
 trans	7759
@@ -91109,6 +90948,7 @@ transcripts	1208
 transcutaneous	12
 transducer	121
 transducers	95
+transducing	5
 transduction	29
 transect	26
 transected	70
@@ -91184,9 +91024,11 @@ transitoriness	7
 transitory	324
 transitron	7
 transits	222
+transl	5
 translatable	8
 translate	6679
 translated	4994
+translater	5
 translates	3217
 translating	1976
 translation	7339
@@ -91223,6 +91065,7 @@ transmogrify	13
 transmogrifying	8
 transmutate	7
 transmutation	331
+transmutational	5
 transmutations	8
 transmute	92
 transmuted	80
@@ -91242,6 +91085,7 @@ transparencies	29
 transparency	9987
 transparent	7091
 transparently	292
+transpersonal	5
 transphobia	366
 transphobic	619
 transpiration	12
@@ -91299,11 +91143,13 @@ trapdoor	414
 trapdoors	45
 trapeze	842
 trapezes	15
+trapezing	5
 trapezium	30
 trapezius	41
 trapezoid	66
 trapezoidal	10
 trapezoids	11
+trapiche	5
 trapnest	44
 trapped	23663
 trapper	725
@@ -91369,11 +91215,13 @@ trawl	306
 trawled	40
 trawler	478
 trawlerman	11
+trawlermen	5
 trawlers	236
 trawley	6
 trawling	358
 trawls	75
 tray	5540
+trayful	5
 trayne	44
 trays	1056
 treacher	49
@@ -91490,6 +91338,7 @@ trephine	15
 trephining	6
 trepidation	451
 trepidations	10
+treponema	5
 tres	1141
 trespass	1878
 trespassed	310
@@ -91509,6 +91358,7 @@ Trevelyan	285
 Trevino	158
 trevis	83
 Trevor	11585
+trews	5
 Trey	3219
 trey	946
 treys	64
@@ -91554,7 +91404,6 @@ tribunes	66
 tributaries	399
 tributary	440
 tribute	15943
-tributes	3333
 trice	249
 triceps	117
 triceratops	442
@@ -91569,6 +91418,7 @@ Tricia	1321
 trick	36919
 tricked	5975
 tricker	12
+trickers	5
 trickery	1019
 trickier	536
 trickiest	274
@@ -91602,6 +91452,7 @@ tried	174249
 trier	222
 tries	22710
 Trieste	300
+triethanolamine	5
 trifecta	586
 trifle	1635
 trifled	186
@@ -91639,6 +91490,7 @@ trillion	11985
 trillionaire	7
 trillions	970
 trillionth	64
+trillionths	5
 trillium	146
 trillo	140
 trills	384
@@ -91671,9 +91523,11 @@ trinitarian	9
 trinitrin	8
 trinitrotoluene	23
 Trinity	5614
+trink	5
 trinket	594
 trinkets	830
 trinkle	8
+trinol	5
 trinovantes	7
 trio	6080
 triode	7
@@ -91686,6 +91540,7 @@ tripe	669
 tripes	29
 triphammer	43
 triphase	14
+triphenyl	5
 triphosphate	12
 tripitaka	63
 triplane	7
@@ -91771,6 +91626,7 @@ trivialities	185
 triviality	66
 trivialize	137
 trivializing	27
+trivially	5
 trivium	24
 trix	339
 trixie	1573
@@ -91778,6 +91634,8 @@ trixy	9
 Trobriand	12
 troca	35
 trocar	50
+trocars	5
+trochaic	5
 trochanter	15
 trochus	15
 trock	6
@@ -91787,6 +91645,7 @@ trog	160
 troggs	12
 troglodyte	77
 troglodytes	72
+trogon	5
 trogs	36
 troika	235
 troikas	14
@@ -91841,6 +91700,7 @@ trophies	4383
 trophy	15532
 tropic	396
 tropical	8569
+tropically	5
 Tropicana	644
 tropics	981
 tropopause	8
@@ -91870,6 +91730,7 @@ troubleshooters	7
 troubleshooting	746
 troublesome	2385
 troubling	5493
+troublingly	5
 troublous	10
 trough	1782
 troughing	7
@@ -91890,6 +91751,7 @@ trousering	64
 trouserless	7
 trousers	7465
 trousseau	276
+trousseaux	5
 trout	4048
 trouts	44
 trouty	18
@@ -91964,6 +91826,7 @@ trumpet	3897
 trumpeted	37
 trumpeter	455
 trumpeters	42
+trumpetfish	5
 trumpeting	715
 trumpets	1303
 trumping	40
@@ -92013,16 +91876,19 @@ truthful	2243
 truthfully	2268
 truthfulness	153
 truths	3191
+truthy	5
 try	393599
 trying	384128
 tryout	657
 tryouts	893
 trypanosoma	19
 trypanosomiasis	14
+tryptone	5
 tryptophan	107
 tryst	567
 trysting	23
 trysts	139
+tsadik	5
 tsar	2138
 tsardom	10
 tsarevitch	6
@@ -92068,6 +91934,7 @@ tubercles	6
 tubercular	36
 tuberculin	11
 tuberculoma	11
+tuberculoses	5
 tuberculosis	1292
 tuberculous	15
 tuberose	17
@@ -92082,8 +91949,10 @@ tubingen	33
 tubman	363
 tubs	681
 tubular	434
+tubule	5
 tubules	15
 tucana	6
+tucano	5
 tuchis	21
 tuchun	14
 tuck	5435
@@ -92153,6 +92022,7 @@ tumbleweeds	79
 tumbling	1838
 tumbly	21
 tumbrel	9
+tumeric	5
 tumescence	29
 tumescent	32
 tummel	7
@@ -92175,6 +92045,7 @@ tun	436
 tuna	6206
 tunas	39
 tundra	803
+tundras	5
 tune	17356
 tuned	6317
 tuneful	96
@@ -92231,6 +92102,7 @@ Tupperware	478
 tupping	20
 tups	65
 tuque	11
+turaco	5
 turb	11
 turban	791
 turbaned	18
@@ -92263,6 +92135,7 @@ turfing	27
 turfs	29
 Turgenev	77
 turgid	76
+turgor	5
 turi	105
 Turin	1182
 turing	610
@@ -92287,6 +92160,7 @@ turmeric	394
 turmoil	4733
 turmoils	19
 turn	276865
+turnable	5
 turnabout	113
 turnaround	2848
 turnarounds	139
@@ -92362,6 +92236,7 @@ tusker	275
 tuskers	8
 tusks	633
 Tussaud	51
+tussilago	5
 tussle	889
 tussled	100
 tussler	17
@@ -92375,6 +92250,7 @@ tute	32
 tutee	6
 tutelage	585
 tutelary	40
+tutin	5
 tutman	7
 tutor	4252
 tutored	365
@@ -92382,6 +92258,7 @@ tutorial	1016
 tutorials	586
 tutoring	1675
 tutors	532
+tutorship	5
 tuts	459
 Tutsi	365
 tutti	608
@@ -92397,6 +92274,7 @@ tuxedo	1894
 tuxedoes	15
 tuxedos	295
 tuxes	101
+tuza	5
 tuzla	66
 TV	124781
 twa	309
@@ -92432,13 +92310,13 @@ tweedles	14
 tweeds	59
 tweedy	239
 tween	500
+tweenies	5
 tweeny	35
 tweet	10875
 tweeted	9804
 tweeter	266
 tweeters	27
 tweeting	1370
-tweets	3692
 tweeze	32
 tweezed	29
 tweezer	33
@@ -92465,6 +92343,7 @@ twiddling	185
 twiddly	28
 twig	1283
 twigged	59
+twiggen	5
 twiggy	221
 twiglet	82
 twigs	994
@@ -92511,7 +92390,6 @@ twister	1538
 twisters	95
 twisting	2437
 twistle	10
-twists	4171
 twisty	495
 twit	803
 Twitch	2534
@@ -92519,11 +92397,13 @@ twitched	111
 twitcher	32
 twitchers	14
 twitches	315
+twitchier	5
 twitchiness	7
 twitching	887
 twitchy	453
 twite	6
 twits	123
+twitted	5
 Twitter	35857
 twittered	20
 twittering	542
@@ -92581,7 +92461,6 @@ typed	2161
 typeface	185
 typefaces	29
 typer	15
-types	25742
 typescript	9
 typeset	16
 typesetter	74
@@ -92593,6 +92472,7 @@ typewriters	360
 typewriting	38
 typewritten	72
 typey	18
+typha	5
 typhoid	870
 typhon	199
 typhoon	1920
@@ -92611,8 +92491,10 @@ typographer	25
 typographic	9
 typographical	41
 typography	72
+typologies	5
 typology	23
 typos	245
+tyramine	5
 tyrannic	7
 tyrannical	637
 tyrannically	8
@@ -92621,6 +92503,7 @@ tyrannis	41
 tyrannised	8
 tyrannize	29
 tyrannized	21
+tyrannizes	5
 tyrannizing	11
 tyrannosaur	47
 tyrannosaurs	50
@@ -92681,6 +92564,7 @@ ughs	7
 uglier	855
 ugliest	1042
 uglification	6
+uglily	5
 ugliness	989
 ugly	33339
 uh	593422
@@ -92703,6 +92587,7 @@ ulan	202
 ulans	9
 ulcer	1447
 ulcerated	33
+ulcerating	5
 ulceration	195
 ulcerations	15
 ulcerative	30
@@ -92715,6 +92600,7 @@ ulmus	6
 ulna	265
 ulnae	11
 ulnar	146
+ulnas	5
 Ulster	2312
 ulsterman	16
 ult	12
@@ -92733,6 +92619,7 @@ ultra	5903
 ultraconservative	190
 ultrahigh	11
 ultralight	21
+ultralow	5
 ultramarine	108
 ultramodern	102
 ultranationalist	308
@@ -92743,6 +92630,7 @@ ultrasensitive	10
 ultrasonic	421
 ultrasonics	17
 ultrasound	2303
+ultrasuede	5
 ultraviolent	7
 ultraviolet	1085
 ululate	68
@@ -92756,10 +92644,12 @@ um	239920
 umber	190
 umbers	11
 umbilical	794
+umbilically	5
 umbilicus	47
 umble	15
 umbra	110
 umbrage	83
+umbras	5
 umbrella	8357
 umbrellas	1110
 umbrian	19
@@ -92799,6 +92689,7 @@ unaccountable	435
 unaccountably	41
 unaccounted	1306
 unaccredited	15
+unaccustom	5
 unaccustomed	148
 unachievable	218
 unacknowledged	163
@@ -92829,6 +92720,7 @@ unalienable	103
 unaligned	47
 unalike	15
 unalive	22
+unallocated	5
 unalloyed	249
 unalterable	109
 unalterably	11
@@ -92855,6 +92747,7 @@ unappeasable	62
 unappeased	6
 unappetising	15
 unappetizing	158
+unapportioned	5
 unappreciated	253
 unappreciative	78
 unapproachable	183
@@ -92865,6 +92758,7 @@ unarguably	124
 unarm	10
 unarmed	4402
 unarmored	6
+unarranged	5
 unashamed	150
 unashamedly	97
 unasked	103
@@ -92872,6 +92766,7 @@ unassailable	209
 unassailably	63
 unassembled	7
 unassigned	92
+unassimilated	5
 unassisted	551
 unassuming	568
 unathletic	10
@@ -92881,8 +92776,11 @@ unattainted	6
 unattended	1459
 unattractive	1075
 unattractively	8
+unattractiveness	5
 unattributable	7
 unattributed	11
+unaudible	5
+unauthentic	5
 unauthenticated	65
 unauthorised	1230
 unauthorized	3136
@@ -92943,7 +92841,9 @@ unblock	399
 unblocked	248
 unblocking	139
 unblocks	6
+unbloodied	5
 unbloomed	6
+unblunted	5
 unboiled	10
 unbolt	48
 unbolted	29
@@ -92961,6 +92861,7 @@ unbraced	8
 unbraid	6
 unbranded	21
 unbreachable	6
+unbreached	5
 unbreakable	1400
 unbreathable	32
 unbridgeable	69
@@ -92968,6 +92869,7 @@ unbridled	745
 unbroke	11
 unbroken	732
 unbruised	17
+unbrushed	5
 unbuckle	124
 unbuckled	57
 unbuckles	12
@@ -92979,6 +92881,7 @@ unburied	177
 unburnable	13
 unburned	98
 unburnt	77
+unburthen	5
 unbury	34
 unbusy	11
 unbuttered	6
@@ -92989,6 +92892,7 @@ unbuttons	11
 unca	100
 uncage	64
 uncaged	12
+uncalculated	5
 uncalled	763
 uncannily	50
 uncanny	1871
@@ -92996,12 +92900,14 @@ uncap	11
 uncapable	17
 uncapped	197
 uncapping	6
+uncareful	5
 uncaring	316
 uncarved	8
 uncase	6
 uncashed	9
 uncast	7
 uncataloged	13
+uncatalogued	5
 uncatchable	94
 uncaught	20
 unceasing	210
@@ -93028,6 +92934,7 @@ unchanging	338
 unchaperoned	54
 uncharacteristic	593
 uncharacteristically	488
+uncharge	5
 uncharged	12
 uncharitable	114
 uncharming	7
@@ -93049,6 +92956,7 @@ uncivil	82
 uncivilized	350
 unclaimed	1018
 unclamp	33
+unclamped	5
 unclamping	6
 unclasp	19
 unclassifiable	9
@@ -93076,13 +92984,16 @@ unclog	294
 unclogged	28
 unclogging	25
 unclogs	9
+unclose	5
 unclosed	7
 unclothe	10
 unclothed	117
 unclouded	118
 uncloudy	23
+unclutter	5
 uncluttered	91
 uncoated	13
+uncock	5
 uncocking	6
 uncocks	41
 uncoded	15
@@ -93097,6 +93008,7 @@ uncomfort	6
 uncomfortable	17895
 uncomfortableness	11
 uncomfortably	528
+uncomforted	5
 uncomfy	66
 uncommercial	7
 uncommitted	166
@@ -93105,6 +93017,7 @@ uncommonly	240
 uncommunicative	58
 uncompetitive	71
 uncomplaining	21
+uncomplainingly	5
 uncompleted	87
 uncomplicated	369
 uncomplimentary	10
@@ -93113,6 +93026,7 @@ uncompressed	66
 uncompromised	27
 uncompromising	674
 uncompromisingly	134
+unconceivable	5
 unconcern	17
 unconcerned	440
 unconditional	2215
@@ -93123,6 +93037,7 @@ unconfident	14
 unconfined	77
 unconfirmed	1181
 unconformity	7
+unconfused	5
 uncongenial	9
 unconnected	464
 unconquerable	100
@@ -93151,10 +93066,12 @@ uncontrollable	1382
 uncontrollably	375
 uncontrolled	715
 uncontroversial	21
+uncontroverted	5
 unconventional	2358
 unconventionality	8
 unconventionally	16
 unconverted	26
+unconvicted	5
 unconvinced	272
 unconvincing	304
 unconvincingly	68
@@ -93162,6 +93079,7 @@ uncooked	203
 uncool	948
 uncooperative	607
 uncoordinated	232
+uncopyable	5
 uncork	116
 uncorked	178
 uncorking	73
@@ -93176,6 +93094,7 @@ uncounted	42
 uncouple	68
 uncoupled	103
 uncoupling	34
+uncourteous	5
 uncouth	512
 uncover	3642
 uncovered	5494
@@ -93185,7 +93104,9 @@ uncracked	6
 uncrate	11
 uncrated	8
 uncrating	7
+uncrazy	5
 uncreate	6
+uncreated	5
 uncreative	21
 uncredited	28
 uncritical	82
@@ -93213,6 +93134,7 @@ uncurling	6
 uncurse	10
 uncustomed	8
 uncut	751
+uncynical	5
 undamaged	409
 undatable	11
 undateable	46
@@ -93222,13 +93144,17 @@ unde	40
 undead	1887
 undebatable	7
 undeceive	6
+undeceived	5
+undecide	5
 undecided	1390
 undecipherable	13
 undeciphered	7
 undeclared	330
 undecorated	15
+undeeded	5
 undefeatable	69
 undefeated	3209
+undefendable	5
 undefended	126
 undefiled	84
 undefinable	92
@@ -93237,11 +93163,13 @@ undeliverable	14
 undelivered	87
 undemanding	102
 undemocratic	111
+undemonstrative	5
 unden	6
 undeniable	2004
 undeniably	1329
 undependable	64
 under	367398
+underachieve	5
 underachieved	65
 underachievement	19
 underachiever	85
@@ -93256,6 +93184,7 @@ underbellies	6
 underbelly	562
 underbid	37
 underbidding	13
+underbids	5
 underbite	45
 underbody	9
 underbrush	103
@@ -93265,9 +93194,11 @@ undercarriage	341
 undercart	9
 undercharge	8
 undercharged	10
+underchief	5
 underclass	61
 underclassman	93
 underclassmen	221
+undercliff	5
 underclothes	77
 underclothing	16
 undercoat	38
@@ -93298,8 +93229,10 @@ underestimated	3109
 underestimates	157
 underestimating	933
 underestimation	71
+underexpose	5
 underexposed	16
 underfed	76
+underfinanced	5
 underfitting	10
 underfloor	78
 underflow	9
@@ -93308,6 +93241,7 @@ underfunded	573
 undergarment	155
 undergarments	392
 undergirds	180
+underglaze	5
 undergo	5542
 undergoes	586
 undergoing	3762
@@ -93340,6 +93274,7 @@ underlings	450
 underlining	229
 underlying	6979
 underman	10
+undermanager	5
 undermanned	96
 undermine	5191
 undermined	1509
@@ -93367,11 +93302,13 @@ underplaying	11
 underpopulated	64
 underpowered	88
 underprepared	73
+underpressure	5
 underpriced	193
 underprivileged	1134
 underqualified	39
 underrate	69
 underrated	1813
+underrates	5
 underrating	11
 underrepresented	910
 underscore	930
@@ -93389,12 +93326,16 @@ undersexed	11
 undersheriff	133
 undershirt	305
 undershirts	46
+undershoot	5
 undershorts	34
+undershot	5
 underside	695
 undersides	11
 undersigned	486
 undersized	246
 underskirt	33
+underskirts	5
+underslept	5
 underslip	63
 undersold	52
 understaffed	727
@@ -93412,10 +93353,13 @@ understates	179
 understating	17
 understeer	205
 understood	44984
+understructure	5
 understudied	29
 understudies	53
 understudy	1019
 understudying	40
+undersupplied	5
+undersurface	5
 undertake	4169
 undertaken	3197
 undertaker	1341
@@ -93462,7 +93406,9 @@ undeserving	274
 undesignated	6
 undesirable	1007
 undesired	151
+undestroyed	5
 undetectable	489
+undetectably	5
 undetected	1289
 undetermined	659
 undeterred	695
@@ -93527,6 +93473,7 @@ undressing	634
 undrinkable	80
 undrivable	8
 undue	1305
+undulant	5
 undulate	36
 undulates	13
 undulating	176
@@ -93554,6 +93501,7 @@ unedible	8
 unedifying	124
 unedited	94
 uneducated	777
+uneffectual	5
 unelectable	21
 unelected	651
 unembalmed	8
@@ -93607,11 +93555,13 @@ unexceptional	99
 unexcited	8
 unexciting	43
 unexcused	35
+unexpect	5
 unexpectable	7
 unexpected	16677
 unexpectedly	4521
 unexpectedness	14
 unexperienced	18
+unexpiated	5
 unexpired	64
 unexplainable	483
 unexplainably	8
@@ -93659,6 +93609,7 @@ unfeel	6
 unfeeling	420
 unfeigned	12
 unfeignedly	6
+unfellowed	5
 unfelt	8
 unfeminine	28
 unfermented	8
@@ -93689,6 +93640,7 @@ unflavored	63
 unfledged	10
 unflinching	700
 unflinchingly	38
+unflooded	5
 unflushed	12
 unflustered	65
 unfocused	202
@@ -93718,6 +93670,7 @@ unfortunates	330
 unfortune	10
 unfound	26
 unfounded	1712
+unframed	5
 unfree	203
 unfreeze	195
 unfreezes	7
@@ -93766,6 +93719,7 @@ ungood	8
 ungovernable	59
 ungoverned	81
 ungraceful	22
+ungracefully	5
 ungracious	92
 ungraciously	65
 ungraded	130
@@ -93773,11 +93727,13 @@ ungrammatical	22
 ungrateful	3763
 ungratefully	7
 ungratefulness	15
+ungroomed	5
 unground	9
 ungrounded	30
 unguarded	595
 unguent	28
 unguents	18
+unguessable	5
 unguided	25
 ungulate	15
 ungulates	11
@@ -93785,6 +93741,7 @@ unhallowed	37
 unhampered	20
 unhand	576
 unhandsome	12
+unhanged	5
 unhappen	11
 unhappier	61
 unhappiest	53
@@ -93796,6 +93753,7 @@ unharness	30
 unharvested	62
 unhatched	33
 unhealed	20
+unhealthful	5
 unhealthier	63
 unhealthiest	15
 unhealthily	12
@@ -93809,6 +93767,7 @@ unheralded	317
 unheroic	72
 unhesitating	7
 unhesitatingly	26
+unhex	5
 unhide	6
 unhindered	183
 unhinge	113
@@ -93891,6 +93850,7 @@ uninformed	400
 uninhabitable	445
 uninhabited	812
 uninhibited	277
+uninhibitedly	5
 uninitiated	483
 uninjured	557
 uninspected	123
@@ -93912,6 +93872,7 @@ uninterruptedly	80
 uninterruptible	64
 unintimidated	6
 unintuitive	7
+uninvented	5
 uninvestigated	9
 uninvite	61
 uninvited	1364
@@ -93935,11 +93896,13 @@ unipolar	6
 unique	55948
 uniquely	3207
 uniqueness	704
+unironed	5
 unironically	71
 Uniroyal	7
 unisex	624
 unison	2064
 unissued	6
+unist	5
 unit	58692
 unitarian	171
 unitarianism	6
@@ -93951,12 +93914,14 @@ United	139224
 unitedly	12
 uniter	124
 unites	1173
+unities	5
 uniting	1480
 units	34683
 unity	12037
 univ	58
 universal	13277
 universalia	6
+universalis	5
 universalism	62
 universalist	129
 universality	99
@@ -93985,6 +93950,7 @@ unkindest	75
 unkindly	69
 unkindness	83
 unkinged	6
+unkink	5
 unkissed	10
 unknit	6
 unknot	13
@@ -93994,6 +93960,7 @@ unknowing	125
 unknowingly	882
 unknown	28119
 unknowns	877
+unkosher	5
 unlabeled	99
 unlabelled	10
 unlace	35
@@ -94010,6 +93977,7 @@ unlatching	29
 unlawful	5514
 unlawfully	1333
 unlawfulness	63
+unlax	5
 unleaded	330
 unlearn	219
 unlearned	51
@@ -94022,6 +93990,7 @@ unleavened	27
 unless	85628
 unlettered	22
 unlicensed	1323
+unlicked	5
 unlight	12
 unlighted	6
 unlikable	539
@@ -94032,6 +94001,7 @@ unlikeliest	88
 unlikelihood	13
 unlikely	19632
 unlimited	4316
+unlimitedly	5
 unlineal	7
 unlined	10
 unlink	84
@@ -94051,6 +94021,7 @@ unlock	8032
 unlocked	4940
 unlocking	2021
 unlocks	1428
+unlonely	5
 unlooked	9
 unloose	10
 unloosed	11
@@ -94085,6 +94056,7 @@ unmannerly	34
 unmapped	97
 unmarked	1958
 unmarred	12
+unmarriable	5
 unmarriageable	8
 unmarried	1888
 unmask	494
@@ -94094,6 +94066,7 @@ unmasks	20
 unmastered	6
 unmatchable	75
 unmatched	869
+unmatching	5
 unmeaning	6
 unmeasurable	28
 unmeasured	10
@@ -94102,22 +94075,26 @@ unmedicated	26
 unmelodious	6
 unmelted	6
 unmemorable	78
+unmendable	5
 unmentionable	98
 unmentionables	74
 unmentioned	21
 unmerciful	43
 unmercifully	40
+unmeritable	5
 unmerited	69
 unmet	908
 unmetered	177
 unmilitary	16
 unmindful	29
+unmined	5
 unmissable	32
 unmistakable	1068
 unmistakably	380
 unmitigated	272
 unmix	11
 unmixed	24
+unmodern	5
 unmodified	145
 unmolested	153
 unmonitored	150
@@ -94143,6 +94120,8 @@ unnavigable	13
 unnecessarily	2386
 unnecessary	10030
 unneeded	244
+unnegotiable	5
+unneighborly	5
 unnerve	86
 unnerved	340
 unnerves	33
@@ -94154,6 +94133,7 @@ unnoticeably	8
 unnoticed	2678
 unnumbered	81
 unobjectionable	7
+unobliging	5
 unobservable	13
 unobservant	14
 unobserved	105
@@ -94161,6 +94141,7 @@ unobstructed	214
 unobtainable	93
 unobtrusive	173
 unobtrusively	42
+unobvious	5
 unoccupied	941
 unofficial	2808
 unofficially	1012
@@ -94185,18 +94166,22 @@ unpaired	66
 unpalatable	146
 unparallel	9
 unparalleled	2218
+unparallelled	5
 unpardonable	154
 unpardonably	6
 unparliamentary	7
+unparticular	5
 unpassable	19
 unpasteurised	6
 unpasteurized	96
 unpatriotic	486
 unpatrolled	68
 unpaved	170
+unpay	5
 unpayable	15
 unpeel	8
 unpeeled	20
+unpeopled	5
 unperceived	10
 unperfect	6
 unpermitted	8
@@ -94209,6 +94194,7 @@ unpickable	11
 unpicked	81
 unpicking	12
 unpin	137
+unpinned	5
 unplanned	969
 unplayable	267
 unpleasant	6615
@@ -94302,6 +94288,7 @@ unravelled	154
 unravelling	424
 unravels	462
 unreachable	563
+unreactive	5
 unread	180
 unreadable	353
 unreadiness	8
@@ -94315,6 +94302,7 @@ unrealizable	11
 unrealized	715
 unreason	14
 unreasonable	4196
+unreasonableness	5
 unreasonably	214
 unreasoned	6
 unreasoning	99
@@ -94338,10 +94326,12 @@ unreformed	6
 unrefrigerated	19
 unregenerate	13
 unregistered	1042
+unregretful	5
 unregulated	854
 unrehearsed	57
 unrelatable	71
 unrelated	2665
+unrelaxed	5
 unreleased	527
 unrelenting	1463
 unrelentingly	22
@@ -94354,6 +94344,7 @@ unremarked	17
 unremembered	19
 unremitting	161
 unremittingly	9
+unremorseful	5
 unremovable	7
 unrepaired	6
 unrepeatable	152
@@ -94375,24 +94366,29 @@ unresponsible	8
 unresponsive	1491
 unrest	3313
 unresting	12
+unrestored	5
 unrestrained	477
 unrestrainedly	9
 unrestricted	861
 unrests	7
 unretouched	7
 unreturned	60
+unreturning	5
 unrevealed	10
+unrevealing	5
 unrevenged	7
 unreverent	6
 unrewarded	161
 unrewarding	31
 unridden	6
+unridiculous	5
 unrigged	14
 unrightable	11
 unrighteous	141
 unrighteousness	25
 unrightful	6
 unring	48
+unrinsed	5
 unripe	211
 unripened	8
 unrivaled	349
@@ -94465,6 +94461,7 @@ unseasoned	18
 unseat	434
 unseated	99
 unseating	10
+unseats	5
 unseaworthy	74
 unsecure	84
 unsecured	881
@@ -94487,6 +94484,7 @@ unserious	76
 unserved	246
 unserviceable	16
 unset	20
+unsetting	5
 unsettle	133
 unsettled	1552
 unsettles	34
@@ -94498,6 +94496,7 @@ unshakable	285
 unshakeable	331
 unshaken	92
 unshaped	14
+unshapely	5
 unshared	9
 unsharp	8
 unshaved	96
@@ -94514,6 +94513,7 @@ unship	7
 unshockable	9
 unshod	22
 unshorn	8
+unshot	5
 unshrink	10
 unshriven	10
 unsifted	12
@@ -94527,12 +94527,14 @@ unskilled	230
 unskillful	14
 unsleeping	8
 unsmiling	78
+unsmirched	5
 unsnap	18
 unsnapped	13
 unsnaps	7
 unsnarl	6
 unsociable	172
 unsocial	27
+unsocialized	5
 unsoiled	24
 unsold	299
 unsolicited	749
@@ -94547,6 +94549,7 @@ unsown	7
 unsparing	192
 unspeakable	1625
 unspeakably	257
+unspeaking	5
 unspecific	11
 unspecified	1403
 unspectacular	213
@@ -94558,10 +94561,12 @@ unsponsored	6
 unsporting	45
 unsportsmanlike	140
 unspotted	12
+unsquashable	5
 unstable	6053
 unstack	7
 unstain	9
 unstained	31
+unstamped	5
 unstated	73
 unsteadily	40
 unsteadiness	72
@@ -94573,6 +94578,7 @@ unsticking	7
 unstinted	9
 unstinting	73
 unstintingly	6
+unstirred	5
 unstitch	9
 unstitched	15
 unstoned	6
@@ -94590,6 +94596,7 @@ unstrung	36
 unstuck	409
 unstudied	70
 unstuff	6
+unstuffed	5
 unstylish	9
 unsubstantial	21
 unsubstantiated	671
@@ -94608,12 +94615,14 @@ unsupervised	637
 unsupportable	86
 unsupported	503
 unsure	4079
+unsureness	5
 unsurmountable	69
 unsurpassable	25
 unsurpassed	121
 unsurprised	17
 unsurprising	682
 unsurprisingly	1482
+unsurveyed	5
 unsuspected	88
 unsuspecting	1564
 unsuspectingly	81
@@ -94630,6 +94639,7 @@ unsynchronized	9
 unsystematic	7
 untack	9
 untainted	144
+untaken	5
 untalented	165
 untamable	58
 untameable	8
@@ -94638,11 +94648,13 @@ untangle	381
 untangled	71
 untangles	6
 untangling	121
+untanned	5
 untapped	1222
 untarnished	103
 untasted	7
 untaught	8
 untaxed	97
+unteach	5
 unteachable	32
 untell	7
 untempered	14
@@ -94682,6 +94694,7 @@ untitled	499
 unto	5351
 untoasted	8
 untold	1826
+untouch	5
 untouchability	12
 untouchable	1366
 untouchables	222
@@ -94694,6 +94707,7 @@ untraditional	101
 untrainable	18
 untrained	484
 untrammeled	67
+untrammelled	5
 untranslatable	42
 untranslated	72
 untraveled	7
@@ -94723,6 +94737,7 @@ untypical	20
 unum	283
 unusable	638
 unused	1627
+unuseful	5
 unusual	25847
 unusually	3716
 unusualness	6
@@ -94746,7 +94761,9 @@ unviable	254
 unviolated	8
 unvirtuous	7
 unvisited	10
+unvoiced	5
 unwanted	3534
+unwarlike	5
 unwarrantable	8
 unwarranted	797
 unwary	97
@@ -94760,6 +94777,7 @@ unwearable	85
 unweave	6
 unwed	283
 unwedded	11
+unwedge	5
 unweeded	14
 unwelcome	1270
 unwelcomed	84
@@ -94777,12 +94795,14 @@ unwinding	321
 unwinds	169
 unwinnable	148
 unwiped	7
+unwired	5
 unwise	1104
 unwisely	68
 unwish	9
 unwitnessed	63
 unwitting	375
 unwittingly	899
+unwomanly	5
 unwon	10
 unwonted	6
 unworkable	360
@@ -94799,6 +94819,7 @@ unwrap	458
 unwrapped	275
 unwrapping	175
 unwraps	13
+unwrinkled	5
 unwrite	8
 unwritten	971
 unyielding	413
@@ -94811,6 +94832,7 @@ unzipping	265
 unzips	409
 up	3157292
 up-to-date	1953
+upanishad	5
 Upanishads	28
 upas	8
 upbeat	7391
@@ -94819,10 +94841,12 @@ upbraided	75
 upbraiding	6
 upbraids	70
 upbringing	2592
+upby	5
 upchuck	129
 upchucked	14
 upchucking	10
 upchucks	6
+upclose	5
 upcoming	30288
 upcountry	228
 update	29901
@@ -94901,6 +94925,7 @@ uprightly	6
 uprightness	89
 uprights	325
 uprise	15
+upriser	5
 uprising	3146
 uprisings	290
 upriver	583
@@ -94944,6 +94969,7 @@ uptake	1056
 uptempo	47
 uptick	2233
 uptight	2633
+uptightness	5
 uptime	138
 Upton	1031
 uptown	2478
@@ -94958,6 +94984,7 @@ upwind	195
 upwith	67
 ur	872
 uracil	10
+uraemia	5
 uraeus	10
 ural	123
 Urals	164
@@ -95083,7 +95110,6 @@ Ustinov	39
 usu	333
 usual	43277
 usually	77493
-usuals	25
 usufruct	21
 usurer	91
 usurers	64
@@ -95311,7 +95337,6 @@ value	80939
 valued	99077
 valueless	137
 valuer	147
-values	24193
 valuing	586
 valve	3953
 valves	1422
@@ -95573,7 +95598,6 @@ vehicular	1384
 veil	4362
 veiled	1206
 veiling	33
-veils	408
 vein	4501
 veined	77
 veining	35
@@ -95683,7 +95707,6 @@ ventriloquism	168
 ventriloquist	527
 ventriloquists	159
 ventromedial	9
-vents	1442
 venture	14060
 ventured	1791
 venturer	12
@@ -95741,7 +95764,6 @@ verged	9
 vergence	6
 verger	246
 vergers	8
-verges	278
 verging	185
 veri	22
 verifiable	367
@@ -95868,7 +95890,6 @@ vestment	28
 vestments	309
 vestry	213
 vestryman	6
-vests	962
 vesture	19
 vesuvian	40
 vesuvius	595
@@ -96294,7 +96315,6 @@ visited	26551
 visiting	27836
 visitor	12687
 visitors	34216
-visits	14806
 visor	885
 visors	94
 vista	4005
@@ -96556,7 +96576,6 @@ vote	71102
 voted	23625
 voter	7258
 voters	28984
-votes	27804
 voting	20704
 votive	141
 vouch	2455
@@ -97105,7 +97124,6 @@ washy	42
 wasir	18
 wasn	312477
 wasn't	59192
-wasnt	427
 Wasp	3028
 waspish	20
 wasps	1207
@@ -97596,7 +97614,6 @@ werebear	12
 werefox	26
 weren	88545
 weren't	15183
-werent	159
 werewolf	4259
 werewolves	1448
 werf	13
@@ -97660,7 +97677,6 @@ wetters	23
 wettest	226
 wetting	794
 wetware	17
-weve	283
 Weyden	22
 Weymouth	1598
 WH	4820
@@ -97709,7 +97725,6 @@ whatman	6
 whatnot	1669
 whatnots	42
 whatre	20
-whats	2549
 WhatsApp	4306
 whatshername	50
 whatshisname	113
@@ -97789,7 +97804,6 @@ whereis	63
 whereof	169
 whereon	71
 wherere	6
-wheres	183
 whereso	10
 wheresoever	17
 whereto	94
@@ -98016,7 +98030,6 @@ who'd	1423
 who'll	474
 who've	2787
 whoa	136741
-whod	11
 whodunit	267
 whodunits	16
 whodunnit	204
@@ -98036,7 +98049,6 @@ wholesaling	82
 wholesome	2223
 wholesomeness	21
 wholewheat	71
-wholl	6
 wholly	3298
 whom	57366
 whomever	1470
@@ -98339,7 +98351,6 @@ windier	319
 windiest	26
 windigo	48
 winding	3101
-windings	15
 windjammer	96
 windlass	25
 windle	136
@@ -98358,7 +98369,6 @@ windowsill	489
 windpipe	588
 windpipes	15
 windproof	8
-winds	17409
 windsail	11
 windscreen	575
 windshield	2691
@@ -98485,7 +98495,6 @@ wireless	9047
 wirelessly	446
 wireman	9
 wiremen	64
-wires	5695
 wiretap	520
 wiretapped	101
 wiretapper	12
@@ -98853,7 +98862,6 @@ wordlessly	27
 wordperfect	62
 wordplay	388
 WordPress	241
-words	133947
 wordsmith	114
 wordsmiths	10
 Wordsworth	545
@@ -98989,7 +98997,6 @@ would've	4507
 wouldest	8
 wouldn	288540
 wouldn't	30663
-wouldnt	298
 wouldst	357
 wound	26185
 wounded	21414
@@ -99030,7 +99037,6 @@ wrapper	1350
 wrappers	727
 wrapping	3660
 wrappings	97
-wraps	4822
 wrapt	8
 wrasse	123
 wrastle	6
@@ -99567,7 +99573,6 @@ yoke	940
 yoked	95
 yokel	236
 yokels	279
-yokes	60
 Yoko	2023
 Yokohama	1248
 yokozuna	30
@@ -99601,7 +99606,6 @@ you'd	10082
 you'll	33214
 you're	104327
 you've	30011
-youd	178
 youl	156
 young	241113
 Young	60278
@@ -99619,7 +99623,6 @@ youngsters	6294
 Youngstown	1041
 youngun	16
 your	5083059
-youre	1542
 yourn	65
 yours	143221
 yoursel	35
@@ -99634,7 +99637,6 @@ youthfully	9
 youthfulness	149
 youths	6667
 YouTube	11816
-youve	382
 yow	544
 yowie	32
 yowl	34
@@ -99888,7 +99890,6 @@ zippering	11
 zippers	382
 zipping	513
 zippy	454
-zips	707
 zira	97
 zircon	155
 zirconia	83
@@ -99930,7 +99931,6 @@ zonda	89
 zone	41228
 zoned	920
 zoners	16
-zones	8065
 zoning	3715
 zonked	131
 zonta	177

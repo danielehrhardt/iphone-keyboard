@@ -1,13 +1,13 @@
 import SwiftUI
 import KeyboardCore
 
-/// A non-interactive rendering of the German QWERTZ layer, laid out with the very same
+/// A non-interactive rendering of a language's letters layer, laid out with the very same
 /// `KeyboardGeometry` the extension uses, so the preview matches the real keyboard exactly.
 struct KeyboardPreview: View {
 
     enum Trail {
         case none
-        /// Decorative gesture across h → a → l → o.
+        /// Decorative gesture across h → a → l → o (spells "hallo" and "hello" alike).
         case hallo
     }
 
@@ -20,6 +20,8 @@ struct KeyboardPreview: View {
     var cornerRadius: CGFloat = 16
     var showsCommaKey = true
     var emojiOnCommaKey = true
+    var language: KeyboardLanguage = .default
+    var showsLanguageName = false
 
     @Environment(\.colorScheme) private var environmentScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -32,7 +34,8 @@ struct KeyboardPreview: View {
     private static let referenceWidth: CGFloat = 390
     private static let referenceHeight: CGFloat = 216
     private var layout: KeyboardLayout {
-        GermanLayouts.letters(options: LayoutOptions(showsCommaKey: showsCommaKey, emojiOnCommaKey: emojiOnCommaKey))
+        KeyboardLayouts.letters(options: LayoutOptions(showsCommaKey: showsCommaKey, emojiOnCommaKey: emojiOnCommaKey,
+                                                       language: language, showsLanguageName: showsLanguageName))
     }
 
     private var isDark: Bool { (scheme ?? environmentScheme) == .dark }
@@ -57,7 +60,7 @@ struct KeyboardPreview: View {
         .background(backgroundColor)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .accessibilityElement()
-        .accessibilityLabel("Vorschau der deutschen Tastatur")
+        .accessibilityLabel("Vorschau der Tastatur: \(language.title)")
         .onAppear(perform: startTrailAnimation)
     }
 
@@ -101,7 +104,13 @@ struct KeyboardPreview: View {
             Image(systemName: symbol)
                 .font(.system(size: rowHeight * 0.34, weight: .regular))
         } else if key.action == .space {
-            EmptyView()
+            if showsLanguageName {
+                Text(key.label)
+                    .font(.system(size: rowHeight * 0.3, weight: .regular))
+                    .opacity(0.8)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.4)
+            }
         } else {
             Text(key.isLetter ? key.label.uppercased() : key.label)
                 .font(.system(size: rowHeight * (key.isLetter ? 0.46 : 0.36), weight: .regular))

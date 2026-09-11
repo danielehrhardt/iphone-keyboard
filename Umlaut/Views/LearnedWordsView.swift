@@ -4,6 +4,7 @@ import KeyboardCore
 /// „Gelernte Wörter“ – the personal dictionary shared with the keyboard extension.
 struct LearnedWordsView: View {
 
+    @EnvironmentObject private var settings: SettingsStore
     @StateObject private var store = LexiconStore()
     @Environment(\.scenePhase) private var scenePhase
 
@@ -13,6 +14,19 @@ struct LearnedWordsView: View {
 
     var body: some View {
         List {
+            if settings.enabledLanguages.count > 1 {
+                Section {
+                    Picker("Sprache", selection: $store.language) {
+                        ForEach(settings.enabledLanguages) { language in
+                            Text(language.title).tag(language)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                }
+            }
+
             Section {
                 HStack(spacing: 10) {
                     TextField("Neues Wort", text: $newWord)

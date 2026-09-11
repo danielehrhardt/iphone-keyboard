@@ -31,6 +31,35 @@ final class SettingsStore: ObservableObject {
     @Published var learnWords = true { didSet { write { settings.learnWords = learnWords } } }
     @Published var justinMode = false { didSet { write { settings.justinMode = justinMode } } }
 
+    // MARK: Sprachen
+
+    /// The typing languages the keyboard offers, in switching order. Never empty.
+    @Published var enabledLanguages: [KeyboardLanguage] = [.default] {
+        didSet {
+            write {
+                settings.enabledLanguages = enabledLanguages
+                if !enabledLanguages.contains(currentLanguage) { currentLanguage = settings.currentLanguage }
+            }
+        }
+    }
+    /// The language the keyboard is currently typing in (the keyboard changes it too).
+    @Published var currentLanguage: KeyboardLanguage = .default { didSet { write { settings.currentLanguage = currentLanguage } } }
+
+    func isEnabled(_ language: KeyboardLanguage) -> Bool { enabledLanguages.contains(language) }
+
+    /// Switches a language on or off; the last enabled language cannot be switched off.
+    func setEnabled(_ enabled: Bool, for language: KeyboardLanguage) {
+        var languages = enabledLanguages
+        if enabled {
+            guard !languages.contains(language) else { return }
+            languages.append(language)
+        } else {
+            guard languages.count > 1, languages.contains(language) else { return }
+            languages.removeAll { $0 == language }
+        }
+        enabledLanguages = languages
+    }
+
     // MARK: Feedback
 
     @Published var keyPreview = true { didSet { write { settings.keyPreview = keyPreview } } }
@@ -72,6 +101,8 @@ final class SettingsStore: ObservableObject {
         adaptiveTapMap = settings.adaptiveTapMap
         learnWords = settings.learnWords
         justinMode = settings.justinMode
+        enabledLanguages = settings.enabledLanguages
+        currentLanguage = settings.currentLanguage
         keyPreview = settings.keyPreview
         swipeTrail = settings.swipeTrail
         haptics = settings.haptics
