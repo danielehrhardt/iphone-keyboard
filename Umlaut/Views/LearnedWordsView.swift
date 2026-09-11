@@ -79,6 +79,10 @@ struct LearnedWordsView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { store.reload() }
         }
+        .onChange(of: settings.enabledLanguages) { _, languages in
+            // The shown language was switched off meanwhile: fall back like the keyboard does.
+            if !languages.contains(store.language) { store.language = languages[0] }
+        }
     }
 
     private var trimmedNewWord: String {

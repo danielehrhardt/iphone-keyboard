@@ -146,6 +146,9 @@ public struct KeyMap: Sendable {
     /// measures touch offsets in these units so one map serves every key-size setting.
     public let pitchX: CGFloat
     public let pitchY: CGFloat
+    /// Letters without a key of their own on this layout (ä/ö/ü on QWERTY); they share their base
+    /// key's centre and are never offered as swipe start/end candidates, since no key was touched.
+    public let foldedCodes: Set<UInt8>
 
     /// nil when the layout doesn't place every base letter (swipe is then unavailable). Letters
     /// without a key of their own (ä/ö/ü on QWERTY) take the centre of their base key.
@@ -157,11 +160,14 @@ public struct KeyMap: Sendable {
                 centers[Int(code)] = kf.center
             }
         }
+        var folded = Set<UInt8>()
         for code in 0..<UInt8(KeyAlphabet.count) where !seen.contains(code) {
             guard let base = KeyAlphabet.baseCode(for: code), seen.contains(base) else { return nil }
             centers[Int(code)] = centers[Int(base)]
+            folded.insert(code)
         }
         self.centers = centers
+        foldedCodes = folded
         keyWidth = geometry.unitWidth
         keyHeight = geometry.rowHeight
         pitchX = geometry.unitWidth + geometry.horizontalGap
@@ -174,6 +180,7 @@ public struct KeyMap: Sendable {
         self.keyHeight = keyHeight
         self.pitchX = pitchX ?? keyWidth * 1.2
         self.pitchY = pitchY ?? keyHeight * 1.25
+        foldedCodes = []
     }
 
     /// A language's letters layout at a reference size, for tests and offline tools.
@@ -181,10 +188,11 @@ public struct KeyMap: Sendable {
         KeyMap(geometry: KeyboardGeometry(layout: language.layout(for: .letters), size: CGSize(width: width, height: height)))!
     }
 
-    /// Letter codes sorted by distance from a point, limited to those within `radius`.
+    /// Letter codes sorted by distance from a point, limited to those within `radius`. Folded
+    /// letters are left out: they would tie with their base key and crowd out a real neighbour.
     public func nearestCodes(to p: CGPoint, radius: CGFloat, limit: Int) -> [(code: UInt8, distance: CGFloat)] {
         var result: [(UInt8, CGFloat)] = []
-        for (i, c) in centers.enumerated() {
+        for (i, c) in centers.enumerated() where !foldedCodes.contains(UInt8(i)) {
             let d = hypot(c.x - p.x, c.y - p.y)
             if d <= radius { result.append((UInt8(i), d)) }
         }

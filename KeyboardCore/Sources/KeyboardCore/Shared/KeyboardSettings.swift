@@ -192,6 +192,10 @@ public final class KeyboardSettings: @unchecked Sendable {
             languages.removeAll { $0 == language }
         }
         enabledLanguages = languages
-        if !languages.contains(currentLanguage) { currentLanguage = languages[0] }
+        // The getter already falls back; this clears the stale value out of the defaults.
+        if let stored = defaults.string(forKey: Keys.currentLanguage).flatMap(KeyboardLanguage.init(rawValue:)),
+           !languages.contains(stored) {
+            currentLanguage = languages[0]
+        }
     }
 }

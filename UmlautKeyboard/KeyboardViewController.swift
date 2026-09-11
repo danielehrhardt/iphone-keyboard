@@ -109,10 +109,14 @@ final class KeyboardViewController: UIInputViewController {
     /// kept in memory. Loads run one at a time so two lexicons never sit in memory together;
     /// a request for another language queues up behind the running load.
     private static func loadEngine(language: KeyboardLanguage, _ completion: @escaping (KeyboardEngine?) -> Void) {
+        dispatchPrecondition(condition: .onQueue(.main))     // the statics above are main-thread state
         if let e = sharedEngine, e.language == language { completion(e); return }
         engineWaiters.append((language, completion))
         guard loadingLanguage == nil else { return }
         loadingLanguage = language
+        // The previous language's lexicon goes before the new one is built, so two never coexist
+        // (the coordinator has already dropped its reference in `select(language:)`).
+        sharedEngine = nil
         DispatchQueue.global(qos: .userInitiated).async {
             let start = CFAbsoluteTimeGetCurrent()
             let engine: KeyboardEngine?
@@ -125,7 +129,9 @@ final class KeyboardViewController: UIInputViewController {
             }
             DispatchQueue.main.async {
                 loadingLanguage = nil
-                if let engine { sharedEngine = engine }      // replaces the previous language's engine
+                // Kept only while it is still the language being typed: a switch back during the
+                // load makes this engine stale, and the queued request below loads the right one.
+                if let engine, engine.language == KeyboardSettings.shared.currentLanguage { sharedEngine = engine }
                 let served = engineWaiters.filter { $0.language == language }
                 engineWaiters.removeAll { $0.language == language }
                 served.forEach { $0.completion(engine) }

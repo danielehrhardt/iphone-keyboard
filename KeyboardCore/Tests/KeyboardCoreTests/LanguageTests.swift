@@ -75,6 +75,13 @@ final class LanguageTests: XCTestCase {
         XCTAssertEqual(keyMap.centers[Int(KeyAlphabet.code(for: "ü")!)], keyMap.centers[Int(KeyAlphabet.code(for: "u")!)])
         XCTAssertEqual(KeyAlphabet.baseCode(for: KeyAlphabet.code(for: "ä")!), KeyAlphabet.code(for: "a"))
         XCTAssertNil(KeyAlphabet.baseCode(for: KeyAlphabet.code(for: "a")!))
+        XCTAssertEqual(keyMap.foldedCodes, Set(["ä", "ö", "ü"].map { KeyAlphabet.code(for: $0)! }))
+        XCTAssertTrue(KeyMap.reference(language: .german).foldedCodes.isEmpty)
+        // Folded letters never take a swipe candidate slot away from a real neighbour.
+        let near = keyMap.nearestCodes(to: a, radius: keyMap.keyWidth * 2.5, limit: 4)
+        XCTAssertEqual(near.first?.code, KeyAlphabet.code(for: "a"))
+        XCTAssertFalse(near.contains { $0.code == KeyAlphabet.code(for: "ä") })
+        XCTAssertEqual(near.count, 4, "\(near)")
         // Adjacency follows the QWERTY arrangement: y sits next to t and u.
         XCTAssertTrue(keyMap.areAdjacent(KeyAlphabet.code(for: "y")!, KeyAlphabet.code(for: "t")!))
         XCTAssertFalse(keyMap.areAdjacent(KeyAlphabet.code(for: "z")!, KeyAlphabet.code(for: "t")!))
@@ -195,6 +202,13 @@ final class LanguageTests: XCTestCase {
         XCTAssertEqual(settings.enabledLanguages, [.german])
         settings.enabledLanguages = [.english, .english, .german]
         XCTAssertEqual(settings.enabledLanguages, [.english, .german])
-        XCTAssertEqual(settings.currentLanguage, .english, "a stored current language that is no longer enabled falls back to the first enabled one")
+        XCTAssertEqual(settings.currentLanguage, .german, "disabling English earlier cleared it as the current language")
+
+        // A stored current language that is not enabled falls back to the first enabled one.
+        settings.enabledLanguages = [.german]
+        settings.currentLanguage = .english
+        XCTAssertEqual(settings.currentLanguage, .german)
+        settings.enabledLanguages = [.english, .german]
+        XCTAssertEqual(settings.currentLanguage, .english)
     }
 }
