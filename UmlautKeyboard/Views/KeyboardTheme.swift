@@ -16,8 +16,6 @@ struct KeyboardTheme {
     let keyPressedBackground: UIColor
     let functionKeyBackground: UIColor
     let functionKeyPressedBackground: UIColor
-    /// Thin bright rim along the top edge of every cap that sells the glass look.
-    let keyRim: UIColor
     let keyText: UIColor
     let functionKeyText: UIColor
     let hintText: UIColor
@@ -44,11 +42,10 @@ struct KeyboardTheme {
             return KeyboardTheme(
                 isDark: true, accent: accent,
                 backdropFallback: UIColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1),
-                keyBackground: UIColor(white: 1, alpha: 0.30),
-                keyPressedBackground: UIColor(white: 1, alpha: 0.46),
-                functionKeyBackground: UIColor(white: 1, alpha: 0.13),
-                functionKeyPressedBackground: UIColor(white: 1, alpha: 0.32),
-                keyRim: UIColor(white: 1, alpha: 0.16),
+                keyBackground: UIColor(white: 1, alpha: 0.24),
+                keyPressedBackground: UIColor(white: 1, alpha: 0.40),
+                functionKeyBackground: UIColor(white: 1, alpha: 0.10),
+                functionKeyPressedBackground: UIColor(white: 1, alpha: 0.28),
                 keyText: .white, functionKeyText: .white,
                 hintText: UIColor(white: 1, alpha: 0.5),
                 keyShadow: .black, keyShadowOpacity: 0.42,
@@ -62,11 +59,10 @@ struct KeyboardTheme {
             return KeyboardTheme(
                 isDark: false, accent: accent,
                 backdropFallback: UIColor(red: 0.82, green: 0.835, blue: 0.86, alpha: 1),
-                keyBackground: UIColor(white: 1, alpha: 0.94),
-                keyPressedBackground: UIColor(red: 0.90, green: 0.91, blue: 0.93, alpha: 0.96),
-                functionKeyBackground: UIColor(red: 0.56, green: 0.60, blue: 0.66, alpha: 0.42),
-                functionKeyPressedBackground: UIColor(white: 1, alpha: 0.94),
-                keyRim: UIColor(white: 1, alpha: 0.75),
+                keyBackground: UIColor(white: 1, alpha: 0.78),
+                keyPressedBackground: UIColor(red: 0.90, green: 0.91, blue: 0.93, alpha: 0.86),
+                functionKeyBackground: UIColor(red: 0.56, green: 0.60, blue: 0.66, alpha: 0.34),
+                functionKeyPressedBackground: UIColor(white: 1, alpha: 0.78),
                 keyText: .black, functionKeyText: .black,
                 hintText: UIColor(white: 0, alpha: 0.42),
                 keyShadow: UIColor(red: 0.16, green: 0.18, blue: 0.22, alpha: 1), keyShadowOpacity: 0.30,

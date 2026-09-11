@@ -8,14 +8,13 @@ enum ShiftState {
 
 /// A single key cap. Pure presentation; touches are handled by `KeyGridView`.
 ///
-/// Drawn as a frosted glass cap on top of the system keyboard material: a translucent fill,
-/// a hairline bright rim and a soft drop shadow. Presses animate the fill.
+/// Drawn as a frosted glass cap on top of the system keyboard material: a translucent fill
+/// and a soft drop shadow, no outline. Presses animate the fill.
 final class KeyView: UIView {
     let key: Key
     private let label = UILabel()
     private let hintLabel = UILabel()
     private let iconView = UIImageView()
-    private let rim = CAShapeLayer()
     private var theme: KeyboardTheme
     private(set) var isPressed = false
 
@@ -41,10 +40,6 @@ final class KeyView: UIView {
         layer.shadowOffset = CGSize(width: 0, height: 1)
         layer.shadowRadius = 0.6
         layer.masksToBounds = false
-
-        rim.fillColor = nil
-        rim.lineWidth = 1
-        layer.addSublayer(rim)
 
         label.textAlignment = .center
         label.adjustsFontSizeToFitWidth = true
@@ -102,22 +97,6 @@ final class KeyView: UIView {
         hintLabel.frame = CGRect(x: 0, y: 2, width: bounds.width - 4, height: 12)
         let r = layer.cornerRadius
         layer.shadowPath = UIBezierPath(roundedRect: bounds, cornerRadius: r).cgPath
-        // The rim is a rounded rect inset by half a point, drawn only along its upper half
-        // (a full stroke looks like a border; a top-only highlight looks like light on glass).
-        rim.frame = bounds
-        rim.path = Self.topRimPath(in: bounds.insetBy(dx: 0.5, dy: 0.5), radius: max(0, r - 0.5))
-    }
-
-    private static func topRimPath(in rect: CGRect, radius r: CGFloat) -> CGPath {
-        let path = UIBezierPath()
-        let start = CGPoint(x: rect.minX, y: rect.midY)
-        path.move(to: start)
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + r))
-        path.addArc(withCenter: CGPoint(x: rect.minX + r, y: rect.minY + r), radius: r, startAngle: .pi, endAngle: 1.5 * .pi, clockwise: true)
-        path.addLine(to: CGPoint(x: rect.maxX - r, y: rect.minY))
-        path.addArc(withCenter: CGPoint(x: rect.maxX - r, y: rect.minY + r), radius: r, startAngle: 1.5 * .pi, endAngle: 2 * .pi, clockwise: true)
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
-        return path.cgPath
     }
 
     static func accessibilityName(for key: Key) -> String {
@@ -162,7 +141,6 @@ final class KeyView: UIView {
         backgroundColor = base
         layer.shadowColor = theme.keyShadow.cgColor
         layer.shadowOpacity = theme.keyShadowOpacity
-        rim.strokeColor = (accentFill ? UIColor(white: 1, alpha: 0.35) : theme.keyRim).cgColor
 
         let textColor: UIColor = accentFill ? theme.onAccent : (shiftFill ? .black : (isFunction ? theme.functionKeyText : theme.keyText))
         label.textColor = textColor
