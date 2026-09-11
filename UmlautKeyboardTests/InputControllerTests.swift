@@ -341,6 +341,42 @@ final class InputControllerTests: XCTestCase {
         type("hallo ")
         XCTAssertEqual(proxy.text, "Justin ")
     }
+
+    // MARK: Dynamic hit targets
+
+    func testLetterPriorFollowsTheComposingWord() {
+        XCTAssertNotNil(input.state.letterPrior, "word start: first-letter distribution")
+        type("Hall")
+        XCTAssertEqual(input.state.letterPrior?.mostLikely, "o")
+        type("o ")
+        // After a complete word the prior comes from the bigram context, not the typed letters.
+        XCTAssertNotNil(input.state.letterPrior)
+        XCTAssertNotEqual(input.state.letterPrior?.mostLikely, "o")
+    }
+
+    func testLetterPriorIsOffWhenDisabledOrUnavailable() {
+        settings.smartHitTargets = false
+        input.refresh()
+        XCTAssertNil(input.state.letterPrior)
+        settings.smartHitTargets = true
+
+        var secure = FieldTraits()
+        secure.isSecure = true
+        input.traits = secure
+        XCTAssertNil(input.state.letterPrior, "no prior in password fields")
+        input.traits = FieldTraits()
+        XCTAssertNotNil(input.state.letterPrior)
+
+        input.handle(key: GermanLayouts.toSymbols)
+        XCTAssertNil(input.state.letterPrior, "symbols layer has no letter keys")
+        input.handle(key: GermanLayouts.toLetters)
+
+        // Cursor inside a word: the prefix isn't the word being typed.
+        type("Hallo")
+        proxy.moveCursor(by: -2)
+        input.textDidChangeExternally()
+        XCTAssertNil(input.state.letterPrior)
+    }
 }
 
 final class WalkthroughReplayTests: XCTestCase {
@@ -375,4 +411,5 @@ final class WalkthroughReplayTests: XCTestCase {
         type("hakko ")
         XCTAssertEqual(proxy.text, "Ich habe morgen einen Termin in Köln. Danke hallo ")
     }
+
 }

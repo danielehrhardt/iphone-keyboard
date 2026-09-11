@@ -31,6 +31,8 @@ public final class Lexicon: @unchecked Sendable {
 
     public var count: Int { words.count }
     public let minLogProb: Float
+    /// Probability mass per first letter code over the whole vocabulary (next-letter prior at word start).
+    let firstLetterWeights: [Float]
 
     // MARK: Loading
 
@@ -137,6 +139,13 @@ public final class Lexicon: @unchecked Sendable {
         letterCodes = lc; letterOffsets = lcOff
         swipeCodes = sw; swipeOffsets = swOff
         fileLetterCodes.removeAll()
+
+        var first = [Float](repeating: 0, count: k)
+        for id in 0..<n {
+            let start = Int(lcOff[id])
+            if start < Int(lcOff[id + 1]) { first[Int(lc[start])] += exp(lp[id]) }
+        }
+        firstLetterWeights = first
 
         for b in 1...(k * k) { bucketCounts[b] += bucketCounts[b - 1] }   // prefix sums = offsets
         var bIDs = [Int32](repeating: 0, count: Int(bucketCounts[k * k]))
@@ -257,7 +266,7 @@ public final class Lexicon: @unchecked Sendable {
     }
 
     @inline(__always)
-    private func hasPrefix(entry i: Int, _ key: UnsafeBufferPointer<UInt8>) -> Bool {
+    func hasPrefix(entry i: Int, _ key: UnsafeBufferPointer<UInt8>) -> Bool {
         let start = Int(lowerOffsets[i]), end = Int(lowerOffsets[i + 1])
         guard end - start >= key.count else { return false }
         var j = 0
@@ -269,7 +278,7 @@ public final class Lexicon: @unchecked Sendable {
     }
 
     /// First index whose entry is >= key.
-    private func lowerBound(_ key: UnsafeBufferPointer<UInt8>) -> Int {
+    func lowerBound(_ key: UnsafeBufferPointer<UInt8>) -> Int {
         var lo = 0, hi = sortedByLower.count
         while lo < hi {
             let mid = (lo + hi) >> 1
@@ -286,7 +295,7 @@ public final class Lexicon: @unchecked Sendable {
         return lo..<hi
     }
 
-    private func withLowercaseKey<R>(_ word: String, _ body: (UnsafeBufferPointer<UInt8>) -> R) -> R {
+    func withLowercaseKey<R>(_ word: String, _ body: (UnsafeBufferPointer<UInt8>) -> R) -> R {
         var key = Array(word.lowercased().utf8)
         return key.withUnsafeMutableBufferPointer { body(UnsafeBufferPointer($0)) }
     }

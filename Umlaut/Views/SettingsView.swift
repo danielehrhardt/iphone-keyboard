@@ -16,6 +16,7 @@ struct SettingsView: View {
                 Toggle("Punkt durch doppeltes Leerzeichen", isOn: $settings.doubleSpacePeriod)
                 Toggle("Zahlen durch langes Drücken", isOn: $settings.longPressNumbers)
                 Toggle("Kommataste neben Leertaste", isOn: $settings.commaKey)
+                Toggle("Dynamische Tastenflächen", isOn: $settings.smartHitTargets)
                 Toggle("Neue Wörter lernen", isOn: $settings.learnWords)
             }
 

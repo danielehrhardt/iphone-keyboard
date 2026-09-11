@@ -34,6 +34,8 @@ final class KeyGridView: UIView {
     var shiftState: ShiftState = .off {
         didSet { keyViews.values.forEach { $0.shiftState = shiftState } }
     }
+    /// Likely next letters get a larger touch area (see `KeyboardGeometry.keyFrame(at:prior:)`).
+    var letterPrior: LetterPrior?
     var returnLabel: String? { didSet { keyViews["return"]?.returnLabel = returnLabel } }
     var isReturnAccented = false { didSet { keyViews["return"]?.isAccented = isReturnAccented } }
 
@@ -186,7 +188,7 @@ final class KeyGridView: UIView {
 
         for touch in newTouches {
             let p = touch.location(in: self)
-            guard let kf = geometry.keyFrame(at: p) else { continue }
+            guard let kf = geometry.keyFrame(at: p, prior: letterPrior) else { continue }
             if kf.key.action == .globe {
                 // The system owns globe behaviour (tap = next keyboard, hold = list); forward raw events.
                 keyViews[kf.key.id]?.setPressed(true)
@@ -404,6 +406,13 @@ final class KeyGridView: UIView {
     }
 
     private func beginLongPress(_ state: TouchState) {
+        // A long press is slow and eyes-on: the key under the finger wins, not the one the
+        // next-letter prior enlarged (digit hints and alternates must match what the user sees).
+        if let geometry, let visual = geometry.keyFrame(at: state.points.last ?? state.startPoint), visual.key.id != state.currentFrame.key.id {
+            keyViews[state.currentFrame.key.id]?.setPressed(false)
+            state.currentFrame = visual
+            keyViews[visual.key.id]?.setPressed(true)
+        }
         let kf = state.currentFrame
         var options: [String] = []
         let shifted = shiftState.isActive && kf.key.isLetter

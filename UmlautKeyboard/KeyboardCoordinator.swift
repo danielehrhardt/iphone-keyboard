@@ -117,6 +117,7 @@ extension KeyboardCoordinator: InputControllerDelegate {
             view.layoutIfNeeded()
         }
         view.grid.shiftState = state.shift
+        view.grid.letterPrior = state.letterPrior
         view.suggestionBar.set(state.suggestions)
     }
 

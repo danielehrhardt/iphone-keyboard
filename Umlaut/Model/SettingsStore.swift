@@ -25,6 +25,7 @@ final class SettingsStore: ObservableObject {
     @Published var doubleSpacePeriod = true { didSet { write { settings.doubleSpacePeriod = doubleSpacePeriod } } }
     @Published var longPressNumbers = true { didSet { write { settings.longPressNumbers = longPressNumbers } } }
     @Published var commaKey = true { didSet { write { settings.commaKey = commaKey } } }
+    @Published var smartHitTargets = true { didSet { write { settings.smartHitTargets = smartHitTargets } } }
     @Published var learnWords = true { didSet { write { settings.learnWords = learnWords } } }
     @Published var justinMode = false { didSet { write { settings.justinMode = justinMode } } }
 
@@ -64,6 +65,7 @@ final class SettingsStore: ObservableObject {
         doubleSpacePeriod = settings.doubleSpacePeriod
         longPressNumbers = settings.longPressNumbers
         commaKey = settings.commaKey
+        smartHitTargets = settings.smartHitTargets
         learnWords = settings.learnWords
         justinMode = settings.justinMode
         keyPreview = settings.keyPreview

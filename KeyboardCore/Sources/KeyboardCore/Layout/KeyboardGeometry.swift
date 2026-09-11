@@ -95,6 +95,55 @@ public struct KeyboardGeometry: Hashable, Sendable {
         return keyFrames.min { distanceSquared($0.hitFrame, point) < distanceSquared($1.hitFrame, point) }
     }
 
+    /// Tunables for the probabilistic hit test, in units of the key pitch (key + gap).
+    public enum HitTuning {
+        /// Assumed touch scatter around the intended key centre. With a flat prior the decision
+        /// boundary between neighbours stays at the midpoint, exactly like the plain hit test.
+        public static let sigmaX: CGFloat = 0.3
+        public static let sigmaY: CGFloat = 0.3
+        /// Tempering of the prior (1 = trust it fully). Keeps the Gaussian term meaningful: a
+        /// moderately likely key moves the boundary by a few points, only a near-certain one
+        /// reaches the cap.
+        public static let priorWeight: CGFloat = 0.5
+        /// How far a likely key may reach beyond its own hit box. Slightly more than half a gap,
+        /// so the winner takes the whole gap plus a sliver of the neighbour's cap edge; the
+        /// neighbour keeps the central ~80 % of its cap, well inside normal touch scatter.
+        public static let maxReachX: CGFloat = 0.15
+        public static let maxReachY: CGFloat = 0.12
+        /// Finger pads land a little below where the user believes they tapped; touches are
+        /// nudged upward to compensate (fraction of the row height). Part of the feature, so
+        /// disabling dynamic hit targets restores the plain hit test exactly.
+        public static let touchOffsetY: CGFloat = 0.08
+    }
+
+    /// Hit test with dynamic key resizing: on the letters layer, letter keys that are likely to
+    /// be typed next (`prior`) own the gaps around them and a sliver of their neighbours' edges.
+    /// Without a prior, or for any non-letter key, this is the plain geometric hit test.
+    public func keyFrame(at touch: CGPoint, prior: LetterPrior?) -> KeyFrame? {
+        guard let prior, layout.layer == .letters else { return keyFrame(at: touch) }
+        let point = CGPoint(x: touch.x, y: touch.y - rowHeight * HitTuning.touchOffsetY)
+        guard let exact = keyFrame(at: point), exact.key.isLetter else { return keyFrame(at: point) }
+
+        let pitchX = unitWidth + horizontalGap, pitchY = rowHeight + verticalGap
+        let sigmaX = pitchX * HitTuning.sigmaX, sigmaY = pitchY * HitTuning.sigmaY
+        let reachX = pitchX * HitTuning.maxReachX, reachY = pitchY * HitTuning.maxReachY
+
+        func score(_ kf: KeyFrame, _ code: UInt8) -> CGFloat {
+            let dx = (point.x - kf.center.x) / sigmaX, dy = (point.y - kf.center.y) / sigmaY
+            return HitTuning.priorWeight * CGFloat(prior.logProbability(code: code)) - 0.5 * (dx * dx + dy * dy)
+        }
+
+        var best = exact
+        var bestScore = exact.key.character.flatMap(KeyAlphabet.code(for:)).map { score(exact, $0) } ?? -.infinity
+        for kf in keyFrames where kf.key.isLetter && kf.key.id != exact.key.id {
+            guard let c = kf.key.character, let code = KeyAlphabet.code(for: c),
+                  kf.hitFrame.insetBy(dx: -reachX, dy: -reachY).contains(point) else { continue }
+            let s = score(kf, code)
+            if s > bestScore { bestScore = s; best = kf }
+        }
+        return best
+    }
+
     public func keyFrame(for key: Key) -> KeyFrame? {
         keyFrames.first { $0.key.id == key.id }
     }

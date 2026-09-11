@@ -6,6 +6,8 @@ struct InputUIState: Equatable {
     var layer: KeyboardLayer = .letters
     var shift: ShiftState = .off
     var suggestions: [Suggestion] = []
+    /// Next-letter distribution for the key grid's dynamic hit targets; nil = plain hit test.
+    var letterPrior: LetterPrior?
 }
 
 protocol InputControllerDelegate: AnyObject {
@@ -143,7 +145,16 @@ final class InputController {
         var s = state
         s.shift = computedShift(current: s.shift)
         s.suggestions = buildSuggestions()
+        s.letterPrior = buildLetterPrior()
         state = s
+    }
+
+    /// What the next letter is likely to be, so likely keys can grow their touch area. Off in
+    /// fields without suggestions (passwords, URLs), inside a word, and in Justin mode.
+    private func buildLetterPrior() -> LetterPrior? {
+        guard settings.smartHitTargets, suggestionsAllowed, state.layer == .letters, !justinModeActive,
+              let engine, !cursorIsInsideWord else { return nil }
+        return engine.predictor.letterPrior(prefix: composingWord, previous: previousWord)
     }
 
     private func computedShift(current: ShiftState) -> ShiftState {
