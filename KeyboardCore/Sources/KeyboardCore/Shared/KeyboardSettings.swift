@@ -74,7 +74,7 @@ public final class KeyboardSettings: @unchecked Sendable {
             Keys.predictions: true, Keys.doubleSpacePeriod: true, Keys.keyPreview: true,
             Keys.haptics: true, Keys.sound: true, Keys.swipeTrail: true, Keys.learnWords: true,
             Keys.theme: Theme.system.rawValue, Keys.accent: Accent.blue.rawValue, Keys.keySize: KeySize.regular.rawValue,
-            Keys.longPressNumbers: true, Keys.commaKey: true, Keys.emojiOnCommaKey: true, Keys.smartHitTargets: true, Keys.justinMode: false, Keys.onboardingDone: false,
+            Keys.longPressNumbers: true, Keys.commaKey: true, Keys.emojiOnCommaKey: true, Keys.smartHitTargets: true, Keys.adaptiveTapMap: true, Keys.justinMode: false, Keys.onboardingDone: false,
         ])
     }
 
@@ -96,6 +96,7 @@ public final class KeyboardSettings: @unchecked Sendable {
         static let commaKey = "commaKey"
         static let emojiOnCommaKey = "emojiOnCommaKey"
         static let smartHitTargets = "smartHitTargets"
+        static let adaptiveTapMap = "adaptiveTapMap"
         static let justinMode = "justinMode"
         static let onboardingDone = "onboardingDone"
     }
@@ -118,6 +119,9 @@ public final class KeyboardSettings: @unchecked Sendable {
     public var emojiOnCommaKey: Bool { get { defaults.bool(forKey: Keys.emojiOnCommaKey) } set { defaults.set(newValue, forKey: Keys.emojiOnCommaKey) } }
     /// Letter keys grow their touch area towards likely next letters (like the system keyboard).
     public var smartHitTargets: Bool { get { defaults.bool(forKey: Keys.smartHitTargets) } set { defaults.set(newValue, forKey: Keys.smartHitTargets) } }
+    /// The keyboard learns where this user's fingers land on each letter key and shifts the hit
+    /// targets accordingly (see `TapMap`).
+    public var adaptiveTapMap: Bool { get { defaults.bool(forKey: Keys.adaptiveTapMap) } set { defaults.set(newValue, forKey: Keys.adaptiveTapMap) } }
     /// Every typed or swiped word is replaced by „Justin“.
     public var justinMode: Bool { get { defaults.bool(forKey: Keys.justinMode) } set { defaults.set(newValue, forKey: Keys.justinMode) } }
     public var onboardingDone: Bool { get { defaults.bool(forKey: Keys.onboardingDone) } set { defaults.set(newValue, forKey: Keys.onboardingDone) } }

@@ -63,6 +63,34 @@ final class LayoutTests: XCTestCase {
         XCTAssertTrue(GermanLayouts.symbols().rows[3].keys.contains { $0.id == "comma" })
     }
 
+    func testEmojiKeyFoldsIntoCommaKeyUnlessSeparated() {
+        func bottom(_ options: LayoutOptions) -> [Key] { GermanLayouts.letters(options: options).rows[3].keys }
+        func comma(in keys: [Key]) -> Key? { keys.first { $0.id == "comma" } }
+        func hasEmojiKey(_ keys: [Key]) -> Bool { keys.contains { $0.action == .emoji } }
+
+        // Default: one key. Tap types a comma, holding opens emoji; no separate emoji key, even without a globe.
+        let one = bottom(LayoutOptions(needsGlobeKey: false))
+        XCTAssertEqual(comma(in: one)?.action, .character(","))
+        XCTAssertEqual(comma(in: one)?.longPressAction, .emoji)
+        XCTAssertTrue(comma(in: one)?.alternates.isEmpty ?? false, "hold is taken by emoji, no ; : bubble")
+        XCTAssertFalse(hasEmojiKey(one))
+        // With a globe key the comma key still carries emoji (previously there was no emoji key at all).
+        XCTAssertEqual(comma(in: bottom(LayoutOptions(needsGlobeKey: true)))?.longPressAction, .emoji)
+
+        // Two keys: plain comma with its alternates, separate emoji key where there is no globe.
+        let two = bottom(LayoutOptions(needsGlobeKey: false, emojiOnCommaKey: false))
+        XCTAssertNil(comma(in: two)?.longPressAction)
+        XCTAssertEqual(comma(in: two)?.alternates, [";", ":"])
+        XCTAssertTrue(hasEmojiKey(two))
+        XCTAssertFalse(hasEmojiKey(bottom(LayoutOptions(needsGlobeKey: true, emojiOnCommaKey: false))))
+
+        // No comma key to carry it (setting off, or "@" in e-mail fields): the separate emoji key returns.
+        XCTAssertTrue(hasEmojiKey(bottom(LayoutOptions(needsGlobeKey: false, showsCommaKey: false))))
+        let email = bottom(LayoutOptions(needsGlobeKey: false, isEmailOrURL: true))
+        XCTAssertTrue(hasEmojiKey(email))
+        XCTAssertNil(comma(in: email))
+    }
+
     func testKeyMapNearest() {
         let km = KeyMap.reference()
         let q = km.centers[Int(KeyAlphabet.code(for: "q")!)]

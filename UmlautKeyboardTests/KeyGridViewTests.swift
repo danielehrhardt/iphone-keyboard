@@ -11,6 +11,7 @@ private final class FakeTouch: UITouch {
 private final class GridRecorder: KeyGridDelegate {
     var taps: [String] = []
     var alternates: [String] = []
+    var longPresses: [String] = []
     var swipes = 0
     var keyPreviewEnabled = true
     var swipeTypingEnabled = true
@@ -20,7 +21,7 @@ private final class GridRecorder: KeyGridDelegate {
     func keyGrid(_ grid: KeyGridView, didTap key: Key) { taps.append(key.id) }
     func keyGrid(_ grid: KeyGridView, didInsertAlternate text: String, for key: Key) { alternates.append(text) }
     func keyGrid(_ grid: KeyGridView, didSwipe path: [CGPoint], keyMap: KeyMap) { swipes += 1 }
-    func keyGrid(_ grid: KeyGridView, didLongPress key: Key) {}
+    func keyGrid(_ grid: KeyGridView, didLongPress key: Key) { longPresses.append(key.id) }
     func keyGridBackspaceRepeat(_ grid: KeyGridView, wordwise: Bool) {}
     func keyGrid(_ grid: KeyGridView, moveCursorBy offset: Int) {}
     func keyGridDidDoubleTapShift(_ grid: KeyGridView) {}
@@ -131,6 +132,36 @@ final class KeyGridViewTests: XCTestCase {
             spin(0.02)
             XCTAssertEqual(recorder.alternates, [expected], "option \(step)pt right of the key centre")
         }
+    }
+
+    /// The comma key doubles as the emoji key: a tap types the comma, a hold reports the long
+    /// press (the coordinator opens the emoji panel) and the following lift must not type anything.
+    func testHoldingCommaKeyFiresLongPressInsteadOfTyping() {
+        let hold = press("comma")
+        spin(0.5)
+        XCTAssertEqual(recorder.longPresses, ["comma"])
+        release(hold)
+        spin(0.02)
+        XCTAssertEqual(recorder.taps, [], "the hold swallowed the tap")
+        XCTAssertEqual(recorder.alternates, [], "no ; : bubble on the combined key")
+
+        let tap = press("comma")
+        spin(0.03)
+        release(tap)
+        XCTAssertEqual(recorder.taps, ["comma"])
+        XCTAssertEqual(recorder.longPresses, ["comma"])
+    }
+
+    /// With the keys separated the comma key keeps its ; : bubble and never reports a long press.
+    func testSeparateCommaKeyKeepsAlternates() {
+        grid.configure(layout: GermanLayouts.letters(options: LayoutOptions(emojiOnCommaKey: false)), metrics: .phonePortrait)
+        grid.layoutIfNeeded()
+        let t = press("comma")
+        spin(0.5)
+        release(t)
+        spin(0.02)
+        XCTAssertEqual(recorder.longPresses, [])
+        XCTAssertEqual(recorder.alternates, [","], "bubble committed the option under the finger")
     }
 
     func testPreviewDisabledStillTypes() {
