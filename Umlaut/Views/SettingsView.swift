@@ -18,6 +18,12 @@ struct SettingsView: View {
                 Toggle("Neue Wörter lernen", isOn: $settings.learnWords)
             }
 
+            Section {
+                Toggle("Justin-Modus", isOn: $settings.justinMode)
+            } footer: {
+                Text("Jedes getippte oder gewischte Wort wird zu „Justin“ korrigiert.")
+            }
+
             Section("Feedback") {
                 Toggle("Tastenvorschau", isOn: $settings.keyPreview)
                 Toggle("Wischspur anzeigen", isOn: $settings.swipeTrail)

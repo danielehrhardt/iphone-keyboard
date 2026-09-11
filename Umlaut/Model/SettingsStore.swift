@@ -25,6 +25,7 @@ final class SettingsStore: ObservableObject {
     @Published var doubleSpacePeriod = true { didSet { write { settings.doubleSpacePeriod = doubleSpacePeriod } } }
     @Published var longPressNumbers = true { didSet { write { settings.longPressNumbers = longPressNumbers } } }
     @Published var learnWords = true { didSet { write { settings.learnWords = learnWords } } }
+    @Published var justinMode = false { didSet { write { settings.justinMode = justinMode } } }
 
     // MARK: Feedback
 
@@ -62,6 +63,7 @@ final class SettingsStore: ObservableObject {
         doubleSpacePeriod = settings.doubleSpacePeriod
         longPressNumbers = settings.longPressNumbers
         learnWords = settings.learnWords
+        justinMode = settings.justinMode
         keyPreview = settings.keyPreview
         swipeTrail = settings.swipeTrail
         haptics = settings.haptics

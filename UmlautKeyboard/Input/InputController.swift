@@ -91,6 +91,18 @@ final class InputController {
 
     private var suggestionsAllowed: Bool { traits.allowsSuggestions }
     private var autocorrectAllowed: Bool { settings.autocorrect && traits.allowsAutocorrect }
+    /// „Justin-Modus“: every word becomes „Justin“, independent of the normal autocorrect toggle,
+    /// but never in fields that asked for no autocorrection (passwords, addresses, code).
+    private var justinModeActive: Bool { settings.justinMode && traits.allowsAutocorrect }
+
+    static let justinWord = "Justin"
+
+    /// „Justin“, or „JUSTIN“ when the typed word was written in all caps.
+    private func justin(matching typed: String) -> String {
+        let letters = typed.filter(\.isLetter)
+        let allCaps = letters.count > 1 && letters.allSatisfy(\.isUppercase)
+        return allCaps ? Self.justinWord.uppercased() : Self.justinWord
+    }
 
     // MARK: Field / external changes
 
@@ -161,6 +173,9 @@ final class InputController {
             return engine.predictor.nextWords(after: previousWord, isSentenceStart: isSentenceStart).map { Suggestion(text: $0, kind: .prediction) }
         }
 
+        if justinModeActive {
+            return [Suggestion(text: composing, kind: .literal), Suggestion(text: justin(matching: composing), kind: .primary)]
+        }
         guard let keyMap else { return [] }
         let previous = previousWord
         let start = isSentenceStart
@@ -295,7 +310,7 @@ final class InputController {
             if proxy.textBefore.hasSuffix(corrected + trigger) {
                 delete(count: corrected.count + trigger.count)
                 proxy.insert(original)
-                engine?.user.rejectCorrection(typed: original)
+                if !justinModeActive { engine?.user.rejectCorrection(typed: original) }
                 lastCommit = nil
                 afterEdit(lastWasSpace: false)
                 return
@@ -389,9 +404,9 @@ final class InputController {
         if let last = before.last, !last.isWhitespace, !last.isNewline, !autoSpacePending, !Self.openingDelimiters.contains(last) {
             proxy.insert(" ")
         }
-        let cased = applyCase(to: best.word)
+        let cased = justinModeActive ? applyCase(to: Self.justinWord) : applyCase(to: best.word)
         proxy.insert(cased + " ")
-        let alternates = candidates.dropFirst().map { applyCase(to: $0.word) }
+        let alternates = justinModeActive ? candidates.map { applyCase(to: $0.word) } : candidates.dropFirst().map { applyCase(to: $0.word) }
         lastCommit = .swipe(word: cased, alternates: Array(alternates), autoSpace: true)
         autoSpacePending = true
         learn(word: cased, after: previous)
@@ -432,7 +447,7 @@ final class InputController {
             learn(word: suggestion.text, after: previous)
         case (.literal, _):
             proxy.insert(" ")
-            if settings.learnWords { engine?.user.add(word: composing) }
+            if settings.learnWords, !justinModeActive { engine?.user.add(word: composing) }
             lastCommit = nil
             autoSpacePending = true
         default:
@@ -453,6 +468,14 @@ final class InputController {
         guard !composing.isEmpty else { return }
         let previous = previousWord
         lastCommit = nil
+        if justinModeActive {
+            let replacement = justin(matching: composing)
+            guard replacement != composing else { return }
+            delete(count: composing.count)
+            proxy.insert(replacement)
+            lastCommit = .autocorrect(original: composing, corrected: replacement, trigger: trigger)
+            return
+        }
         guard suggestionsAllowed, let keyMap, let engine else { return }
         if autocorrectAllowed, trigger == " " || trigger == "\n" || GermanRules.sentenceTerminators.contains(trigger.first!) || trigger == "," {
             let corrections = engine.autocorrect(for: keyMap).corrections(for: composing, previousWord: previous, isSentenceStart: isSentenceStart)
@@ -473,7 +496,7 @@ final class InputController {
     }
 
     private func learn(word: String, after previous: String?) {
-        guard settings.learnWords, suggestionsAllowed else { return }
+        guard settings.learnWords, suggestionsAllowed, !justinModeActive else { return }
         engine?.user.learn(word: word, after: previous)
     }
 

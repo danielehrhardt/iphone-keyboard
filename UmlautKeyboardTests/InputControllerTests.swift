@@ -262,6 +262,73 @@ final class InputControllerTests: XCTestCase {
         input.backspaceRepeat(wordwise: true)
         XCTAssertEqual(proxy.text, "Hallo ")
     }
+
+    // MARK: Justin-Modus
+
+    func testJustinModeReplacesEveryTypedWord() {
+        settings.justinMode = true
+        type("hallo welt.")
+        XCTAssertEqual(proxy.text, "Justin Justin.")
+        type(" essen ")
+        XCTAssertEqual(proxy.text, "Justin Justin. Justin ")   // real words are replaced as well
+    }
+
+    func testJustinModeIgnoresAutocorrectToggle() {
+        settings.justinMode = true
+        settings.autocorrect = false
+        type("hallo ")
+        XCTAssertEqual(proxy.text, "Justin ")
+    }
+
+    func testJustinModeShowsTypedWordAsLiteralAndJustinAsPrimary() {
+        settings.justinMode = true
+        type("hal")
+        XCTAssertEqual(input.state.suggestions, [Suggestion(text: "Hal", kind: .literal), Suggestion(text: "Justin", kind: .primary)])
+        input.accept(input.state.suggestions[0])
+        XCTAssertEqual(proxy.text, "Hal ")
+        XCTAssertFalse(engine.user.isLearned("Hal"))
+    }
+
+    func testJustinModeBackspaceRestoresTypedWordWithoutBlockingIt() {
+        settings.justinMode = true
+        type("hallo ")
+        XCTAssertEqual(proxy.text, "Justin ")
+        input.handle(key: GermanLayouts.backspace)
+        XCTAssertEqual(proxy.text, "Hallo")
+        XCTAssertFalse(engine.user.isBlocked("Hallo"))
+        XCTAssertFalse(engine.user.isLearned("Justin"))
+    }
+
+    func testJustinModeAppliesToSwipeAndKeepsDecodedWordAsAlternate() {
+        settings.justinMode = true
+        swipe("danke")
+        XCTAssertEqual(proxy.text, "Justin ")
+        XCTAssertTrue(input.state.suggestions.contains { $0.kind == .alternate && $0.text == "Danke" }, "\(input.state.suggestions)")
+    }
+
+    func testJustinModeFollowsCapsLock() {
+        settings.justinMode = true
+        input.lockShift()
+        type("hallo ")
+        XCTAssertEqual(proxy.text, "JUSTIN ")
+    }
+
+    func testJustinModeRespectsFieldsWithoutAutocorrection() {
+        settings.justinMode = true
+        var traits = FieldTraits()
+        traits.autocorrectionDisabled = true
+        input.traits = traits
+        input.refresh()
+        type("hallo ")
+        XCTAssertEqual(proxy.text, "Hallo ")
+    }
+
+    func testJustinModeWorksBeforeTheLexiconIsLoaded() {
+        settings.justinMode = true
+        input.engine = nil
+        type("hallo ")
+        XCTAssertEqual(proxy.text, "Justin ")
+    }
 }
 
 final class WalkthroughReplayTests: XCTestCase {

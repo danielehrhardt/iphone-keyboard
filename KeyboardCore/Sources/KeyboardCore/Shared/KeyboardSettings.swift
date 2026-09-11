@@ -74,7 +74,7 @@ public final class KeyboardSettings: @unchecked Sendable {
             Keys.predictions: true, Keys.doubleSpacePeriod: true, Keys.keyPreview: true,
             Keys.haptics: true, Keys.sound: true, Keys.swipeTrail: true, Keys.learnWords: true,
             Keys.theme: Theme.system.rawValue, Keys.accent: Accent.blue.rawValue, Keys.keySize: KeySize.regular.rawValue,
-            Keys.longPressNumbers: true, Keys.onboardingDone: false,
+            Keys.longPressNumbers: true, Keys.justinMode: false, Keys.onboardingDone: false,
         ])
     }
 
@@ -93,6 +93,7 @@ public final class KeyboardSettings: @unchecked Sendable {
         static let accent = "accent"
         static let keySize = "keySize"
         static let longPressNumbers = "longPressNumbers"
+        static let justinMode = "justinMode"
         static let onboardingDone = "onboardingDone"
     }
 
@@ -107,6 +108,8 @@ public final class KeyboardSettings: @unchecked Sendable {
     public var swipeTrail: Bool { get { defaults.bool(forKey: Keys.swipeTrail) } set { defaults.set(newValue, forKey: Keys.swipeTrail) } }
     public var learnWords: Bool { get { defaults.bool(forKey: Keys.learnWords) } set { defaults.set(newValue, forKey: Keys.learnWords) } }
     public var longPressNumbers: Bool { get { defaults.bool(forKey: Keys.longPressNumbers) } set { defaults.set(newValue, forKey: Keys.longPressNumbers) } }
+    /// Every typed or swiped word is replaced by „Justin“.
+    public var justinMode: Bool { get { defaults.bool(forKey: Keys.justinMode) } set { defaults.set(newValue, forKey: Keys.justinMode) } }
     public var onboardingDone: Bool { get { defaults.bool(forKey: Keys.onboardingDone) } set { defaults.set(newValue, forKey: Keys.onboardingDone) } }
 
     public var theme: Theme {
