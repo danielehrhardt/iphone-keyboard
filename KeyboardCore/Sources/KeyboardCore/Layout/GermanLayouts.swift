@@ -36,7 +36,7 @@ public enum GermanLayouts {
     public static let toLetters = Key(id: "ABC", action: .switchLayer(.letters), label: "ABC", width: 1.5, isFunction: true)
     public static let toExtra = Key(id: "#+=", action: .switchLayer(.extraSymbols), label: "#+=", width: 1.5, isFunction: true)
     public static let period = Key.symbol(".", alternates: ["…", ",", "?", "!", ";", ":"])
-    public static let comma = Key.symbol(",", alternates: [";", ":"])
+    public static let comma = Key(id: "comma", action: .character(","), label: ",", alternates: [";", ":"], width: 1)
 
     /// Letters layer. Row 3 is centred with shift/backspace on the flanks like Apple's German keyboard.
     public static func letters(options: LayoutOptions = LayoutOptions()) -> KeyboardLayout {
@@ -117,6 +117,8 @@ public enum GermanLayouts {
         if options.showsEmojiKey && !options.needsGlobeKey { keys.append(emoji) }
         if options.isEmailOrURL {
             keys.append(Key(id: "at", action: .character("@"), label: "@", width: 1))
+        } else if options.showsCommaKey {
+            keys.append(comma)
         }
         keys.append(space)
         if options.isEmailOrURL {

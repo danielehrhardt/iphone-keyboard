@@ -18,6 +18,7 @@ struct KeyboardPreview: View {
     var trail: Trail = .none
     var animatesTrail = false
     var cornerRadius: CGFloat = 16
+    var showsCommaKey = true
 
     @Environment(\.colorScheme) private var environmentScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -29,7 +30,7 @@ struct KeyboardPreview: View {
     /// Reference width of an iPhone keyboard; all metrics are scaled from it.
     private static let referenceWidth: CGFloat = 390
     private static let referenceHeight: CGFloat = 216
-    private static let layout = GermanLayouts.letters()
+    private var layout: KeyboardLayout { GermanLayouts.letters(options: LayoutOptions(showsCommaKey: showsCommaKey)) }
 
     private var isDark: Bool { (scheme ?? environmentScheme) == .dark }
     private var accentColor: Color { accent.color }
@@ -37,7 +38,7 @@ struct KeyboardPreview: View {
     var body: some View {
         GeometryReader { proxy in
             let scale = max(proxy.size.width / Self.referenceWidth, 0.01)
-            let geometry = KeyboardGeometry(layout: Self.layout, size: proxy.size, metrics: metrics(scale: scale))
+            let geometry = KeyboardGeometry(layout: layout, size: proxy.size, metrics: metrics(scale: scale))
             ZStack {
                 ForEach(geometry.keyFrames, id: \.self) { keyFrame in
                     cap(for: keyFrame, geometry: geometry, scale: scale)

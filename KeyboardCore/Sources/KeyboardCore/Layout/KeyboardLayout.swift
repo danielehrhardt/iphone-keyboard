@@ -108,10 +108,13 @@ public struct LayoutOptions: Hashable, Sendable {
     public var showsEmojiKey: Bool
     /// Adds "@" and "." to the bottom row (e-mail / URL fields).
     public var isEmailOrURL: Bool
+    /// Adds a comma key left of the space bar (not in e-mail / URL fields, where "@" sits there).
+    public var showsCommaKey: Bool
 
-    public init(needsGlobeKey: Bool = true, showsEmojiKey: Bool = true, isEmailOrURL: Bool = false) {
+    public init(needsGlobeKey: Bool = true, showsEmojiKey: Bool = true, isEmailOrURL: Bool = false, showsCommaKey: Bool = true) {
         self.needsGlobeKey = needsGlobeKey
         self.showsEmojiKey = showsEmojiKey
         self.isEmailOrURL = isEmailOrURL
+        self.showsCommaKey = showsCommaKey
     }
 }

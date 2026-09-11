@@ -15,6 +15,7 @@ struct SettingsView: View {
                 Toggle("Automatische Großschreibung", isOn: $settings.autoCapitalize)
                 Toggle("Punkt durch doppeltes Leerzeichen", isOn: $settings.doubleSpacePeriod)
                 Toggle("Zahlen durch langes Drücken", isOn: $settings.longPressNumbers)
+                Toggle("Kommataste neben Leertaste", isOn: $settings.commaKey)
                 Toggle("Neue Wörter lernen", isOn: $settings.learnWords)
             }
 
@@ -35,7 +36,8 @@ struct SettingsView: View {
                 KeyboardPreview(accent: settings.accent,
                                 keySize: settings.keySize,
                                 scheme: settings.theme.colorScheme,
-                                trail: settings.swipeTrail ? .hallo : .none)
+                                trail: settings.swipeTrail ? .hallo : .none,
+                                showsCommaKey: settings.commaKey)
                     .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
                     .listRowBackground(Color.clear)
                     .animation(.easeInOut(duration: 0.25), value: settings.keySize)

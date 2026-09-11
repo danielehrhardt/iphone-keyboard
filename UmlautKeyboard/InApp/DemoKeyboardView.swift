@@ -13,6 +13,7 @@ final class DemoKeyboardView: UIInputView {
     private var observers: [NSObjectProtocol] = []
     /// Keys + suggestion bar; the bottom safe area is added on top once known.
     private var contentHeight: CGFloat
+    private var heightConstraint: NSLayoutConstraint!
 
     init(textView: UITextView, engine: KeyboardEngine?, settings: KeyboardSettings = .shared) {
         self.textView = textView
@@ -21,7 +22,13 @@ final class DemoKeyboardView: UIInputView {
         let screen = textView.window?.windowScene?.screen.bounds.size ?? UIScreen.main.bounds.size
         contentHeight = coordinator.updateEnvironment(traits: textView.traitCollection, screenSize: screen)
         super.init(frame: CGRect(x: 0, y: 0, width: screen.width, height: contentHeight), inputViewStyle: .keyboard)
-        autoresizingMask = [.flexibleWidth]
+        // Self-sizing through a height constraint is the only way UIKit honours later height
+        // changes of a custom input view (the safe-area strip is added once the view is on screen).
+        allowsSelfSizing = true
+        translatesAutoresizingMaskIntoConstraints = false
+        heightConstraint = heightAnchor.constraint(equalToConstant: contentHeight)
+        heightConstraint.priority = UILayoutPriority(999)
+        heightConstraint.isActive = true
         backgroundColor = .clear
         overrideUserInterfaceStyle = KeyboardTheme.interfaceStyle(for: settings)
         coordinator.needsGlobeKey = false
@@ -67,14 +74,13 @@ final class DemoKeyboardView: UIInputView {
     /// Grows the input view by the home-indicator inset when the system lets it reach the screen edge.
     private func applyHeight() {
         let h = contentHeight + safeAreaInsets.bottom
-        if abs(h - bounds.height) > 0.5 {
-            frame.size.height = h
-            invalidateIntrinsicContentSize()
-            textView?.reloadInputViews()
-        }
+        guard abs(h - heightConstraint.constant) > 0.5 else { return }
+        heightConstraint.constant = h
+        invalidateIntrinsicContentSize()
+        setNeedsLayout()
     }
 
-    override var intrinsicContentSize: CGSize { CGSize(width: UIView.noIntrinsicMetric, height: bounds.height) }
+    override var intrinsicContentSize: CGSize { CGSize(width: UIView.noIntrinsicMetric, height: heightConstraint.constant) }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)

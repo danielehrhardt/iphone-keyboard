@@ -23,6 +23,24 @@ final class LayoutTests: XCTestCase {
         XCTAssertEqual(g.keyFrame(at: CGPoint(x: 20, y: 30))?.key.label, "q")
     }
 
+    func testCommaKeySitsLeftOfSpaceAndCanBeDisabled() {
+        let bottom = GermanLayouts.letters().rows[3].keys
+        let space = bottom.firstIndex { $0.action == .space }!
+        XCTAssertEqual(bottom[space - 1].id, "comma")
+        XCTAssertEqual(bottom[space - 1].action, .character(","))
+
+        let without = GermanLayouts.letters(options: LayoutOptions(showsCommaKey: false)).rows[3].keys
+        XCTAssertFalse(without.contains { $0.id == "comma" })
+
+        // E-mail fields keep "@" left of the space bar instead.
+        let email = GermanLayouts.letters(options: LayoutOptions(isEmailOrURL: true)).rows[3].keys
+        XCTAssertFalse(email.contains { $0.id == "comma" })
+        XCTAssertEqual(email[email.firstIndex { $0.action == .space }! - 1].id, "at")
+
+        // The bottom row is shared, so the symbol layers get the key too.
+        XCTAssertTrue(GermanLayouts.symbols().rows[3].keys.contains { $0.id == "comma" })
+    }
+
     func testKeyMapNearest() {
         let km = KeyMap.reference()
         let q = km.centers[Int(KeyAlphabet.code(for: "q")!)]

@@ -68,7 +68,7 @@ final class KeyboardCoordinator: NSObject {
         let h = KeyboardMetrics.heights(for: traits, screenSize: screenSize, keySize: settings.keySize)
         view.suggestionHeight = h.suggestions
         view.apply(theme: KeyboardTheme.current(traits: traits, settings: settings))
-        view.setNeedsLayout()
+        refreshLayoutOptions()
         return h.keys + h.suggestions
     }
 
@@ -86,7 +86,8 @@ final class KeyboardCoordinator: NSObject {
     func cancelTouches() { view.grid.cancelAllTouches() }
 
     private func refreshLayoutOptions() {
-        layoutOptions = LayoutOptions(needsGlobeKey: needsGlobeKey, showsEmojiKey: true, isEmailOrURL: input.traits.isEmailOrURL)
+        layoutOptions = LayoutOptions(needsGlobeKey: needsGlobeKey, showsEmojiKey: true,
+                                      isEmailOrURL: input.traits.isEmailOrURL, showsCommaKey: settings.commaKey)
         view.setNeedsLayout()
     }
 
