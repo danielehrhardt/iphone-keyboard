@@ -5,9 +5,6 @@ public final class Predictor {
     public let lexicon: Lexicon
     public var user: UserLexicon?
 
-    /// Fallback shown when nothing is known about the context.
-    static let coldStart = ["Ich", "Hallo", "Danke", "Ja", "Nein", "Wir", "Guten", "Alles"]
-
     public init(lexicon: Lexicon, user: UserLexicon? = nil) {
         self.lexicon = lexicon
         self.user = user
@@ -27,7 +24,9 @@ public final class Predictor {
             for s in lexicon.successors(of: previous) where out.count < limit { push(s.word) }
         }
         if out.count < limit {
-            for w in (isSentenceStart ? Self.coldStart : ["und", "ich", "die", "das", "nicht", "auch"]) where out.count < limit { push(w) }
+            // Fallback when nothing is known about the context.
+            let rules = lexicon.language.rules
+            for w in (isSentenceStart ? rules.coldStartWords : rules.commonWords) where out.count < limit { push(w) }
         }
         return Array(out.prefix(limit))
     }

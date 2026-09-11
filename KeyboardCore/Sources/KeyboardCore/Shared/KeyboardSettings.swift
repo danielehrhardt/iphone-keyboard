@@ -75,10 +75,13 @@ public final class KeyboardSettings: @unchecked Sendable {
             Keys.haptics: true, Keys.sound: true, Keys.swipeTrail: true, Keys.learnWords: true,
             Keys.theme: Theme.system.rawValue, Keys.accent: Accent.blue.rawValue, Keys.keySize: KeySize.regular.rawValue,
             Keys.longPressNumbers: true, Keys.commaKey: true, Keys.emojiOnCommaKey: true, Keys.smartHitTargets: true, Keys.adaptiveTapMap: true, Keys.justinMode: false, Keys.onboardingDone: false,
+            Keys.enabledLanguages: [KeyboardLanguage.default.rawValue], Keys.currentLanguage: KeyboardLanguage.default.rawValue,
         ])
     }
 
     enum Keys {
+        static let enabledLanguages = "enabledLanguages"
+        static let currentLanguage = "currentLanguage"
         static let swipeTyping = "swipeTyping"
         static let autocorrect = "autocorrect"
         static let autoCapitalize = "autoCapitalize"
@@ -137,5 +140,58 @@ public final class KeyboardSettings: @unchecked Sendable {
     public var keySize: KeySize {
         get { KeySize(rawValue: defaults.string(forKey: Keys.keySize) ?? "") ?? .regular }
         set { defaults.set(newValue.rawValue, forKey: Keys.keySize) }
+    }
+
+    // MARK: Languages
+
+    /// The languages the keyboard switches between, in the order they are cycled. Never empty:
+    /// an empty or unknown list falls back to the default language.
+    public var enabledLanguages: [KeyboardLanguage] {
+        get {
+            let stored = defaults.stringArray(forKey: Keys.enabledLanguages) ?? []
+            var seen = Set<KeyboardLanguage>()
+            let languages = stored.compactMap(KeyboardLanguage.init(rawValue:)).filter { seen.insert($0).inserted }
+            return languages.isEmpty ? [.default] : languages
+        }
+        set {
+            var seen = Set<KeyboardLanguage>()
+            let languages = newValue.filter { seen.insert($0).inserted }
+            defaults.set((languages.isEmpty ? [.default] : languages).map(\.rawValue), forKey: Keys.enabledLanguages)
+        }
+    }
+
+    /// The language the keyboard is typing in. Always one of `enabledLanguages`: a language that
+    /// was switched off in the app falls back to the first enabled one.
+    public var currentLanguage: KeyboardLanguage {
+        get {
+            let enabled = enabledLanguages
+            guard let stored = defaults.string(forKey: Keys.currentLanguage).flatMap(KeyboardLanguage.init(rawValue:)),
+                  enabled.contains(stored) else { return enabled[0] }
+            return stored
+        }
+        set { defaults.set(newValue.rawValue, forKey: Keys.currentLanguage) }
+    }
+
+    /// Whether the keyboard offers a way to switch languages (two or more enabled).
+    public var hasMultipleLanguages: Bool { enabledLanguages.count > 1 }
+
+    /// The language after the current one in the enabled list, wrapping around.
+    public func nextLanguage(after language: KeyboardLanguage) -> KeyboardLanguage {
+        let enabled = enabledLanguages
+        guard let i = enabled.firstIndex(of: language) else { return enabled[0] }
+        return enabled[(i + 1) % enabled.count]
+    }
+
+    /// Switches a language on or off, keeping at least one enabled and the current language valid.
+    public func setLanguage(_ language: KeyboardLanguage, enabled: Bool) {
+        var languages = enabledLanguages
+        if enabled {
+            if !languages.contains(language) { languages.append(language) }
+        } else {
+            guard languages.count > 1 else { return }
+            languages.removeAll { $0 == language }
+        }
+        enabledLanguages = languages
+        if !languages.contains(currentLanguage) { currentLanguage = languages[0] }
     }
 }

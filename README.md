@@ -83,6 +83,16 @@ context boost, sentence-start capitalisation.
 **Personal dictionary** (`UserLexicon`) – learns words after two uses, learns bigrams, remembers rejected
 corrections, stored as JSON in the app group.
 
+**Tap map** (`TapMap`) – SwiftKey-style adaptive hit targets. For every letter key the keyboard keeps
+the running mean of where this user's finger lands relative to the printed centre (in units of the
+key pitch, so one map serves every key size). It learns from committed words: a word left as typed
+confirms every tap, a same-length autocorrection (`hakko → hallo`) re-attributes the wrong tap to
+the neighbouring key that was meant, and reverting the correction with backspace takes the lesson
+back. The hit test (`KeyboardGeometry.keyFrame(at:prior:offsets:)`) then judges every tap from the
+learned centres, combined with the next-letter prior; function keys are never affected. One layer per
+keyboard width and letter arrangement (portrait/landscape, QWERTZ/QWERTY), stored as JSON in the app
+group; the host app shows it under „Deine Tap Map“ with a reset. Toggle: „Tippverhalten lernen“.
+
 ## Dictionary
 
 `scripts/fetch_corpora.sh` downloads the public sources, `scripts/build_dictionary.py` builds

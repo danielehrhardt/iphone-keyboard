@@ -3,6 +3,9 @@ import KeyboardCore
 
 protocol KeyGridDelegate: AnyObject {
     func keyGrid(_ grid: KeyGridView, didTap key: Key)
+    /// A plain tap that stayed on one key, with the point where the finger landed (grid
+    /// coordinates) so the tap map can learn from it. Defaults to `keyGrid(_:didTap:)`.
+    func keyGrid(_ grid: KeyGridView, didTap key: Key, at point: CGPoint)
     func keyGrid(_ grid: KeyGridView, didInsertAlternate text: String, for key: Key)
     func keyGrid(_ grid: KeyGridView, didSwipe path: [CGPoint], keyMap: KeyMap)
     func keyGrid(_ grid: KeyGridView, didLongPress key: Key)
@@ -16,6 +19,10 @@ protocol KeyGridDelegate: AnyObject {
     var keyPreviewEnabled: Bool { get }
     var swipeTrailEnabled: Bool { get }
     var longPressNumbersEnabled: Bool { get }
+}
+
+extension KeyGridDelegate {
+    func keyGrid(_ grid: KeyGridView, didTap key: Key, at point: CGPoint) { keyGrid(grid, didTap: key) }
 }
 
 /// The key area: renders `KeyView`s from a `KeyboardGeometry` and turns raw touches into taps,
@@ -36,6 +43,8 @@ final class KeyGridView: UIView {
     }
     /// Likely next letters get a larger touch area (see `KeyboardGeometry.keyFrame(at:prior:)`).
     var letterPrior: LetterPrior?
+    /// Learned centre shifts of the letter keys (see `TapMap`); nil = geometric centres.
+    var tapOffsets: TapMap.Offsets?
     var returnLabel: String? { didSet { keyViews["return"]?.returnLabel = returnLabel } }
     var isReturnAccented = false { didSet { keyViews["return"]?.isAccented = isReturnAccented } }
 
@@ -70,9 +79,17 @@ final class KeyGridView: UIView {
     private var touches: [UITouch: TouchState] = [:]
     private var lastShiftTap: CFTimeInterval = 0
     private(set) var isTrackpadMode = false
-    private static let topRowDigits: [String: String] = [
-        "q": "1", "w": "2", "e": "3", "r": "4", "t": "5", "z": "6", "u": "7", "i": "8", "o": "9", "p": "0",
-    ]
+    /// Digit reached by holding a top-row letter, by key label: q → 1 … p → 0 on every layout
+    /// (the sixth key is z on QWERTZ and y on QWERTY).
+    private var topRowDigits: [String: String] = [:]
+
+    private static func topRowDigits(for layout: KeyboardLayout) -> [String: String] {
+        guard layout.layer == .letters, let row = layout.rows.first else { return [:] }
+        let digits = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
+        var map: [String: String] = [:]
+        for (key, digit) in zip(row.keys.filter(\.isLetter), digits) { map[key.label] = digit }
+        return map
+    }
 
     init(theme: KeyboardTheme, feedback: Feedback) {
         self.theme = theme
@@ -99,6 +116,7 @@ final class KeyGridView: UIView {
         let changedLayout = self.geometry?.layout != layout
         self.geometry = geometry
         keyMap = layout.layer == .letters ? KeyMap(geometry: geometry) : nil
+        topRowDigits = Self.topRowDigits(for: layout)
 
         if changedLayout {
             keyViews.values.forEach { $0.removeFromSuperview() }
@@ -117,7 +135,7 @@ final class KeyGridView: UIView {
             let v = keyViews[kf.key.id]
             v?.frame = kf.frame
             v?.isCompact = geometry.rowHeight < 40
-            v?.hint = (delegate?.longPressNumbersEnabled ?? true) && layout.layer == .letters ? Self.topRowDigits[kf.key.label] : nil
+            v?.hint = (delegate?.longPressNumbersEnabled ?? true) && layout.layer == .letters ? topRowDigits[kf.key.label] : nil
         }
         trail.frame = bounds
         layoutPopup()
@@ -189,7 +207,7 @@ final class KeyGridView: UIView {
 
         for touch in newTouches {
             let p = touch.location(in: self)
-            guard let kf = geometry.keyFrame(at: p, prior: letterPrior) else { continue }
+            guard let kf = geometry.keyFrame(at: p, prior: letterPrior, offsets: tapOffsets) else { continue }
             if kf.key.action == .globe {
                 // The system owns globe behaviour (tap = next keyboard, hold = list); forward raw events.
                 keyViews[kf.key.id]?.setPressed(true)
@@ -347,6 +365,10 @@ final class KeyGridView: UIView {
             let key = state.currentFrame.key
             if key.action == .shift {
                 handleShiftTap()
+            } else if state.currentFrame.key.id == state.startFrame.key.id {
+                // The finger stayed on the key it landed on: the landing point tells the tap map
+                // where this user aims. A slide to a neighbour is an eyes-on fix and teaches nothing.
+                delegate?.keyGrid(self, didTap: key, at: state.startPoint)
             } else {
                 delegate?.keyGrid(self, didTap: key)
             }
@@ -395,7 +417,7 @@ final class KeyGridView: UIView {
             delegate?.keyGridDidDoubleTapShift(self)
         } else {
             lastShiftTap = now
-            delegate?.keyGrid(self, didTap: GermanLayouts.shift)
+            delegate?.keyGrid(self, didTap: geometry?.layout.allKeys.first { $0.action == .shift } ?? GermanLayouts.shift)
         }
     }
 
@@ -425,7 +447,7 @@ final class KeyGridView: UIView {
         }
         var options: [String] = []
         let shifted = shiftState.isActive && kf.key.isLetter
-        if kf.key.isLetter, delegate?.longPressNumbersEnabled ?? true, let digit = Self.topRowDigits[kf.key.label] {
+        if kf.key.isLetter, delegate?.longPressNumbersEnabled ?? true, let digit = topRowDigits[kf.key.label] {
             options.append(digit)
         }
         if let c = kf.key.character, kf.key.isLetter || !kf.key.alternates.isEmpty {

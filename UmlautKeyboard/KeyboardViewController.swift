@@ -8,10 +8,12 @@ private let log = Logger(subsystem: "de.codext.umlaut.keyboard", category: "engi
 /// keeps the keyboard height right for the current device and orientation.
 final class KeyboardViewController: UIInputViewController {
 
-    /// The engine survives across text fields while the extension process is alive.
+    /// The engine survives across text fields while the extension process is alive. Only the
+    /// active language's engine is kept: a second lexicon would cost another ~14 MB of the
+    /// extension's tight memory budget, and reloading one takes well under a second.
     private static var sharedEngine: KeyboardEngine?
-    private static var engineLoading = false
-    private static var engineWaiters: [(KeyboardEngine) -> Void] = []
+    private static var loadingLanguage: KeyboardLanguage?
+    private static var engineWaiters: [(language: KeyboardLanguage, completion: (KeyboardEngine?) -> Void)] = []
 
     private let settings = KeyboardSettings.shared
     private var coordinator: KeyboardCoordinator!
@@ -30,6 +32,7 @@ final class KeyboardViewController: UIInputViewController {
             if let event { self.handleInputModeList(from: from, with: event) }
         }
         coordinator.onDismiss = { [weak self] in self?.dismissKeyboard() }
+        coordinator.engineProvider = { language, completion in Self.loadEngine(language: language, completion) }
 
         // Transparent: the system draws its keyboard material (Liquid Glass on iOS 26) behind us,
         // and follows the forced light/dark theme via the interface-style override.

@@ -8,6 +8,8 @@ struct InputUIState: Equatable {
     var suggestions: [Suggestion] = []
     /// Next-letter distribution for the key grid's dynamic hit targets; nil = plain hit test.
     var letterPrior: LetterPrior?
+    /// Learned per-key centre shifts for the key grid's hit test; nil = geometric centres.
+    var tapOffsets: TapMap.Offsets?
 }
 
 protocol InputControllerDelegate: AnyObject {
@@ -29,6 +31,9 @@ final class InputController {
 
     /// nil until the lexicon finished loading; typing works, suggestions/swipe wait for it.
     var engine: KeyboardEngine?
+    /// The language being typed: decides sentence rules while the engine is still loading and
+    /// must match the engine's language once it is there.
+    var language: KeyboardLanguage = .default
     let settings: KeyboardSettings
     let proxy: TextProxy
     weak var delegate: InputControllerDelegate?
@@ -36,22 +41,35 @@ final class InputController {
     private(set) var state = InputUIState() { didSet { if state != oldValue { delegate?.inputController(self, didUpdate: state) } } }
     var traits = FieldTraits() { didSet { if traits != oldValue { fieldChanged() } } }
     var keyMap: KeyMap?
+    /// Where this user's taps land per key; nil disables learning and adaptive hit targets.
+    let tapMap: TapMap?
 
     private var lastCommit: Commit?
     private var autoSpacePending = false
     private var lastKeyWasSpace = false
     private var shiftTouchedManually = false
+    /// The touch behind the key event being handled (nil for events without a point).
+    private var currentTouch: CGPoint?
+    /// One entry per character of the composing word: the character and where the finger landed
+    /// (a non-finite point for characters that did not come from a plain tap). Trusted only when
+    /// the characters spell the word being committed; see `learnTaps`.
+    private var wordTaps: [(char: Character, point: CGPoint)] = []
+    /// True while the last tap-map update came from an autocorrection the user may still revert.
+    private var canUndoTapLearning = false
+    private static let unknownTap = CGPoint(x: CGFloat.nan, y: CGFloat.nan)
 
-    init(engine: KeyboardEngine?, settings: KeyboardSettings, proxy: TextProxy) {
+    init(engine: KeyboardEngine?, settings: KeyboardSettings, proxy: TextProxy, tapMap: TapMap? = nil) {
         self.engine = engine
         self.settings = settings
         self.proxy = proxy
+        self.tapMap = tapMap
     }
 
     // MARK: Context helpers
 
     private static let wordCharacters: (Character) -> Bool = { $0.isLetter || $0 == "'" || $0 == "’" || $0 == "-" }
-    private static let openingDelimiters: Set<Character> = GermanRules.openingDelimiters.union(["'", "/", "-", "#", "@"])
+    private static let openingDelimiters: Set<Character> = LanguageRules.openingDelimiters.union(["'", "/", "-", "#", "@"])
+    private static let sentenceTerminators = LanguageRules.sentenceTerminators
 
     /// The word being typed (letters immediately before the cursor).
     var composingWord: String {
@@ -88,7 +106,7 @@ final class InputController {
     }
 
     private var isSentenceStart: Bool {
-        GermanRules.isSentenceStart(String(proxy.textBefore.dropLast(composingWord.count)))
+        language.rules.isSentenceStart(String(proxy.textBefore.dropLast(composingWord.count)))
     }
 
     private var suggestionsAllowed: Bool { traits.allowsSuggestions }
@@ -112,6 +130,7 @@ final class InputController {
         lastCommit = nil
         autoSpacePending = false
         shiftTouchedManually = false
+        wordTaps.removeAll()
         var s = state
         s.layer = initialLayer()
         state = s
@@ -146,14 +165,22 @@ final class InputController {
         s.shift = computedShift(current: s.shift)
         s.suggestions = buildSuggestions()
         s.letterPrior = buildLetterPrior()
+        s.tapOffsets = buildTapOffsets()
         state = s
+    }
+
+    /// The learned centre shifts for the current key layout. Applied in every field (it only
+    /// makes taps land where the user aims), learning happens in `learnTaps`.
+    private func buildTapOffsets() -> TapMap.Offsets? {
+        guard settings.adaptiveTapMap, state.layer == .letters, let tapMap, let keyMap else { return nil }
+        return tapMap.offsets(for: keyMap)
     }
 
     /// What the next letter is likely to be, so likely keys can grow their touch area. Off in
     /// fields without suggestions (passwords, URLs), inside a word, and in Justin mode.
     private func buildLetterPrior() -> LetterPrior? {
         guard settings.smartHitTargets, suggestionsAllowed, state.layer == .letters, !justinModeActive,
-              let engine, !cursorIsInsideWord else { return nil }
+              let engine, engine.language == language, !cursorIsInsideWord else { return nil }
         return engine.predictor.letterPrior(prefix: composingWord, previous: previousWord)
     }
 
@@ -172,7 +199,7 @@ final class InputController {
     // MARK: Suggestions
 
     private func buildSuggestions() -> [Suggestion] {
-        guard suggestionsAllowed, state.layer == .letters, let engine else { return [] }
+        guard suggestionsAllowed, state.layer == .letters, let engine, engine.language == language else { return [] }
         let composing = composingWord
         if justinModeActive {
             return [Suggestion(text: justin(matching: composing), kind: composing.isEmpty ? .prediction : .primary)]
@@ -221,7 +248,12 @@ final class InputController {
 
     // MARK: Key events
 
-    func handle(key: Key) { perform(key.action, from: key) }
+    /// `touch` is where the finger landed on the key grid (grid coordinates); it feeds the tap map.
+    func handle(key: Key, touch: CGPoint? = nil) {
+        currentTouch = touch
+        defer { currentTouch = nil }
+        perform(key.action, from: key)
+    }
 
     /// Runs the key's hold action (e.g. emoji on the comma key); keys without one are ignored.
     func handleLongPress(key: Key) {
@@ -262,7 +294,7 @@ final class InputController {
     private func insertCharacter(_ raw: String, fromKey key: Key) {
         var text = raw
         if key.isLetter, state.shift.isActive { text = text.uppercased() }
-        let isPunctuation = text.count == 1 && (GermanRules.sentenceTerminators.contains(text.first!) || ",;:".contains(text))
+        let isPunctuation = text.count == 1 && (Self.sentenceTerminators.contains(text.first!) || ",;:".contains(text))
 
         if isPunctuation {
             if autoSpacePending, proxy.textBefore.hasSuffix(" ") {
@@ -284,8 +316,17 @@ final class InputController {
             if case .swipe = lastCommit { lastCommit = nil }
             autoSpacePending = false
         }
+        recordTap(text, touch: currentTouch)
         proxy.insert(text)
         afterEdit(lastWasSpace: false, consumedShift: key.isLetter)
+    }
+
+    /// Appends the tap behind `text`, which is about to join the composing word. A buffer that has
+    /// drifted from the word (typing started before we were watching) is dropped, never patched.
+    private func recordTap(_ text: String, touch: CGPoint?) {
+        if wordTaps.count != composingWord.count { wordTaps.removeAll() }
+        let point = text.count == 1 ? (touch ?? Self.unknownTap) : Self.unknownTap
+        for c in text { wordTaps.append((c, point)) }
     }
 
     private func handleSpace() {
@@ -330,6 +371,8 @@ final class InputController {
                 delete(count: corrected.count + trigger.count)
                 proxy.insert(original)
                 engine?.user.rejectCorrection(typed: original)
+                // The correction was wrong, so what it taught the tap map was wrong too.
+                if canUndoTapLearning { tapMap?.undoLastLearning(); canUndoTapLearning = false }
                 lastCommit = nil
                 afterEdit(lastWasSpace: false)
                 return
@@ -380,6 +423,7 @@ final class InputController {
         guard let c = key.character else { return }
         if case .swipe = lastCommit { lastCommit = nil }
         autoSpacePending = false
+        recordTap(String(c).uppercased(), touch: nil)
         proxy.insert(String(c).uppercased())
         afterEdit(lastWasSpace: false, consumedShift: true)
     }
@@ -387,6 +431,7 @@ final class InputController {
     func insertAlternate(_ text: String, for key: Key) {
         if case .swipe = lastCommit { lastCommit = nil }
         autoSpacePending = false
+        recordTap(text, touch: nil)
         proxy.insert(text)
         afterEdit(lastWasSpace: false, consumedShift: key.isLetter)
     }
@@ -395,13 +440,14 @@ final class InputController {
         proxy.moveCursor(by: offset)
         lastCommit = nil
         autoSpacePending = false
+        wordTaps.removeAll()
         refresh()
     }
 
     // MARK: Swipe
 
     func handleSwipe(path: [CGPoint], keyMap: KeyMap, fallbackKey: Key?) {
-        guard traits.allowsSwipe, settings.swipeTyping, let engine else {
+        guard traits.allowsSwipe, settings.swipeTyping, let engine, engine.language == language else {
             if let fallbackKey { handle(key: fallbackKey) }
             return
         }
@@ -474,11 +520,15 @@ final class InputController {
             autoSpacePending = true
             learn(word: suggestion.text, after: previous)
         case (.literal, _):
+            // The user insists on the typed word: every tap behind it was on target.
+            learnTaps(typed: composing, committed: composing)
             proxy.insert(" ")
             if settings.learnWords { engine?.user.add(word: composing) }
             lastCommit = nil
             autoSpacePending = true
         default:
+            // A hand-picked correction is as good a teacher as an automatic one.
+            learnTaps(typed: composing, committed: suggestion.text)
             if !composing.isEmpty { delete(count: composing.count) }
             proxy.insert(suggestion.text + " ")
             lastCommit = .suggestion(word: suggestion.text)
@@ -497,14 +547,15 @@ final class InputController {
         let previous = previousWord
         lastCommit = nil
         if justinModeActive {
+            wordTaps.removeAll()
             let replacement = justin(matching: composing)
             guard replacement != composing else { return }
             delete(count: composing.count)
             proxy.insert(replacement)
             return
         }
-        guard suggestionsAllowed, let keyMap, let engine else { return }
-        if autocorrectAllowed, trigger == " " || trigger == "\n" || GermanRules.sentenceTerminators.contains(trigger.first!) || trigger == "," {
+        guard suggestionsAllowed, let keyMap, let engine, engine.language == language else { wordTaps.removeAll(); return }
+        if autocorrectAllowed, trigger == " " || trigger == "\n" || Self.sentenceTerminators.contains(trigger.first!) || trigger == "," {
             let corrections = engine.autocorrect(for: keyMap).corrections(for: composing, previousWord: previous, isSentenceStart: isSentenceStart)
             if let best = corrections.first, best.autoApply, best.word != composing {
                 var replacement = best.word
@@ -516,15 +567,33 @@ final class InputController {
                 proxy.insert(replacement)
                 lastCommit = .autocorrect(original: composing, corrected: replacement, trigger: trigger)
                 learn(word: replacement, after: previous)
+                canUndoTapLearning = learnTaps(typed: composing, committed: replacement)
                 return
             }
         }
         learn(word: composing, after: previous)
+        learnTaps(typed: composing, committed: composing)
+    }
+
+    /// Feeds the taps behind a word that just left the composing state into the tap map. Only
+    /// when the recorded taps spell exactly the typed word – a paste, a cursor jump into another
+    /// word or typing that began before we watched leaves a buffer that is simply dropped (see
+    /// `TapMap.samples` for what is learned from a correction). Returns whether the map changed.
+    @discardableResult
+    private func learnTaps(typed: String, committed: String) -> Bool {
+        defer { wordTaps.removeAll() }
+        canUndoTapLearning = false
+        guard settings.adaptiveTapMap, suggestionsAllowed, !justinModeActive, let tapMap, let keyMap,
+              wordTaps.count == typed.count, String(wordTaps.map(\.char)) == typed else { return false }
+        let samples = TapMap.samples(taps: wordTaps.map(\.point), typed: typed, committed: committed, keyMap: keyMap)
+        guard !samples.isEmpty else { return false }
+        tapMap.learn(samples, keyMap: keyMap)
+        return true
     }
 
     private func learn(word: String, after previous: String?) {
-        guard settings.learnWords, suggestionsAllowed, !justinModeActive else { return }
-        engine?.user.learn(word: word, after: previous)
+        guard settings.learnWords, suggestionsAllowed, !justinModeActive, let engine, engine.language == language else { return }
+        engine.user.learn(word: word, after: previous)
     }
 
     private func delete(count: Int) {
@@ -533,6 +602,9 @@ final class InputController {
 
     private func afterEdit(lastWasSpace: Bool, consumedShift: Bool = false) {
         lastKeyWasSpace = lastWasSpace
+        // Backspace shortens the word; its taps follow (the deleted tap taught nothing).
+        let composingCount = composingWord.count
+        if wordTaps.count > composingCount { wordTaps.removeLast(wordTaps.count - composingCount) }
         var s = state
         if consumedShift, s.shift == .on { s.shift = .off }
         state = s

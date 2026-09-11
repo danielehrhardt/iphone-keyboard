@@ -15,9 +15,15 @@ final class KeyboardCoordinator: NSObject {
     /// Raw touch events from the globe key (extension wires this to `handleInputModeList`).
     var onGlobeEvent: ((UIView, UIEvent?) -> Void)?
     var onDismiss: (() -> Void)?
+    /// Asked for the engine of a language whenever the keyboard switches to it (the extension
+    /// loads lexicons lazily and keeps only the active one; the demo keyboard caches them).
+    /// Called back on the main queue, with nil when the lexicon is missing.
+    var engineProvider: ((KeyboardLanguage, @escaping (KeyboardEngine?) -> Void) -> Void)?
     var needsGlobeKey = false { didSet { if needsGlobeKey != oldValue { refreshLayoutOptions() } } }
     var isPhoneIdiom = true
 
+    /// The language being typed; persisted so the next keyboard session continues in it.
+    private(set) var language: KeyboardLanguage
     private(set) var currentLayer: KeyboardLayer = .letters
     private var layoutOptions = LayoutOptions()
     private var lastGridSize: CGSize = .zero
@@ -27,13 +33,16 @@ final class KeyboardCoordinator: NSObject {
     private var screenSize: CGSize = .zero
     private var traits: UITraitCollection
 
-    init(settings: KeyboardSettings, proxy: TextProxy, engine: KeyboardEngine?, traits: UITraitCollection) {
+    init(settings: KeyboardSettings, proxy: TextProxy, engine: KeyboardEngine?, traits: UITraitCollection, tapMap: TapMap? = .standard) {
         self.settings = settings
         self.traits = traits
+        language = settings.currentLanguage
         feedback = Feedback(settings: settings)
         let theme = KeyboardTheme.current(traits: traits, settings: settings)
         view = KeyboardView(theme: theme, feedback: feedback)
-        input = InputController(engine: engine, settings: settings, proxy: proxy)
+        // An engine for another language is of no use; wait for the provider instead.
+        input = InputController(engine: engine?.language == language ? engine : nil, settings: settings, proxy: proxy, tapMap: tapMap)
+        input.language = language
         super.init()
         input.delegate = self
         view.grid.delegate = self
@@ -44,6 +53,12 @@ final class KeyboardCoordinator: NSObject {
             self.feedback.keyTap()
             self.onDismiss?()
         }
+        view.suggestionBar.onLanguage = { [weak self] in
+            guard let self else { return }
+            self.feedback.functionTap()
+            self.switchToNextLanguage()
+        }
+        view.suggestionBar.language = settings.hasMultipleLanguages ? language : nil
         view.onLayout = { [weak self] in self?.rebuildGridIfNeeded() }
     }
 
@@ -51,12 +66,57 @@ final class KeyboardCoordinator: NSObject {
 
     var engine: KeyboardEngine? {
         get { input.engine }
-        set { input.engine = newValue; input.refresh() }
+        set {
+            // A late-arriving engine for a language we have since left is dropped.
+            guard newValue == nil || newValue?.language == language else { return }
+            input.engine = newValue
+            input.refresh()
+        }
     }
 
-    /// Picks up personal-dictionary changes made by the other process (app ↔ extension).
+    /// Picks up personal-dictionary changes made by the other process (app ↔ extension) and
+    /// language settings changed in the app.
     func willAppear() {
         input.engine?.user.reloadIfChanged()
+        input.tapMap?.reloadIfChanged()
+        // The app may have switched the current language off meanwhile.
+        select(language: settings.currentLanguage)
+    }
+
+    // MARK: Languages
+
+    /// Switches to the language after the current one (the suggestion strip's badge).
+    func switchToNextLanguage() {
+        select(language: settings.nextLanguage(after: language))
+    }
+
+    /// Makes `language` the typing language: layout, sentence rules, dictionary and personal
+    /// dictionary follow. Typing keeps working while the engine loads.
+    func select(language newLanguage: KeyboardLanguage) {
+        let badge = settings.hasMultipleLanguages ? newLanguage : nil
+        if view.suggestionBar.language != badge { view.suggestionBar.language = badge }
+        guard newLanguage != language else {
+            if input.engine == nil { requestEngine() }
+            refreshLayoutOptions()
+            return
+        }
+        language = newLanguage
+        settings.currentLanguage = newLanguage
+        view.grid.cancelAllTouches()
+        input.language = newLanguage
+        input.engine = nil
+        input.refresh()
+        refreshLayoutOptions()
+        requestEngine()
+    }
+
+    private func requestEngine() {
+        guard let engineProvider else { return }
+        let wanted = language
+        engineProvider(wanted) { [weak self] engine in
+            guard let self, self.language == wanted, let engine, engine.language == wanted else { return }
+            self.engine = engine
+        }
     }
 
     /// Total keyboard height for the environment; also stores the sizes for later layout passes.
@@ -88,7 +148,8 @@ final class KeyboardCoordinator: NSObject {
     private func refreshLayoutOptions() {
         layoutOptions = LayoutOptions(needsGlobeKey: needsGlobeKey, showsEmojiKey: true,
                                       isEmailOrURL: input.traits.isEmailOrURL, showsCommaKey: settings.commaKey,
-                                      emojiOnCommaKey: settings.emojiOnCommaKey)
+                                      emojiOnCommaKey: settings.emojiOnCommaKey,
+                                      language: language, showsLanguageName: settings.hasMultipleLanguages)
         view.setNeedsLayout()
     }
 
@@ -99,9 +160,10 @@ final class KeyboardCoordinator: NSObject {
         let metrics = KeyboardMetrics.layoutMetrics(for: traits, screenSize: screenSize)
         if size != lastGridSize || lastGridLayer != currentLayer || lastOptions != layoutOptions || lastMetrics != metrics {
             lastGridSize = size; lastGridLayer = currentLayer; lastOptions = layoutOptions; lastMetrics = metrics
-            let layout = GermanLayouts.layout(for: currentLayer, options: layoutOptions)
+            let layout = KeyboardLayouts.layout(for: currentLayer, options: layoutOptions)
             view.grid.configure(layout: layout, metrics: metrics)
             input.keyMap = view.grid.keyMap
+            input.refresh()     // the tap-map offsets depend on the key map
             view.grid.shiftState = input.state.shift
         }
     }
@@ -119,6 +181,7 @@ extension KeyboardCoordinator: InputControllerDelegate {
         }
         view.grid.shiftState = state.shift
         view.grid.letterPrior = state.letterPrior
+        view.grid.tapOffsets = state.tapOffsets
         view.suggestionBar.set(state.suggestions)
     }
 
@@ -141,6 +204,7 @@ extension KeyboardCoordinator: KeyGridDelegate {
     var longPressNumbersEnabled: Bool { settings.longPressNumbers }
 
     func keyGrid(_ grid: KeyGridView, didTap key: Key) { input.handle(key: key) }
+    func keyGrid(_ grid: KeyGridView, didTap key: Key, at point: CGPoint) { input.handle(key: key, touch: point) }
     func keyGrid(_ grid: KeyGridView, didInsertAlternate text: String, for key: Key) { input.insertAlternate(text, for: key) }
     func keyGrid(_ grid: KeyGridView, didSwipe path: [CGPoint], keyMap: KeyMap) {
         let fallback = path.last.flatMap { grid.geometry?.keyFrame(at: $0)?.key }

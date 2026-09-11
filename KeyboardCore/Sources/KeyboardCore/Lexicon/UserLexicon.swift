@@ -44,9 +44,11 @@ public final class UserLexicon: @unchecked Sendable {
         load()
     }
 
-    public static func shared(appGroup: String) -> UserLexicon {
+    /// The personal dictionary of one language in the app group (each language learns separately,
+    /// so English words never surface in German suggestions and vice versa).
+    public static func shared(appGroup: String, language: KeyboardLanguage = .default) -> UserLexicon {
         let dir = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)
-        return UserLexicon(fileURL: dir?.appendingPathComponent("user-lexicon.json"))
+        return UserLexicon(fileURL: dir?.appendingPathComponent(language.userLexiconFileName))
     }
 
     // MARK: Queries

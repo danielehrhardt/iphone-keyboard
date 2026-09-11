@@ -84,6 +84,19 @@ struct SettingsView: View {
             }
 
             Section {
+                Toggle("Tippverhalten lernen", isOn: $settings.adaptiveTapMap)
+                NavigationLink {
+                    TapMapView()
+                } label: {
+                    Label("Deine Tap Map", systemImage: "hand.tap")
+                }
+            } header: {
+                Text("Tap Map")
+            } footer: {
+                Text("Umlaut merkt sich, wo du auf jeder Taste tatsächlich tippst, und rückt die Trefferflächen unauffällig dorthin – so landen Tipps am Rand einer Taste dort, wo du sie meinst. Gespeichert wird nur die Abweichung pro Taste, nie was du schreibst.")
+            }
+
+            Section {
                 LabeledContent("Version", value: Self.versionString)
             } header: {
                 Text("Info")

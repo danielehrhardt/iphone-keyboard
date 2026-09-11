@@ -37,6 +37,12 @@ public final class TapMap: @unchecked Sendable {
         public var dy: Float = 0
         public var count: Float = 0
 
+        public init(dx: Float = 0, dy: Float = 0, count: Float = 0) {
+            self.dx = dx
+            self.dy = dy
+            self.count = count
+        }
+
         mutating func add(_ s: Sample) {
             // Plain running mean until `maxCount`, then an exponential moving average with the
             // same weight, so the map keeps following slow changes in how the user holds the phone.
@@ -124,14 +130,16 @@ public final class TapMap: @unchecked Sendable {
     /// no correction happened). Only same-length corrections are trusted, i.e. substitutions like
     /// "hakko" → "hallo": the tap that produced the wrong letter is attributed to the letter the
     /// user meant, provided the two keys are neighbours on the layout (a correction across the
-    /// keyboard is a spelling fix, not a slip). Non-letters are skipped.
+    /// keyboard is a spelling fix, not a slip). Non-letters are skipped, as are characters whose tap
+    /// point is unknown (non-finite – inserted by a shift slide, the alternates bubble, …).
     public static func samples(taps: [CGPoint], typed: String, committed: String, keyMap: KeyMap) -> [Sample] {
         let typedChars = Array(typed), committedChars = Array(committed)
         guard taps.count == typedChars.count, typedChars.count == committedChars.count else { return [] }
         var out: [Sample] = []
         out.reserveCapacity(taps.count)
         for i in taps.indices {
-            guard let typedCode = KeyAlphabet.code(for: typedChars[i]),
+            guard taps[i].x.isFinite, taps[i].y.isFinite,
+                  let typedCode = KeyAlphabet.code(for: typedChars[i]),
                   let meantCode = KeyAlphabet.code(for: committedChars[i]) else { continue }
             if typedCode != meantCode, !keyMap.areAdjacent(typedCode, meantCode) { continue }
             let c = keyMap.centers[Int(meantCode)]
@@ -169,10 +177,29 @@ public final class TapMap: @unchecked Sendable {
     /// The process-wide instance backed by the app group (host app and extension each have one).
     public static let standard = TapMap.shared(appGroup: KeyboardSettings.appGroup)
 
-    /// Layers are keyed by the horizontal key pitch in points, which is stable per device and
-    /// orientation and unaffected by the key-size setting (that only changes the height).
+    /// Layers are keyed by the horizontal key pitch in points – stable per device and orientation,
+    /// unaffected by the key-size setting (that only changes the height) – and by the arrangement
+    /// of the letters, so a QWERTY layout never shares a map with QWERTZ (z sits in another row).
     static func layerKey(for keyMap: KeyMap) -> String {
-        "p\(Int(keyMap.pitchX.rounded()))"
+        "p\(Int(keyMap.pitchX.rounded()))|\(Self.arrangement(of: keyMap))"
+    }
+
+    /// The letters of `keyMap` in reading order ("qwertzuiop…"), a compact identity of the layout.
+    public static func arrangement(of keyMap: KeyMap) -> String {
+        let rowHeight = max(keyMap.pitchY, 1)
+        let ordered = keyMap.centers.indices.sorted { a, b in
+            let pa = keyMap.centers[a], pb = keyMap.centers[b]
+            let ra = (pa.y / rowHeight).rounded(), rb = (pb.y / rowHeight).rounded()
+            return ra == rb ? pa.x < pb.x : ra < rb
+        }
+        return String(ordered.map { KeyAlphabet.character(for: UInt8($0)) })
+    }
+
+    /// Splits a layer key back into pitch and arrangement; nil for keys from another version.
+    static func parse(layerKey: String) -> (pitchX: CGFloat, arrangement: String)? {
+        let parts = layerKey.split(separator: "|", maxSplits: 1)
+        guard let first = parts.first, first.hasPrefix("p"), let p = Int(first.dropFirst()) else { return nil }
+        return (CGFloat(p), parts.count > 1 ? String(parts[1]) : "")
     }
 
     // MARK: Queries
@@ -187,13 +214,13 @@ public final class TapMap: @unchecked Sendable {
         layer(for: keyMap)?.offsets ?? .neutral
     }
 
-    /// Every learned layer with its horizontal pitch, narrow (portrait) first.
-    public var layers: [(pitchX: CGFloat, layer: Layer)] {
+    /// Every learned layer with its horizontal pitch and letter arrangement, narrow (portrait) first.
+    public var layers: [(pitchX: CGFloat, arrangement: String, layer: Layer)] {
         lock.lock(); defer { lock.unlock() }
         return store.layers.compactMap { key, layer in
-            guard key.hasPrefix("p"), let p = Int(key.dropFirst()) else { return nil }
-            return (pitchX: CGFloat(p), layer: layer)
-        }.sorted { $0.pitchX < $1.pitchX }
+            guard let parsed = Self.parse(layerKey: key) else { return nil }
+            return (pitchX: parsed.pitchX, arrangement: parsed.arrangement, layer: layer)
+        }.sorted { $0.pitchX == $1.pitchX ? $0.arrangement < $1.arrangement : $0.pitchX < $1.pitchX }
     }
 
     public var totalSamples: Int {

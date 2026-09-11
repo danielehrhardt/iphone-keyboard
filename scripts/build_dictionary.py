@@ -1,43 +1,90 @@
 #!/usr/bin/env python3
-"""Build the German lexicon + bigram model shipped inside KeyboardCore.
+"""Build the lexicon + bigram model of one language shipped inside KeyboardCore.
 
-Inputs (downloaded by scripts/fetch_corpora.sh into /tmp):
-  de_full.txt                     hermitdave/FrequencyWords (OpenSubtitles 2018), lowercase "word count"
-  wortliste.txt                   davidak/wortliste, cased German word forms
-  de_DE.dic.utf8                  LibreOffice de_DE_frami Hunspell dictionary (UTF-8)
-  deu_news_2023_300K/             Leipzig Corpora Collection sample (cased words + sentences)
-  deu_mixed-typical_2011_300K/    Leipzig Corpora Collection sample (cased words + sentences)
+Usage: build_dictionary.py <de|en> [max_words]
+
+Inputs (downloaded by scripts/fetch_corpora.sh into $CORPUS_DIR, default /tmp):
+
+  German (de)
+    de_full.txt                     hermitdave/FrequencyWords (OpenSubtitles 2018), lowercase "word count"
+    wortliste.txt                   davidak/wortliste, cased German word forms
+    de_DE.dic.utf8                  LibreOffice de_DE_frami Hunspell dictionary (UTF-8)
+    deu_news_2023_300K/             Leipzig Corpora Collection sample (cased words + sentences)
+    deu_mixed-typical_2011_300K/    Leipzig Corpora Collection sample (cased words + sentences)
+
+  English (en)
+    en_full.txt                     hermitdave/FrequencyWords (OpenSubtitles 2018), lowercase "word count"
+    words_alpha.txt                 dwyl/english-words, lowercase full forms (inflections included)
+    en_US.dic                       LibreOffice en_US Hunspell dictionary (cased stems, proper nouns)
+    eng_news_2023_300K/             Leipzig Corpora Collection sample (cased words + sentences)
 
 Outputs:
-  KeyboardCore/Sources/KeyboardCore/Resources/de_words.txt     "word<TAB>freq", by freq desc
-  KeyboardCore/Sources/KeyboardCore/Resources/de_bigrams.txt   "w1<TAB>w2<TAB>count"
+  KeyboardCore/Sources/KeyboardCore/Resources/<lang>_words.txt     "word<TAB>freq", by lowercase spelling
+  KeyboardCore/Sources/KeyboardCore/Resources/<lang>_bigrams.txt   "w1<TAB>w2<TAB>count"
 
 Casing comes from the cased Leipzig counts (sentence-initial capitals are a minority for
 non-nouns, so a capitalised majority reliably marks nouns/names). Words missing from Leipzig
-fall back to wortliste/Hunspell casing. Validity = known to wortliste or Hunspell, or frequent
+fall back to word-list/Hunspell casing. Validity = known to the word list or Hunspell, or frequent
 enough in Leipzig to be a real word (also removes OpenSubtitles transcription noise).
 """
-import re, sys, collections, unicodedata, glob, math
+import re, sys, collections, unicodedata, glob, math, os
 
-MAX_WORDS = int(sys.argv[1]) if len(sys.argv) > 1 else 150000
+LANG = sys.argv[1] if len(sys.argv) > 1 else 'de'
 ROOT = __file__.rsplit('/scripts/', 1)[0]
 RES = f"{ROOT}/KeyboardCore/Sources/KeyboardCore/Resources"
+SRC = os.environ.get('CORPUS_DIR', '/tmp')
 
-WORD = re.compile(r"^[a-zäöüßA-ZÄÖÜ]+(-[a-zäöüßA-ZÄÖÜ]+)*$")
+CONFIG = {
+    'de': dict(
+        max_words=150000,
+        letters="a-zäöüßA-ZÄÖÜ",
+        inner="-",                       # characters allowed between letter runs
+        subs='de_full.txt',
+        wordlist='wortliste.txt',
+        hunspell='de_DE.dic.utf8',
+        leipzig='deu_*',
+        # Conversational words that news text capitalises (quotes, nominalised "das Nein") but
+        # that people type lowercase mid-sentence in messages. Primary lowercase, capital secondary.
+        chat_lower={"hallo", "nein", "ja", "danke", "bitte", "tschüss", "okay", "moin", "servus", "super",
+                    "sorry", "cool", "hi", "hey", "genau", "klar", "gut", "schade", "prima", "toll", "gern", "gerne"},
+        single_letters=('a', 'o'),
+    ),
+    'en': dict(
+        max_words=100000,
+        letters="a-zA-Z",
+        inner="'-",                      # contractions ("don't") and hyphenated words
+        subs='en_full.txt',
+        wordlist='words_alpha.txt',
+        hunspell='en_US.dic',
+        leipzig='eng_*',
+        chat_lower={"hello", "hi", "hey", "thanks", "thank", "yes", "no", "ok", "okay", "yeah", "yep", "nope", "sorry",
+                    "cool", "great", "sure", "please", "bye", "lol", "wow", "oh", "hmm", "yay", "cheers", "welcome"},
+        single_letters=('a', 'i'),
+    ),
+}
+if LANG not in CONFIG:
+    sys.exit(f"unknown language {LANG!r}; expected one of {', '.join(CONFIG)}")
+C = CONFIG[LANG]
+MAX_WORDS = int(sys.argv[2]) if len(sys.argv) > 2 else C['max_words']
+
+L, INNER = C['letters'], re.escape(C['inner'])
+WORD = re.compile(rf"^[{L}]+([{INNER}][{L}]+)*$")
 nfc = lambda s: unicodedata.normalize('NFC', s)
+# English news text uses the curly apostrophe; the keyboard types the straight one.
+norm = (lambda s: nfc(s).replace('’', "'")) if "'" in C['inner'] else nfc
 
 # ---- cased signals -------------------------------------------------------------------
 # Casing is counted from sentence-internal positions only, so sentence-initial capitals
 # ("Die", "Ich") don't masquerade as legitimate capitalised forms.
 BOUNDARY = set('.!?:;"„“”‚‘’»«›‹()')
-TOKEN = re.compile(r"[a-zäöüßA-ZÄÖÜ]+(?:-[a-zäöüßA-ZÄÖÜ]+)*|[.!?:;\"„“”‚‘’»«›‹()]")
+TOKEN = re.compile(rf"[{L}]+(?:[{INNER}][{L}]+)*|[.!?:;\"„“”‚‘’»«›‹()]")
 leipzig = collections.defaultdict(collections.Counter)   # lower -> Counter(casedForm), mid-sentence
 leipzig_any = collections.Counter()                        # lower -> total incl. sentence-initial
 sentences = []
-for path in glob.glob('/tmp/deu_*/*-sentences.txt'):
+for path in glob.glob(f"{SRC}/{C['leipzig']}/*-sentences.txt"):
     with open(path, encoding='utf-8') as f:
         for line in f:
-            sent = nfc(line.split('\t', 1)[-1])
+            sent = norm(line.split('\t', 1)[-1])
             toks = TOKEN.findall(sent)
             sentences.append(toks)
             initial = True
@@ -50,27 +97,25 @@ for path in glob.glob('/tmp/deu_*/*-sentences.txt'):
                 if not initial:
                     leipzig[low][tok] += 1
                 initial = False
+if not sentences:
+    sys.exit(f"no Leipzig sentences found under {SRC}/{C['leipzig']}")
 
-wortliste = collections.defaultdict(set)
-with open('/tmp/wortliste.txt', encoding='utf-8') as f:
+wordlist = collections.defaultdict(set)
+with open(f"{SRC}/{C['wordlist']}", encoding='utf-8') as f:
     for line in f:
-        w = nfc(line.strip())
+        w = norm(line.strip())
         if w and WORD.match(w):
-            wortliste[w.lower()].add(w)
+            wordlist[w.lower()].add(w)
 
 hunspell = collections.defaultdict(set)
-with open('/tmp/de_DE.dic.utf8', encoding='utf-8', errors='replace') as f:
+with open(f"{SRC}/{C['hunspell']}", encoding='utf-8', errors='replace') as f:
     for line in f:
-        w = nfc(line.split('/')[0].strip())
+        w = norm(line.split('/')[0].strip())
         if w and WORD.match(w):
             hunspell[w.lower()].add(w)
 
 SECONDARY_SHARE = 0.25   # "Sie"/"sie", "Essen"/"essen", "Dank"/"dank" both ship
-
-# Conversational words that news text capitalises (quotes, nominalised "das Nein") but that
-# people type lowercase mid-sentence in messages. Primary lowercase, capital kept as secondary.
-CHAT_LOWER = {"hallo", "nein", "ja", "danke", "bitte", "tschüss", "okay", "moin", "servus", "super",
-              "sorry", "cool", "hi", "hey", "genau", "klar", "gut", "schade", "prima", "toll", "gern", "gerne"}
+CHAT_LOWER = C['chat_lower']
 
 def pick_casing(lower):
     """Returns [(form, share), ...] — primary first. share sums to 1."""
@@ -89,7 +134,7 @@ def pick_casing(lower):
         if primary != lower and lower in hs0 and cap not in hs0 and lc[lower] >= 0.08 * total:
             primary = lower
         other = cap if primary == lower else lower
-        known = other in wortliste.get(lower, ()) or other in hunspell.get(lower, ())
+        known = other in wordlist.get(lower, ()) or other in hunspell.get(lower, ())
         hs = hunspell.get(lower, set())
         both_stems = lower in hs and cap in hs
         share = lc[other] / total
@@ -97,7 +142,7 @@ def pick_casing(lower):
             share = max(share, 0.2) if both_stems else share
             return [(primary, 1 - share), (other, share)]
         return [(primary, 1.0)]
-    forms = wortliste.get(lower) or hunspell.get(lower)
+    forms = wordlist.get(lower) or hunspell.get(lower)
     if not forms:
         return None
     if len(forms) == 1:
@@ -111,8 +156,8 @@ def is_valid(lower, subs_freq):
     ltotal = leipzig_any.get(lower, 0)
     if lower in hunspell:
         return subs_freq >= 3 or ltotal >= 3
-    if lower in wortliste:
-        # wortliste carries some proper-noun noise ("Suu"); very short entries need real usage.
+    if lower in wordlist:
+        # word lists carry some proper-noun noise ("Suu"); very short entries need real usage.
         if len(lower) <= 3:
             return subs_freq >= 1000 or ltotal >= 300
         return subs_freq >= 3 or ltotal >= 3
@@ -123,11 +168,11 @@ def is_valid(lower, subs_freq):
 
 # ---- frequencies ---------------------------------------------------------------------
 subs = {}
-with open('/tmp/de_full.txt', encoding='utf-8') as f:
+with open(f"{SRC}/{C['subs']}", encoding='utf-8') as f:
     for line in f:
         parts = line.split()
         if len(parts) == 2 and WORD.match(parts[0]):
-            subs[nfc(parts[0])] = int(parts[1])
+            subs[norm(parts[0])] = int(parts[1])
 
 subs_total = sum(subs.values())
 leip_total = sum(leipzig_any.values())
@@ -135,7 +180,7 @@ scale = 0.5 * subs_total / leip_total   # news weighs half of conversational usa
 
 scored = {}
 for lower in set(subs) | set(leipzig_any):
-    if len(lower) > 30 or (len(lower) == 1 and lower not in ('a', 'o')):
+    if len(lower) > 30 or (len(lower) == 1 and lower not in C['single_letters']):
         continue
     s = subs.get(lower, 0)
     l = leipzig_any.get(lower, 0)
@@ -160,7 +205,7 @@ for w, _ in sorted(words, key=lambda kv: kv[1]):
 
 # Shipped sorted by lowercase spelling (code-point order, identical to Swift's String ordering
 # for NFC text) so the runtime can binary-search prefixes without sorting at launch.
-with open(f"{RES}/de_words.txt", 'w', encoding='utf-8') as f:
+with open(f"{RES}/{LANG}_words.txt", 'w', encoding='utf-8') as f:
     for w, n in sorted(words, key=lambda kv: (kv[0].lower(), -kv[1])):
         f.write(f"{w}\t{n}\n")
 print(f"words: {len(words)}  capitalised: {sum(1 for w,_ in words if w[0].isupper())}")
@@ -183,7 +228,7 @@ for toks in sentences:
 
 MAX_NEXT, MIN_COUNT = 8, 3
 n_out = 0
-with open(f"{RES}/de_bigrams.txt", 'w', encoding='utf-8') as f:
+with open(f"{RES}/{LANG}_bigrams.txt", 'w', encoding='utf-8') as f:
     for w1 in sorted(bigrams, key=lambda w: -lexicon[w]):
         for w2, c in bigrams[w1].most_common(MAX_NEXT):
             if c < MIN_COUNT:

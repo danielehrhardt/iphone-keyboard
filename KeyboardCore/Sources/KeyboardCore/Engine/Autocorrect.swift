@@ -10,10 +10,11 @@ public struct Correction: Hashable, Sendable {
     public let autoApply: Bool
 }
 
-/// Typo correction and completion ranking for tap typing on the German layout.
+/// Typo correction and completion ranking for tap typing.
 ///
 /// Costs: substitutions between adjacent keys are cheap (fat fingers), transpositions are cheap
-/// (fast typing), umlaut/ß digraphs ("ue"→"ü", "ss"→"ß") and casing fixes are nearly free.
+/// (fast typing), the language's digraph spellings ("ue"→"ü", "ss"→"ß" in German) and casing
+/// fixes are nearly free.
 public final class Autocorrect {
 
     public struct Parameters: Sendable {
@@ -80,7 +81,7 @@ public final class Autocorrect {
             let d: Float = casing == typed ? 0 : 0.2
             offer(casing, distance: d, prior: prior(of: casing, lm: lm, prevID: prevID, previous: previousWord))
         }
-        for variant in GermanRules.umlautVariants(of: typed) {
+        for variant in lexicon.language.rules.spellingVariants(typed) {
             for casing in lexicon.casings(of: variant) {
                 offer(casing, distance: 0.15, prior: prior(of: casing, lm: lm, prevID: prevID, previous: previousWord))
             }

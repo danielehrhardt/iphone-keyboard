@@ -125,13 +125,20 @@ public struct LayoutOptions: Hashable, Sendable {
     /// Folds the emoji key into the comma key: a tap types ",", holding opens the emoji picker.
     /// Only applies while the comma key is shown; otherwise the separate emoji key is used.
     public var emojiOnCommaKey: Bool
+    /// Picks the layout family (QWERTZ / QWERTY) and the space bar label.
+    public var language: KeyboardLanguage
+    /// Space bar shows the language's name instead of "space" (several languages enabled).
+    public var showsLanguageName: Bool
 
     public init(needsGlobeKey: Bool = true, showsEmojiKey: Bool = true, isEmailOrURL: Bool = false,
-                showsCommaKey: Bool = true, emojiOnCommaKey: Bool = true) {
+                showsCommaKey: Bool = true, emojiOnCommaKey: Bool = true,
+                language: KeyboardLanguage = .default, showsLanguageName: Bool = false) {
         self.needsGlobeKey = needsGlobeKey
         self.showsEmojiKey = showsEmojiKey
         self.isEmailOrURL = isEmailOrURL
         self.showsCommaKey = showsCommaKey
         self.emojiOnCommaKey = emojiOnCommaKey
+        self.language = language
+        self.showsLanguageName = showsLanguageName
     }
 }

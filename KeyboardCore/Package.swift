@@ -11,7 +11,8 @@ let package = Package(
     targets: [
         .target(
             name: "KeyboardCore",
-            resources: [.copy("Resources/de_words.txt"), .copy("Resources/de_bigrams.txt")],
+            resources: [.copy("Resources/de_words.txt"), .copy("Resources/de_bigrams.txt"),
+                        .copy("Resources/en_words.txt"), .copy("Resources/en_bigrams.txt")],
             // The lexicon loader and decoders are hot paths; keep them optimised in Debug too so
             // the keyboard is responsive while developing (load: ~0.13 s optimised vs. seconds at -Onone).
             swiftSettings: [.unsafeFlags(["-Ounchecked"], .when(configuration: .release)),

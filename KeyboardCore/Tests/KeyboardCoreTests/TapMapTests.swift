@@ -82,6 +82,17 @@ final class TapMapTests: XCTestCase {
         XCTAssertGreaterThan(map.offsets(for: keyMap).dx[Int(code("a"))], 0)
         XCTAssertLessThan(map.offsets(for: landscape).dx[Int(code("a"))], 0)
         XCTAssertEqual(map.layers.map(\.pitchX), [keyMap.pitchX.rounded(), landscape.pitchX.rounded()])
+        XCTAssertEqual(map.layers.first?.arrangement, "qwertzuiopüasdfghjklöäyxcvbnm")
+
+        // Same width, letters arranged differently (QWERTY: y and z swapped): its own layer.
+        var centers = keyMap.centers
+        centers.swapAt(Int(code("y")), Int(code("z")))
+        let qwerty = KeyMap(centers: centers, keyWidth: keyMap.keyWidth, keyHeight: keyMap.keyHeight, pitchX: keyMap.pitchX, pitchY: keyMap.pitchY)
+        XCTAssertEqual(TapMap.arrangement(of: qwerty), "qwertyuiopüasdfghjklöäzxcvbnm")
+        XCTAssertNil(map.layer(for: qwerty))
+        map.learn([TapMap.Sample(code: code("a"), dx: -0.2, dy: 0)], keyMap: qwerty)
+        XCTAssertGreaterThan(map.offsets(for: keyMap).dx[Int(code("a"))], 0)
+        XCTAssertEqual(map.layers.count, 3)
     }
 
     // MARK: Attribution

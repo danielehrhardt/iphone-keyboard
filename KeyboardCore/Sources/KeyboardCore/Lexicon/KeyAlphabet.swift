@@ -1,11 +1,15 @@
 import Foundation
 import CoreGraphics
 
-/// Compact letter codes (0..<30) for the German alphabet as it maps onto layout keys.
-/// ß is folded onto the s key because it has no key of its own on the base layer.
+/// Compact letter codes (0..<30) shared by every language: a–z plus the German umlauts.
+/// ß is folded onto the s key because it has no key of its own on the base layer. Layouts
+/// without umlaut keys (QWERTY) fold ä/ö/ü onto a/o/u for hit testing and swipe decoding, see
+/// `baseCode(for:)` and `KeyMap`.
 public enum KeyAlphabet {
     public static let letters: [Character] = Array("abcdefghijklmnopqrstuvwxyzäöü")
     public static let count = letters.count   // 29
+    /// The 26 letters every layout must place; the rest may fold onto one of these.
+    public static let baseCount = 26
 
     private static let table: [Character: UInt8] = {
         var t: [Character: UInt8] = [:]
@@ -13,6 +17,13 @@ public enum KeyAlphabet {
         t["ß"] = t["s"]!
         return t
     }()
+
+    /// The key a letter without one of its own sits on: ä → a, ö → o, ü → u. nil for base letters.
+    public static func baseCode(for code: UInt8) -> UInt8? {
+        guard Int(code) >= baseCount, Int(code) < count else { return nil }
+        let base = String(letters[Int(code)]).folding(options: [.diacriticInsensitive], locale: Locale(identifier: "en"))
+        return base.first.flatMap { table[$0] }
+    }
 
     /// Letter code for a character, folding case, ß→s and common diacritics onto base keys.
     public static func code(for character: Character) -> UInt8? {
@@ -136,7 +147,8 @@ public struct KeyMap: Sendable {
     public let pitchX: CGFloat
     public let pitchY: CGFloat
 
-    /// nil when the layout doesn't place every letter exactly once (swipe is then unavailable).
+    /// nil when the layout doesn't place every base letter (swipe is then unavailable). Letters
+    /// without a key of their own (ä/ö/ü on QWERTY) take the centre of their base key.
     public init?(geometry: KeyboardGeometry) {
         var centers = [CGPoint](repeating: .zero, count: KeyAlphabet.count)
         var seen = Set<UInt8>()
@@ -145,7 +157,10 @@ public struct KeyMap: Sendable {
                 centers[Int(code)] = kf.center
             }
         }
-        guard seen.count == KeyAlphabet.count else { return nil }
+        for code in 0..<UInt8(KeyAlphabet.count) where !seen.contains(code) {
+            guard let base = KeyAlphabet.baseCode(for: code), seen.contains(base) else { return nil }
+            centers[Int(code)] = centers[Int(base)]
+        }
         self.centers = centers
         keyWidth = geometry.unitWidth
         keyHeight = geometry.rowHeight
@@ -161,9 +176,9 @@ public struct KeyMap: Sendable {
         self.pitchY = pitchY ?? keyHeight * 1.25
     }
 
-    /// Standard German letters layout at a reference size, for tests and offline tools.
-    public static func reference(width: CGFloat = 390, height: CGFloat = 216) -> KeyMap {
-        KeyMap(geometry: KeyboardGeometry(layout: GermanLayouts.letters(), size: CGSize(width: width, height: height)))!
+    /// A language's letters layout at a reference size, for tests and offline tools.
+    public static func reference(language: KeyboardLanguage = .german, width: CGFloat = 390, height: CGFloat = 216) -> KeyMap {
+        KeyMap(geometry: KeyboardGeometry(layout: language.layout(for: .letters), size: CGSize(width: width, height: height)))!
     }
 
     /// Letter codes sorted by distance from a point, limited to those within `radius`.

@@ -1,12 +1,13 @@
 import Foundation
 
-/// The static German word list with frequencies and a bigram model, laid out for fast
+/// The static word list of one language with frequencies and a bigram model, laid out for fast
 /// swipe decoding and fuzzy matching. Word ids are frequency ranks (0 = most frequent).
 ///
 /// Memory matters (keyboard extensions are killed around 60–70 MB), so everything lives in flat
 /// arrays: no string-keyed dictionaries, no per-word objects. Loading works directly on UTF-8 bytes.
 public final class Lexicon: @unchecked Sendable {
 
+    public let language: KeyboardLanguage
     public let words: [String]
     /// Natural-log unigram probability per word id.
     public let logProb: [Float]
@@ -36,31 +37,33 @@ public final class Lexicon: @unchecked Sendable {
 
     // MARK: Loading
 
-    public static func loadBundled() throws -> Lexicon {
-        guard let wordsURL = Bundle.module.url(forResource: "de_words", withExtension: "txt") else {
-            throw LexiconError.missingResource("de_words.txt")
+    /// The dictionary shipped for `language` (`de_words.txt` + `de_bigrams.txt` and so on).
+    public static func loadBundled(language: KeyboardLanguage = .default) throws -> Lexicon {
+        guard let wordsURL = Bundle.module.url(forResource: language.wordsResource, withExtension: "txt") else {
+            throw LexiconError.missingResource("\(language.wordsResource).txt")
         }
-        let bigramsURL = Bundle.module.url(forResource: "de_bigrams", withExtension: "txt")
-        return try Lexicon(wordsFile: wordsURL, bigramsFile: bigramsURL)
+        let bigramsURL = Bundle.module.url(forResource: language.bigramsResource, withExtension: "txt")
+        return try Lexicon(wordsFile: wordsURL, bigramsFile: bigramsURL, language: language)
     }
 
     /// `wordsFile`: "word<TAB>count" lines, **sorted by lowercase spelling** (code-point order).
     /// `bigramsFile`: "w1<TAB>w2<TAB>count" lines grouped by w1, most frequent first.
-    public convenience init(wordsFile: URL, bigramsFile: URL?) throws {
+    public convenience init(wordsFile: URL, bigramsFile: URL?, language: KeyboardLanguage = .default) throws {
         let data = try Data(contentsOf: wordsFile, options: .mappedIfSafe)
         let bigramData = bigramsFile.flatMap { try? Data(contentsOf: $0, options: .mappedIfSafe) }
-        self.init(wordsData: data, bigramData: bigramData)
+        self.init(wordsData: data, bigramData: bigramData, language: language)
     }
 
     /// Convenience for tests and tools: words in any order.
-    public convenience init(words: [String], counts: [Double], bigramText: String? = nil) {
+    public convenience init(words: [String], counts: [Double], bigramText: String? = nil, language: KeyboardLanguage = .default) {
         let order = words.indices.sorted { (words[$0].lowercased(), -counts[$0]) < (words[$1].lowercased(), -counts[$1]) }
         var text = ""
         for i in order { text += "\(words[i])\t\(Int(counts[i]))\n" }
-        self.init(wordsData: Data(text.utf8), bigramData: bigramText?.data(using: .utf8))
+        self.init(wordsData: Data(text.utf8), bigramData: bigramText?.data(using: .utf8), language: language)
     }
 
-    init(wordsData: Data, bigramData: Data?) {
+    init(wordsData: Data, bigramData: Data?, language: KeyboardLanguage = .default) {
+        self.language = language
         // ---- pass 1: words, counts, lowercase bytes, letter codes (all in file order) ----
         var fileWords: [String] = []; fileWords.reserveCapacity(140_000)
         var fileCounts: [UInt32] = []; fileCounts.reserveCapacity(140_000)

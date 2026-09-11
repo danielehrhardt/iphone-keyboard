@@ -1,4 +1,5 @@
 import UIKit
+import KeyboardCore
 
 struct Suggestion: Equatable {
     enum Kind: Equatable { case primary, alternate, literal, prediction }
@@ -9,20 +10,35 @@ struct Suggestion: Equatable {
 
 /// Three suggestion cells with hairline dividers, the primary one in the middle and bold.
 /// Cells highlight as soft pills and new suggestions fade in instead of snapping. A small
-/// "hide keyboard" button sits at the trailing edge (iPhone has no system dismiss key).
+/// "hide keyboard" button sits at the trailing edge (iPhone has no system dismiss key), and
+/// while several typing languages are enabled a language badge ("DE", "EN") sits next to it:
+/// tapping it switches to the next language.
 final class SuggestionBarView: UIView {
     var onSelect: ((Suggestion) -> Void)?
     var onDismiss: (() -> Void)?
+    var onLanguage: (() -> Void)?
     private var buttons: [UIButton] = []
     /// Visual pill per cell. The button itself spans the whole cell so the tap target is large;
     /// only this inset view shows the highlight.
     private var pills: [UIView] = []
     private var dividers: [UIView] = []
     private let dismissButton = UIButton(type: .system)
+    private let languageButton = UIButton(type: .system)
     private static let dismissWidth: CGFloat = 46
+    private static let languageWidth: CGFloat = 44
     private static let dismissInset: CGFloat = 6
     private(set) var suggestions: [Suggestion] = []
     private var theme: KeyboardTheme
+
+    /// The badge text of the current language, or nil to hide the language switch.
+    var language: KeyboardLanguage? {
+        didSet {
+            guard language != oldValue else { return }
+            languageButton.isHidden = language == nil
+            configureLanguageButton()
+            setNeedsLayout()
+        }
+    }
 
     init(theme: KeyboardTheme) {
         self.theme = theme
@@ -56,6 +72,10 @@ final class SuggestionBarView: UIView {
         dismissButton.accessibilityIdentifier = "dismiss-keyboard"
         dismissButton.addTarget(self, action: #selector(dismissTapped), for: .touchUpInside)
         addSubview(dismissButton)
+        languageButton.accessibilityIdentifier = "switch-language"
+        languageButton.isHidden = true
+        languageButton.addTarget(self, action: #selector(languageTapped), for: .touchUpInside)
+        addSubview(languageButton)
         apply(theme: theme)
     }
 
@@ -65,7 +85,28 @@ final class SuggestionBarView: UIView {
         self.theme = theme
         dividers.forEach { $0.backgroundColor = theme.suggestionDivider }
         configureDismissButton()
+        configureLanguageButton()
         render()
+    }
+
+    /// Same capsule as the dismiss button, carrying the language badge.
+    private func configureLanguageButton() {
+        var config: UIButton.Configuration
+        if #available(iOS 26.0, *) {
+            config = .glass()
+        } else {
+            config = .plain()
+            config.background.backgroundColor = theme.suggestionHighlight
+        }
+        config.cornerStyle = .capsule
+        config.baseForegroundColor = theme.suggestionText
+        config.contentInsets = .zero
+        var title = AttributedString(language?.badge ?? "")
+        title.font = .systemFont(ofSize: 13, weight: .semibold)
+        config.attributedTitle = title
+        languageButton.configuration = config
+        languageButton.tintColor = theme.suggestionText
+        languageButton.accessibilityLabel = language.map { "Sprache: \($0.title). Zum Wechseln tippen" }
     }
 
     /// Liquid-glass capsule on iOS 26, a flat translucent capsule before that.
@@ -119,13 +160,18 @@ final class SuggestionBarView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let reserved = Self.dismissWidth + Self.dismissInset * 2
+        let languageReserved = language == nil ? 0 : Self.languageWidth + Self.dismissInset
+        let reserved = Self.dismissWidth + Self.dismissInset * 2 + languageReserved
         let w = max(bounds.width - reserved, 0) / 3
         let inset: CGFloat = 6
         let h = bounds.height - 12
+        let buttonHeight = min(h, 32)
         dismissButton.frame = CGRect(x: bounds.width - Self.dismissInset - Self.dismissWidth,
-                                     y: (bounds.height - min(h, 32)) / 2,
-                                     width: Self.dismissWidth, height: min(h, 32))
+                                     y: (bounds.height - buttonHeight) / 2,
+                                     width: Self.dismissWidth, height: buttonHeight)
+        languageButton.frame = CGRect(x: dismissButton.frame.minX - Self.dismissInset - Self.languageWidth,
+                                      y: (bounds.height - buttonHeight) / 2,
+                                      width: Self.languageWidth, height: buttonHeight)
         // The button covers its whole third of the strip (full height, no gaps) so a tap anywhere
         // near the word registers; the pill inside carries the inset look.
         for (i, b) in buttons.enumerated() {
@@ -145,6 +191,8 @@ final class SuggestionBarView: UIView {
     }
 
     @objc private func dismissTapped() { onDismiss?() }
+
+    @objc private func languageTapped() { onLanguage?() }
 
     @objc private func highlight(_ sender: UIButton) {
         pills[safe: sender.tag]?.backgroundColor = theme.suggestionHighlight
