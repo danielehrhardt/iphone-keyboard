@@ -83,6 +83,7 @@ final class KeyboardCoordinator: NSObject {
     func willAppear() {
         input.engine?.user.reloadIfChanged()
         input.tapMap?.reloadIfChanged()
+        input.forgetDocument()
         // The app may have switched the current language off meanwhile.
         select(language: settings.currentLanguage)
     }
