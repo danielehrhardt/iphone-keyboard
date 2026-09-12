@@ -22,10 +22,10 @@ protocol InputControllerDelegate: AnyObject {
 /// The text-editing brain: turns key events into document edits, runs autocorrect on word
 /// boundaries, commits swipe words, tracks shift state and produces the suggestion strip.
 ///
-/// Built for fast typing: a key event touches the document once (every `UITextDocumentProxy`
-/// read is a round trip to the host app), updates what the *next* tap depends on – shift state
-/// and the hit-target prior – synchronously, and hands the suggestion strip to a background
-/// queue so the main thread is free for the next touch within a millisecond or two.
+/// Built for fast typing: a key event never reads the document (every `UITextDocumentProxy`
+/// read is a round trip to the host app – see `history`), updates what the *next* tap depends
+/// on – shift state and the hit-target prior – synchronously, and hands the suggestion strip to
+/// a background queue so the main thread is free for the next touch within a millisecond or two.
 final class InputController {
 
     private enum Commit: Equatable {
@@ -88,42 +88,72 @@ final class InputController {
 
     // MARK: Document context
 
-    /// The text around the cursor, read once per key event. In the extension each proxy read is
-    /// a synchronous round trip to the host app – and blocks for as long as the host's main
-    /// thread is busy laying out the character we just inserted – so the snapshot is reused for
-    /// everything an event needs and refreshed only after an edit of our own.
+    /// The text around the cursor. In the extension a proxy read is a round trip to the host
+    /// app: it blocks while the host is busy, and right after an edit of ours it may still show
+    /// the text from before that edit. So a key event never reads. The keyboard keeps its own
+    /// view of the document, advanced locally by every edit it makes, and reads the host only
+    /// when the host reports a change (`textDidChangeExternally`).
     private struct DocumentContext: Equatable {
         var before: String
         var after: String
     }
 
-    private var cachedContext: DocumentContext?
-    /// The document as it looked when the UI state was last brought up to date; lets the host's
-    /// echo of our own edit (`textDidChange`) be recognised and skipped.
-    private var refreshedContext: DocumentContext?
+    /// The document as we know it, newest last: the state last read from the host followed by
+    /// the state after each of our own edits since. A host report that matches one of these is
+    /// the host catching up (a slow host lags several keystrokes behind a fast typist) and
+    /// changes nothing; anything else is news and replaces the lot.
+    private var history: [DocumentContext] = []
+    private static let historyLimit = 64
+    /// Set while an edit of ours is in flight, so a host that reports it synchronously (the
+    /// in-app text view) is not mistaken for an external change.
+    private var isEditing = false
 
     private var context: DocumentContext {
-        if let cachedContext { return cachedContext }
+        if let c = history.last { return c }
         let c = DocumentContext(before: proxy.textBefore, after: proxy.textAfter)
-        cachedContext = c
+        history = [c]
         return c
     }
 
     private var textBefore: String { context.before }
     private var textAfter: String { context.after }
 
-    /// Forgets the snapshot; the next read goes to the document. Called at every entry point
-    /// (the host may have changed the text since) and after every edit of our own.
-    private func invalidateContext() { cachedContext = nil }
+    /// Drops what is known about the document; the next key event reads it afresh. For a new
+    /// field, which may look just like the last one to `traits`.
+    func forgetDocument() { history.removeAll() }
+
+    /// Reads the host and reconciles it with our own view. Returns true when the document differs
+    /// from anything we assumed, i.e. someone else changed it.
+    private func resync() -> Bool {
+        let seen = DocumentContext(before: proxy.textBefore, after: proxy.textAfter)
+        if let i = history.lastIndex(of: seen) {
+            history.removeFirst(i)
+            return false
+        }
+        history = [seen]
+        return true
+    }
+
+    private func didEdit(before: String, after: String) {
+        history.append(DocumentContext(before: before, after: after))
+        if history.count > Self.historyLimit { history.removeFirst(history.count - Self.historyLimit) }
+    }
+
+    private func edit(_ change: (DocumentContext) -> DocumentContext, _ apply: () -> Void) {
+        let c = context
+        isEditing = true
+        apply()
+        isEditing = false
+        let new = change(c)
+        didEdit(before: new.before, after: new.after)
+    }
 
     private func insertText(_ text: String) {
-        proxy.insert(text)
-        cachedContext = nil
+        edit({ DocumentContext(before: $0.before + text, after: $0.after) }) { proxy.insert(text) }
     }
 
     private func deleteBackwardOnce() {
-        proxy.deleteBackward()
-        cachedContext = nil
+        delete(count: 1)
     }
 
     // MARK: Context helpers
@@ -188,7 +218,7 @@ final class InputController {
     // MARK: Field / external changes
 
     private func fieldChanged() {
-        invalidateContext()
+        forgetDocument()
         lastCommit = nil
         autoSpacePending = false
         shiftTouchedManually = false
@@ -209,11 +239,10 @@ final class InputController {
         }
     }
 
-    /// Called when the host text changed for reasons other than our own edits (cursor moves, pastes…).
-    /// The host also reports our own edits back this way; those are recognised and cost nothing.
+    /// Called when the host reports a text or selection change. Our own edits come back this way
+    /// too, possibly several keystrokes late; those are recognised and cost one read, nothing more.
     func textDidChangeExternally() {
-        invalidateContext()
-        if let refreshedContext, context == refreshedContext { return }
+        guard !isEditing, resync() else { return }
         if case .swipe(let w, _, let autoSpace) = lastCommit {
             let expected = w + (autoSpace ? " " : "")
             if !textBefore.hasSuffix(expected) { lastCommit = nil; autoSpacePending = false }
@@ -225,10 +254,7 @@ final class InputController {
     }
 
     /// Recomputes shift and suggestions from the document.
-    func refresh() {
-        invalidateContext()
-        refreshNow()
-    }
+    func refresh() { refreshNow() }
 
     /// Brings the UI state up to date with the (already snapshotted) document. Shift, the letter
     /// prior and the tap offsets decide how the *next* tap is read, so they are updated before
@@ -239,7 +265,6 @@ final class InputController {
         s.letterPrior = buildLetterPrior()
         s.tapOffsets = buildTapOffsets()
         let input = suggestionInput(layer: s.layer)
-        refreshedContext = context
         let generation = suggestionGeneration.next()
         // No engine, or a field/layer without a strip: the answer is empty and must show at
         // once (leaving a password field's neighbour's words on screen is not an option).
@@ -383,7 +408,6 @@ final class InputController {
 
     /// `touch` is where the finger landed on the key grid (grid coordinates); it feeds the tap map.
     func handle(key: Key, touch: CGPoint? = nil) {
-        invalidateContext()
         currentTouch = touch
         defer { currentTouch = nil }
         perform(key.action, from: key)
@@ -392,7 +416,6 @@ final class InputController {
     /// Runs the key's hold action (e.g. emoji on the comma key); keys without one are ignored.
     func handleLongPress(key: Key) {
         guard let action = key.longPressAction else { return }
-        invalidateContext()
         perform(action, from: key)
     }
 
@@ -522,7 +545,6 @@ final class InputController {
     }
 
     func backspaceRepeat(wordwise: Bool) {
-        invalidateContext()
         lastCommit = nil
         autoSpacePending = false
         if wordwise {
@@ -549,7 +571,6 @@ final class InputController {
     }
 
     func lockShift() {
-        invalidateContext()
         var s = state
         s.shift = .locked
         shiftTouchedManually = true
@@ -558,7 +579,6 @@ final class InputController {
 
     func shiftSlide(to key: Key) {
         guard let c = key.character else { return }
-        invalidateContext()
         if case .swipe = lastCommit { lastCommit = nil }
         autoSpacePending = false
         recordTap(String(c).uppercased(), touch: nil)
@@ -567,7 +587,6 @@ final class InputController {
     }
 
     func insertAlternate(_ text: String, for key: Key) {
-        invalidateContext()
         if case .swipe = lastCommit { lastCommit = nil }
         autoSpacePending = false
         recordTap(text, touch: nil)
@@ -576,8 +595,14 @@ final class InputController {
     }
 
     func moveCursor(by offset: Int) {
-        proxy.moveCursor(by: offset)
-        invalidateContext()
+        edit({ c in
+            if offset > 0 {
+                let n = min(offset, c.after.count)
+                return DocumentContext(before: c.before + c.after.prefix(n), after: String(c.after.dropFirst(n)))
+            }
+            let n = min(-offset, c.before.count)
+            return DocumentContext(before: String(c.before.dropLast(n)), after: c.before.suffix(n) + c.after)
+        }) { proxy.moveCursor(by: offset) }
         lastCommit = nil
         autoSpacePending = false
         wordTaps.removeAll()
@@ -586,23 +611,24 @@ final class InputController {
 
     // MARK: Edits from outside the key grid (emoji panel)
 
-    /// Inserts text the emoji panel picked; the document snapshot and the UI state follow.
+    /// Inserts text the emoji panel picked; the UI state follows.
     func insertFromPanel(_ text: String) {
-        invalidateContext()
+        lastCommit = nil
+        autoSpacePending = false
         insertText(text)
-        textDidChangeExternally()
+        afterEdit(lastWasSpace: false)
     }
 
     func deleteBackwardFromPanel() {
-        invalidateContext()
+        lastCommit = nil
+        autoSpacePending = false
         deleteBackwardOnce()
-        textDidChangeExternally()
+        afterEdit(lastWasSpace: false)
     }
 
     // MARK: Swipe
 
     func handleSwipe(path: [CGPoint], keyMap: KeyMap, fallbackKey: Key?) {
-        invalidateContext()
         guard traits.allowsSwipe, settings.swipeTyping, let engine, engine.language == language else {
             if let fallbackKey { handle(key: fallbackKey) }
             return
@@ -648,7 +674,6 @@ final class InputController {
     // MARK: Suggestions tapped
 
     func accept(_ suggestion: Suggestion) {
-        invalidateContext()
         let composing = composingWord
         let previous = previousWord
         if justinModeActive {
@@ -755,8 +780,9 @@ final class InputController {
 
     private func delete(count: Int) {
         guard count > 0 else { return }
-        for _ in 0..<count { proxy.deleteBackward() }
-        cachedContext = nil
+        edit({ DocumentContext(before: String($0.before.dropLast(count)), after: $0.after) }) {
+            for _ in 0..<count { proxy.deleteBackward() }
+        }
     }
 
     private func afterEdit(lastWasSpace: Bool, consumedShift: Bool = false) {
