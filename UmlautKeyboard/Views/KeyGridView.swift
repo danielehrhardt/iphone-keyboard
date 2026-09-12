@@ -1,5 +1,9 @@
 import UIKit
+import os.log
 import KeyboardCore
+
+/// Touch trace for diagnosing lost keystrokes (debug builds only): `log stream --level debug --predicate 'subsystem == "de.codext.umlaut.keyboard"'`.
+private let tapLog = Logger(subsystem: "de.codext.umlaut.keyboard", category: "taps")
 
 protocol KeyGridDelegate: AnyObject {
     func keyGrid(_ grid: KeyGridView, didTap key: Key)
@@ -175,7 +179,8 @@ final class KeyGridView: UIView {
 
     /// Key caps and the preview/alternates bubble are presentation only. Every touch inside the
     /// grid is resolved by `KeyboardGeometry`, never by a subview, so the bubble popping up over
-    /// a neighbouring key can never intercept the next tap.
+    /// a neighbouring key can never intercept the next tap. (`KeyboardView` also hands the grid
+    /// touches just outside its frame; those resolve to the nearest key like any other.)
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         guard isUserInteractionEnabled, !isHidden, alpha >= 0.01, self.point(inside: point, with: event) else { return nil }
         return self
@@ -231,8 +236,9 @@ final class KeyGridView: UIView {
         }
         // A glide in flight never blocks the other thumb: its tap is tracked alongside and
         // commits on its own lift. Every touch that lands on the grid becomes a key event.
-
-        for touch in newTouches {
+        // Two fingers landing in the same frame arrive as one set: take them in touch order,
+        // so "th" typed with both thumbs at once never comes out as "ht".
+        for touch in newTouches.sorted(by: { $0.timestamp < $1.timestamp }) {
             let p = touch.location(in: self)
             guard let kf = geometry.keyFrame(at: p, prior: letterPrior, offsets: tapOffsets) else { continue }
             if kf.key.action == .globe {
@@ -247,6 +253,9 @@ final class KeyGridView: UIView {
             let state = TouchState(frame: kf, point: p)
             touches[touch] = state
             keyViews[kf.key.id]?.setPressed(true)
+#if DEBUG
+            tapLog.debug("down \(kf.key.id, privacy: .public) at \(Int(p.x)),\(Int(p.y)) plain=\(geometry.keyFrame(at: p)?.key.id ?? "-", privacy: .public) touches=\(self.touches.count)")
+#endif
 
             switch kf.key.action {
             case .backspace:
@@ -346,7 +355,7 @@ final class KeyGridView: UIView {
     }
 
     override func touchesEnded(_ ended: Set<UITouch>, with event: UIEvent?) {
-        for touch in ended {
+        for touch in ended.sorted(by: { $0.timestamp < $1.timestamp }) {
             guard let state = touches[touch] else { continue }
             if state.mode == .globe { delegate?.keyGrid(self, globeTouchEvent: event) }
             finish(touch: touch, state: state, at: touch.location(in: self))
@@ -356,6 +365,9 @@ final class KeyGridView: UIView {
     override func touchesCancelled(_ cancelled: Set<UITouch>, with event: UIEvent?) {
         for touch in cancelled {
             guard let state = touches[touch] else { continue }
+#if DEBUG
+            tapLog.debug("cancelled \(state.currentFrame.key.id, privacy: .public) mode=\(String(describing: state.mode), privacy: .public)")
+#endif
             if state.mode == .globe { delegate?.keyGrid(self, globeTouchEvent: event) }
             state.invalidate()
             state.mode = .finished
@@ -385,6 +397,9 @@ final class KeyGridView: UIView {
 
     /// Types a plain tap – or holds it back while a glide is still in flight.
     private func deliverTap(_ key: Key, at point: CGPoint?) {
+#if DEBUG
+        tapLog.debug("tap \(key.id, privacy: .public) at \(point.map { "\(Int($0.x)),\(Int($0.y))" } ?? "-", privacy: .public) glide=\(self.isGlideInFlight)")
+#endif
         if isGlideInFlight {
             tapsBehindGlide.append((key, point))
         } else if let point {

@@ -1,5 +1,8 @@
 import UIKit
+import os.log
 import KeyboardCore
+
+private let inputLog = Logger(subsystem: "de.codext.umlaut.keyboard", category: "input")
 
 /// Everything the keyboard shows besides the keys themselves.
 struct InputUIState: Equatable {
@@ -149,6 +152,9 @@ final class InputController {
     }
 
     private func insertText(_ text: String) {
+#if DEBUG
+        inputLog.debug("insert \(text, privacy: .public)")
+#endif
         edit({ DocumentContext(before: $0.before + text, after: $0.after) }) { proxy.insert(text) }
     }
 
@@ -745,6 +751,9 @@ final class InputController {
                 if composing.first?.isUppercase == true, replacement.first?.isLowercase == true {
                     replacement = replacement.prefix(1).uppercased() + replacement.dropFirst()
                 }
+#if DEBUG
+                inputLog.debug("autocorrect \(composing, privacy: .public) -> \(replacement, privacy: .public) (\(corrections.prefix(3).map { "\($0.word)" }.joined(separator: ","), privacy: .public))")
+#endif
                 delete(count: composing.count)
                 insertText(replacement)
                 lastCommit = .autocorrect(original: composing, corrected: replacement, trigger: trigger)
@@ -780,6 +789,9 @@ final class InputController {
 
     private func delete(count: Int) {
         guard count > 0 else { return }
+#if DEBUG
+        inputLog.debug("delete \(count)")
+#endif
         edit({ DocumentContext(before: String($0.before.dropLast(count)), after: $0.after) }) {
             for _ in 0..<count { proxy.deleteBackward() }
         }

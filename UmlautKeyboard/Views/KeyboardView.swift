@@ -51,6 +51,19 @@ final class KeyboardView: UIView {
         emojiPanel?.apply(theme: theme)
     }
 
+    /// Every touch from the grid's top edge down belongs to the key grid, including the strip
+    /// below the bottom row (the home-indicator inset) and the side insets: a thumb that lands a
+    /// little low on the space bar, as thumbs do when typing fast, must reach the nearest key
+    /// rather than a dead zone. The suggestion bar and the emoji panel keep their own areas.
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        guard isUserInteractionEnabled, !isHidden, alpha >= 0.01, self.point(inside: point, with: event) else { return nil }
+        if let panel = emojiPanel, !panel.isHidden { return super.hitTest(point, with: event) }
+        if !grid.isHidden, grid.isUserInteractionEnabled, grid.alpha >= 0.01, point.y >= grid.frame.minY {
+            return grid
+        }
+        return super.hitTest(point, with: event)
+    }
+
     override func safeAreaInsetsDidChange() {
         super.safeAreaInsetsDidChange()
         setNeedsLayout()
