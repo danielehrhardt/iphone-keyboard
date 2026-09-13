@@ -47,6 +47,7 @@ final class DemoKeyboardView: UIInputView {
 
         observers.append(NotificationCenter.default.addObserver(forName: UITextView.textDidChangeNotification, object: textView, queue: .main) { [weak self] _ in
             self?.coordinator.input.textDidChangeExternally()
+            self?.coordinator.pasteboardMayHaveChanged()
         })
     }
 

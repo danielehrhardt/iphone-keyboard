@@ -120,6 +120,10 @@ public struct KeyboardGeometry: Hashable, Sendable {
         /// scatter, so a deliberate tap on an "unexpected" key is never stolen.
         public static let maxReachX: CGFloat = 0.26
         public static let maxReachY: CGFloat = 0.2
+        /// The space bar's vertical reach into the bottom row once the word looks finished. Rows
+        /// are tall and the touch offset already pulls touches away from the bar, so it gets a
+        /// little more; the letter above still keeps three quarters of its cap.
+        public static let maxReachSpaceY: CGFloat = 0.3
         /// Finger pads land a little below where the user believes they tapped; touches are
         /// nudged upward to compensate (fraction of the row height). Part of the feature, so
         /// disabling dynamic hit targets restores the plain hit test exactly.
@@ -164,7 +168,8 @@ public struct KeyboardGeometry: Hashable, Sendable {
             } else {
                 continue
             }
-            guard kf.hitFrame.offsetBy(dx: offset.x, dy: offset.y).insetBy(dx: -reachX, dy: -reachY).contains(point) else { continue }
+            let reach = kf.key.action == .space ? pitchY * HitTuning.maxReachSpaceY : reachY
+            guard kf.hitFrame.offsetBy(dx: offset.x, dy: offset.y).insetBy(dx: -reachX, dy: -reach).contains(point) else { continue }
             // A wide key (the space bar) is as close as its nearest key-sized slot, not its middle.
             let halfSpan = max(0, (kf.frame.width - unitWidth) / 2)
             let cx = min(max(point.x, kf.center.x + offset.x - halfSpan), kf.center.x + offset.x + halfSpan)

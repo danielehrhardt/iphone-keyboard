@@ -115,10 +115,11 @@ final class KeyboardViewHitTests: XCTestCase {
                                 Suggestion(text: "Hallo", kind: .primary),
                                 Suggestion(text: "b", kind: .alternate)])
         view.layoutIfNeeded()
-        let cellWidth = (390 - 46 - 12) / 3.0
-        for point in [CGPoint(x: cellWidth + 2, y: 1),                    // top-left corner of the middle cell
-                      CGPoint(x: cellWidth * 2 - 2, y: suggestions - 1),  // bottom-right corner
-                      CGPoint(x: cellWidth * 1.5, y: 3)] {                // above the pill
+        let leading = SuggestionBarView.leadingReserved
+        let cellWidth = (390 - leading - SuggestionBarView.trailingReserved(hasLanguage: false)) / 3.0
+        for point in [CGPoint(x: leading + cellWidth + 2, y: 1),                    // top-left corner of the middle cell
+                      CGPoint(x: leading + cellWidth * 2 - 2, y: suggestions - 1),  // bottom-right corner
+                      CGPoint(x: leading + cellWidth * 1.5, y: 3)] {                // above the pill
             let hit = view.hitTest(point, with: nil) as? UIButton
             XCTAssertNotNil(hit, "no button at \(point)")
             hit?.sendActions(for: .touchUpInside)
@@ -127,13 +128,15 @@ final class KeyboardViewHitTests: XCTestCase {
     }
 
     /// With fewer than three words the ones shown spread over the whole strip, so a single
-    /// suggestion is reachable from the leading edge right up to the dismiss button.
+    /// suggestion is reachable from the "⋯" button right up to the dismiss button.
     func testFewerSuggestionsFillTheStrip() {
         var picked: [String] = []
         view.suggestionBar.onSelect = { picked.append($0.text) }
         view.suggestionBar.set([Suggestion(text: "Hallo", kind: .primary)])
         view.layoutIfNeeded()
-        for x: CGFloat in [4, 195, 390 - 46 - 12 - 4] {
+        let leading = SuggestionBarView.leadingReserved
+        let trailing = SuggestionBarView.trailingReserved(hasLanguage: false)
+        for x: CGFloat in [leading + 4, 195, 390 - trailing - 4] {
             let hit = view.hitTest(CGPoint(x: x, y: suggestions / 2), with: nil) as? UIButton
             XCTAssertNotNil(hit, "no button at x=\(x)")
             hit?.sendActions(for: .touchUpInside)
@@ -143,8 +146,8 @@ final class KeyboardViewHitTests: XCTestCase {
         picked = []
         view.suggestionBar.set([Suggestion(text: "links", kind: .alternate), Suggestion(text: "rechts", kind: .primary)])
         view.layoutIfNeeded()
-        let half = (390 - 46 - 12) / 2.0
-        for x in [half - 4, half + 4] {
+        let half = (390 - leading - trailing) / 2.0
+        for x in [leading + half - 4, leading + half + 4] {
             (view.hitTest(CGPoint(x: x, y: suggestions / 2), with: nil) as? UIButton)?.sendActions(for: .touchUpInside)
         }
         XCTAssertEqual(picked, ["links", "rechts"])
@@ -156,5 +159,50 @@ final class KeyboardViewHitTests: XCTestCase {
         let hit = view.hitTest(CGPoint(x: 195, y: suggestions + keys + 10), with: nil)
         XCTAssertFalse(hit === view.grid)
         XCTAssertTrue(hit?.isDescendant(of: view.emojiPanel!) ?? false)
+    }
+
+    /// The "⋯" button sits at the leading edge of the strip and opens the action menu; while
+    /// the menu is open every touch belongs to it, and a tap beside the card closes it.
+    func testActionMenuOwnsTouchesWhileOpen() {
+        var opened = 0
+        view.suggestionBar.onActions = { opened += 1 }
+        let button = view.hitTest(CGPoint(x: 20, y: suggestions / 2), with: nil) as? UIButton
+        XCTAssertTrue(button === view.suggestionBar.actionsButton, "no actions button at the leading edge")
+        button?.sendActions(for: .touchUpInside)
+        XCTAssertEqual(opened, 1)
+
+        view.isActionMenuVisible = true
+        let menu = view.actionMenu!
+        menu.set(actions: [KeyboardAction(kind: .clipboard, title: "Zwischenablage", symbol: "doc.on.clipboard"),
+                           KeyboardAction(kind: .dismiss, title: "Tastatur ausblenden", symbol: "keyboard.chevron.compact.down")])
+        var picked: [KeyboardAction.Kind] = []
+        var closed = 0
+        menu.onSelect = { picked.append($0.kind) }
+        menu.onClose = { closed += 1 }
+        view.layoutIfNeeded()
+        let onGrid = view.hitTest(CGPoint(x: 300, y: suggestions + keys - 10), with: nil)
+        XCTAssertFalse(onGrid === view.grid, "the grid must not type while the menu is open")
+        XCTAssertTrue(onGrid?.isDescendant(of: menu) ?? false)
+        let row = view.hitTest(CGPoint(x: 60, y: suggestions + ActionMenuView.rowHeight / 2), with: nil) as? UIButton
+        XCTAssertNotNil(row, "no menu row under the button")
+        row?.sendActions(for: .touchUpInside)
+        XCTAssertEqual(picked, [.clipboard])
+
+        view.isActionMenuVisible = false
+        let hit = view.hitTest(CGPoint(x: 300, y: suggestions + keys - 10), with: nil)
+        XCTAssertTrue(hit === view.grid, "the grid types again once the menu is closed")
+    }
+
+    func testClipboardPanelCoversTheKeys() {
+        view.clipboardDelegate = nil
+        view.isClipboardVisible = true
+        XCTAssertTrue(view.grid.isHidden)
+        XCTAssertTrue(view.suggestionBar.isHidden)
+        let hit = view.hitTest(CGPoint(x: 195, y: suggestions + keys + 10), with: nil)
+        XCTAssertFalse(hit === view.grid)
+        XCTAssertTrue(hit?.isDescendant(of: view.clipboardPanel!) ?? false)
+        view.isEmojiVisible = true
+        XCTAssertFalse(view.isClipboardVisible, "one panel at a time")
+        XCTAssertTrue(view.clipboardPanel!.isHidden)
     }
 }

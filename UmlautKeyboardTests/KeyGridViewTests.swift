@@ -14,6 +14,7 @@ private final class GridRecorder: KeyGridDelegate {
     var events: [String] = []
     var alternates: [String] = []
     var longPresses: [String] = []
+    var settingsRequests = 0
     var swipes = 0
     var keyPreviewEnabled = true
     var swipeTypingEnabled = true
@@ -29,6 +30,7 @@ private final class GridRecorder: KeyGridDelegate {
     func keyGridDidDoubleTapShift(_ grid: KeyGridView) {}
     func keyGrid(_ grid: KeyGridView, didShiftSlideTo key: Key) { taps.append(key.id) }
     func keyGrid(_ grid: KeyGridView, globeTouchEvent event: UIEvent?) {}
+    func keyGridDidRequestSettings(_ grid: KeyGridView) { settingsRequests += 1 }
 }
 
 /// Drives `KeyGridView` with synthetic touches: the key preview bubble must never get in the way
@@ -164,6 +166,31 @@ final class KeyGridViewTests: XCTestCase {
         spin(0.02)
         XCTAssertEqual(recorder.longPresses, [])
         XCTAssertEqual(recorder.alternates, [","], "bubble committed the option under the finger")
+    }
+
+    /// The period key's bubble ends in a gear that opens the app's settings. The key sits on the
+    /// right, so the row grows leftwards and the gear is the far-left cell: a finger dragged to
+    /// the left edge lands on it, and the lift asks for the settings instead of typing.
+    func testHoldingPeriodKeyOffersSettingsAtTheEndOfTheBubble() {
+        let kf = grid.geometry!.keyFrames.first { $0.key.id == "." }!
+        let t = press(".")
+        spin(0.5)
+        XCTAssertEqual(recorder.longPresses, [], "the period key keeps its bubble")
+        t.point = CGPoint(x: 4, y: kf.center.y)
+        grid.touchesMoved([t], with: nil)
+        release(t)
+        spin(0.02)
+        XCTAssertEqual(recorder.settingsRequests, 1)
+        XCTAssertEqual(recorder.alternates, [], "the gear types nothing")
+        XCTAssertEqual(recorder.taps, [])
+
+        // Released over the key itself the bubble still types the period.
+        let plain = press(".")
+        spin(0.5)
+        release(plain)
+        spin(0.02)
+        XCTAssertEqual(recorder.alternates, ["."])
+        XCTAssertEqual(recorder.settingsRequests, 1)
     }
 
     // MARK: Fast typing

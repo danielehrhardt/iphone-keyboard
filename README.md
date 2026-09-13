@@ -101,6 +101,18 @@ context boost, sentence-start capitalisation.
 **Personal dictionary** (`UserLexicon`) – learns words after two uses, learns bigrams, remembers rejected
 corrections, stored as JSON in the app group.
 
+**Dynamic hit targets** (`LetterPrior`, `KeyboardGeometry.keyFrame(at:prior:)`) – the invisible touch
+areas move with the text, the drawn keys never do. After every keystroke the predictor turns the
+dictionary completions of the current prefix and the bigram successors of the previous word into a
+next-letter distribution, plus the chance that the word ends here (`P(word == prefix) / P(word starts
+with prefix)`). Each tap is then decided by `priorWeight · log P(key) − ½ · (distance / σ)²` over the
+neighbouring letter keys, so a likely letter owns the gaps around it and up to a quarter of its
+neighbours' caps (after `kno`, w takes the edge of e), while every key keeps the central half of its
+cap whatever the prediction. Once the word looks complete the space bar grows into the bottom row;
+while it clearly goes on (`kön` → n) the likely letter reaches over the bar's top edge. Other function
+keys are never affected, and a tap map offset, when learned, moves the centre a key is judged from.
+Toggle: „Dynamische Tastenflächen“.
+
 **Tap map** (`TapMap`) – SwiftKey-style adaptive hit targets. For every letter key the keyboard keeps
 the running mean of where this user's finger lands relative to the printed centre (in units of the
 key pitch, so one map serves every key size). It learns from committed words: a word left as typed

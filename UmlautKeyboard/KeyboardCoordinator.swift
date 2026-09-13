@@ -9,6 +9,11 @@ final class KeyboardCoordinator: NSObject {
     let feedback: Feedback
     let view: KeyboardView
     let input: InputController
+    /// Copied text and images, shared with the app.
+    let clipboard: ClipboardMonitor
+    /// Whether the pasteboard may be read: the extension needs "Full Access", the app always has it.
+    var hasFullAccess = true
+    private let thumbnails = NSCache<NSUUID, UIImage>()
 
     /// Hooks the owner provides (extension: system APIs; in-app demo: no-ops).
     var onGlobe: (() -> Void)?
@@ -35,9 +40,11 @@ final class KeyboardCoordinator: NSObject {
     private var screenSize: CGSize = .zero
     private var traits: UITraitCollection
 
-    init(settings: KeyboardSettings, proxy: TextProxy, engine: KeyboardEngine?, traits: UITraitCollection, tapMap: TapMap? = .standard) {
+    init(settings: KeyboardSettings, proxy: TextProxy, engine: KeyboardEngine?, traits: UITraitCollection, tapMap: TapMap? = .standard,
+         clipboard: ClipboardMonitor? = nil) {
         self.settings = settings
         self.traits = traits
+        self.clipboard = clipboard ?? ClipboardMonitor(history: .shared(appGroup: KeyboardSettings.appGroup), settings: settings)
         language = settings.currentLanguage
         feedback = Feedback(settings: settings)
         let theme = KeyboardTheme.current(traits: traits, settings: settings)
@@ -53,6 +60,12 @@ final class KeyboardCoordinator: NSObject {
         input.delegate = self
         view.grid.delegate = self
         view.emojiDelegate = self
+        view.clipboardDelegate = self
+        view.suggestionBar.onActions = { [weak self] in
+            guard let self else { return }
+            self.feedback.functionTap()
+            self.toggleActionMenu()
+        }
         view.suggestionBar.onSelect = { [weak self] s in self?.input.accept(s) }
         view.suggestionBar.onDismiss = { [weak self] in
             guard let self else { return }
@@ -88,6 +101,91 @@ final class KeyboardCoordinator: NSObject {
         input.forgetDocument()
         // The app may have switched the current language off meanwhile.
         select(language: settings.currentLanguage)
+        view.isActionMenuVisible = false
+        if !settings.clipboardHistory, view.isClipboardVisible { view.isClipboardVisible = false }
+        pasteboardMayHaveChanged()
+    }
+
+    /// The host reported an edit (or the keyboard appeared): a copy may have happened meanwhile.
+    /// Cheap unless the pasteboard's change count moved; at most one check every two seconds.
+    func pasteboardMayHaveChanged() {
+        guard hasFullAccess, settings.clipboardHistory else { return }
+        clipboard.prune()
+        if clipboard.captureIfChanged(minimumInterval: 2) != nil || view.isClipboardVisible {
+            refreshClipboardPanel()
+        }
+    }
+
+    // MARK: Actions
+
+    /// The rows of the "⋯" menu for the current state.
+    var availableActions: [KeyboardAction] {
+        var actions: [KeyboardAction] = []
+        if settings.clipboardHistory {
+            actions.append(KeyboardAction(kind: .clipboard, title: "Zwischenablage", symbol: "doc.on.clipboard"))
+        }
+        actions.append(KeyboardAction(kind: .emoji, title: "Emoji", symbol: "face.smiling"))
+        if settings.hasMultipleLanguages {
+            let next = settings.nextLanguage(after: language)
+            actions.append(KeyboardAction(kind: .language, title: "Sprache: \(next.title)", symbol: "globe"))
+        }
+        actions.append(KeyboardAction(kind: .dismiss, title: "Tastatur ausblenden", symbol: "keyboard.chevron.compact.down"))
+        return actions
+    }
+
+    func toggleActionMenu() {
+        if view.isActionMenuVisible {
+            view.isActionMenuVisible = false
+            return
+        }
+        view.grid.cancelAllTouches()
+        view.isActionMenuVisible = true
+        guard let menu = view.actionMenu else { return }
+        menu.set(actions: availableActions)
+        menu.onSelect = { [weak self] action in self?.perform(action) }
+        menu.onClose = { [weak self] in self?.view.isActionMenuVisible = false }
+    }
+
+    func perform(_ action: KeyboardAction) {
+        view.isActionMenuVisible = false
+        feedback.keyTap()
+        switch action.kind {
+        case .clipboard: showClipboard()
+        case .emoji: view.isEmojiVisible = true
+        case .language: switchToNextLanguage()
+        case .dismiss: onDismiss?()
+        }
+    }
+
+    // MARK: Clipboard
+
+    func showClipboard() {
+        view.grid.cancelAllTouches()
+        view.isClipboardVisible = true
+        if hasFullAccess { clipboard.prune(); clipboard.captureIfChanged() }
+        refreshClipboardPanel()
+        view.clipboardPanel?.scrollToTop()
+    }
+
+    private func refreshClipboardPanel() {
+        guard let panel = view.clipboardPanel, view.isClipboardVisible else { return }
+        panel.thumbnailProvider = { [weak self] item in self?.thumbnail(for: item) }
+        if !hasFullAccess {
+            panel.notice = "Damit die Tastatur die Zwischenablage lesen kann, erlaube „Vollen Zugriff“ in den iOS-Einstellungen unter Tastaturen › Umlaut."
+        } else if !settings.clipboardHistory {
+            panel.notice = "Der Zwischenablage-Verlauf ist in den Einstellungen der Umlaut-App ausgeschaltet."
+        } else {
+            panel.notice = nil
+        }
+        panel.set(items: clipboard.history.items)
+    }
+
+    private func thumbnail(for item: ClipboardItem) -> UIImage? {
+        let key = item.id as NSUUID
+        if let cached = thumbnails.object(forKey: key) { return cached }
+        guard let data = clipboard.history.thumbnailData(for: item), let image = UIImage(data: data) else { return nil }
+        thumbnails.setObject(image, forKey: key)
+        return image
     }
 
     // MARK: Languages
@@ -203,6 +301,7 @@ extension KeyboardCoordinator: InputControllerDelegate {
         // Reached from a hold on the comma key with the finger still down: the grid is about to be
         // hidden, so end its touches here rather than waiting for a lift it may never see.
         view.grid.cancelAllTouches()
+        view.isActionMenuVisible = false
         view.isEmojiVisible = true
     }
     func inputControllerRequestsDismiss(_ c: InputController) { onDismiss?() }
@@ -250,6 +349,45 @@ extension KeyboardCoordinator: EmojiPanelDelegate {
 
     func emojiPanelDidTapLetters(_ panel: EmojiPanelView) {
         view.isEmojiVisible = false
+        input.refresh()
+    }
+}
+
+// MARK: - ClipboardPanelDelegate
+
+extension KeyboardCoordinator: ClipboardPanelDelegate {
+    /// Text is typed into the document; an image goes back on the pasteboard, from where the
+    /// system's Paste command inserts it (a keyboard cannot insert images itself).
+    func clipboardPanel(_ panel: ClipboardPanelView, didPick item: ClipboardItem) {
+        feedback.keyTap()
+        switch item.kind {
+        case .text:
+            guard let text = item.text else { return }
+            input.insertFromPanel(text)
+            view.isClipboardVisible = false
+            input.refresh()
+        case .image:
+            clipboard.copyToPasteboard(item)
+            panel.showHint("Bild in die Zwischenablage gelegt – halte das Textfeld und wähle „Einfügen“.")
+        }
+    }
+
+    func clipboardPanel(_ panel: ClipboardPanelView, didDelete item: ClipboardItem) {
+        feedback.deleteTap()
+        clipboard.history.remove(id: item.id)
+        thumbnails.removeObject(forKey: item.id as NSUUID)
+        refreshClipboardPanel()
+    }
+
+    func clipboardPanelDidTapClear(_ panel: ClipboardPanelView) {
+        feedback.deleteTap()
+        clipboard.history.removeAll()
+        thumbnails.removeAllObjects()
+        refreshClipboardPanel()
+    }
+
+    func clipboardPanelDidTapLetters(_ panel: ClipboardPanelView) {
+        view.isClipboardVisible = false
         input.refresh()
     }
 }

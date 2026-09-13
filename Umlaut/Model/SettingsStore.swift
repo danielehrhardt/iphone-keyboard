@@ -62,6 +62,12 @@ final class SettingsStore: ObservableObject {
         enabledLanguages = languages
     }
 
+    // MARK: Zwischenablage
+
+    /// The keyboard keeps what was copied and offers it again from its action menu.
+    @Published var clipboardHistory = true { didSet { write { settings.clipboardHistory = clipboardHistory } } }
+    @Published var clipboardRetention: ClipboardRetention = .day { didSet { write { settings.clipboardRetention = clipboardRetention } } }
+
     // MARK: Feedback
 
     @Published var keyPreview = true { didSet { write { settings.keyPreview = keyPreview } } }
@@ -106,6 +112,8 @@ final class SettingsStore: ObservableObject {
         enabledLanguages = settings.enabledLanguages
         currentLanguage = settings.currentLanguage
         germanUmlautKeys = settings.germanUmlautKeys
+        clipboardHistory = settings.clipboardHistory
+        clipboardRetention = settings.clipboardRetention
         keyPreview = settings.keyPreview
         swipeTrail = settings.swipeTrail
         haptics = settings.haptics

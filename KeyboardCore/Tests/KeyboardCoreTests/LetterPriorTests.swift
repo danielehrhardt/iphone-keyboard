@@ -210,16 +210,29 @@ final class LetterPriorTests: XCTestCase {
         XCTAssertEqual(qwerty.keyFrame(at: intoE)?.key.label, "e")
         XCTAssertEqual(qwerty.keyFrame(at: intoE, prior: prior)?.key.label, "w")
         XCTAssertEqual(qwerty.keyFrame(at: intoE, prior: prior, offsets: .neutral)?.key.label, "w")
-        // The word is not done: the space bar cannot be what the user means yet, and a tap on
-        // its top edge below b ("knob") still types b … 
+        // A tap well inside the space bar is a space, whatever the prior.
         let space = qwerty.keyFrames.first { $0.key.action == .space }!, b = qwerty.keyFrames.first { $0.key.character == "b" }!
-        let topOfSpace = touch(CGPoint(x: b.center.x, y: space.frame.minY + 2))
-        XCTAssertEqual(qwerty.keyFrame(at: topOfSpace)?.key.id, "space")
-        XCTAssertEqual(qwerty.keyFrame(at: topOfSpace, prior: prior)?.key.label, "b")
-        // … while a tap well inside the space bar is a space, whatever the prior.
         let insideSpace = touch(CGPoint(x: b.center.x, y: space.frame.minY + space.frame.height * 0.35))
         XCTAssertEqual(qwerty.keyFrame(at: insideSpace, prior: prior)?.key.id, "space")
         XCTAssertEqual(w.key.label, "w")
+    }
+
+    /// While the word clearly goes on ("kön" → "können"), the likely bottom-row letter reaches
+    /// over the top edge of the space bar; a space is still what a tap further down means.
+    func testUnfinishedWordLetsTheLetterReachOverTheSpaceBar() throws {
+        let koen = try XCTUnwrap(predictor.letterPrior(prefix: "kön", previous: nil))
+        XCTAssertEqual(koen.mostLikely, "n")
+        XCTAssertEqual(koen.endProbability, LetterPrior.endProbabilityRange.lowerBound)
+        let space = geometry.keyFrame(for: GermanLayouts.space)!, n = frame("n")
+        let topOfSpace = touch(CGPoint(x: n.center.x, y: space.frame.minY + 2))
+        XCTAssertEqual(geometry.keyFrame(at: topOfSpace)?.key.id, "space")
+        XCTAssertEqual(geometry.keyFrame(at: topOfSpace, prior: koen)?.key.label, "n")
+        let lowerInSpace = touch(CGPoint(x: n.center.x, y: space.frame.minY + space.frame.height * 0.35))
+        XCTAssertEqual(geometry.keyFrame(at: lowerInSpace, prior: koen)?.key.id, "space")
+        // An unlikely bottom-row letter (b) gets nothing from the bar.
+        let b = frame("b")
+        XCTAssertTrue(space.frame.minX < b.center.x && b.center.x < space.frame.maxX)
+        XCTAssertEqual(geometry.keyFrame(at: touch(CGPoint(x: b.center.x, y: space.frame.minY + 2)), prior: koen)?.key.id, "space")
     }
 
     /// Once the word is complete the space bar grows upward: a tap on the bottom edge of n or m
@@ -227,8 +240,9 @@ final class LetterPriorTests: XCTestCase {
     func testFinishedWordGrowsTheSpaceBar() throws {
         let hallo = try XCTUnwrap(predictor.letterPrior(prefix: "Hallo", previous: nil))
         let space = geometry.keyFrame(for: GermanLayouts.space)!
-        let n = frame("n"), m = frame("m")
-        for key in [n, m] {
+        let n = frame("n"), b = frame("b")
+        for key in [n, b] {
+            XCTAssertTrue(space.frame.minX < key.center.x && key.center.x < space.frame.maxX, "\(key.key.label) sits above the bar")
             let bottomEdge = touch(CGPoint(x: key.center.x, y: key.frame.maxY - 2))
             XCTAssertEqual(geometry.keyFrame(at: bottomEdge)?.key.id, key.key.id)
             XCTAssertEqual(geometry.keyFrame(at: bottomEdge, prior: hallo)?.key.id, "space")

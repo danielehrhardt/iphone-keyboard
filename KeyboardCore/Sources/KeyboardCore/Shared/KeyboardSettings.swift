@@ -105,6 +105,13 @@ public final class KeyboardSettings: @unchecked Sendable {
         static let justinMode = "justinMode"
         static let onboardingDone = "onboardingDone"
         static let germanUmlautKeys = "germanUmlautKeys"
+        static let aiEnabled = "aiEnabled"
+        static let aiDefaultModel = "aiDefaultModel"
+        static let aiFeatureModelPrefix = "aiModel."
+        static let aiAutocorrect = "aiAutocorrect"
+        static let aiSuggestions = "aiSuggestions"
+        static let aiRewriteTone = "aiRewriteTone"
+        static let aiTranslationTarget = "aiTranslationTarget"
         static let clipboardHistory = "clipboardHistory"
         static let clipboardRetention = "clipboardRetention"
         static let clipboardChangeCount = "clipboardChangeCount"
@@ -163,6 +170,47 @@ public final class KeyboardSettings: @unchecked Sendable {
     public var keySize: KeySize {
         get { KeySize(rawValue: defaults.string(forKey: Keys.keySize) ?? "") ?? .regular }
         set { defaults.set(newValue.rawValue, forKey: Keys.keySize) }
+    }
+
+    // MARK: AI
+
+    /// Master switch for the assistant: the AI button in the strip and the passive features.
+    public var aiEnabled: Bool { get { defaults.bool(forKey: Keys.aiEnabled) } set { defaults.set(newValue, forKey: Keys.aiEnabled) } }
+    /// Every finished sentence is checked in the background; a correction appears in the strip.
+    public var aiAutocorrect: Bool { get { defaults.bool(forKey: Keys.aiAutocorrect) } set { defaults.set(newValue, forKey: Keys.aiAutocorrect) } }
+    /// After a pause at a word boundary the strip offers AI continuations.
+    public var aiSuggestions: Bool { get { defaults.bool(forKey: Keys.aiSuggestions) } set { defaults.set(newValue, forKey: Keys.aiSuggestions) } }
+
+    /// The model used by every feature without an override of its own.
+    public var aiDefaultModel: AIModel? {
+        get { defaults.string(forKey: Keys.aiDefaultModel).flatMap(AIModel.init(id:)) }
+        set { defaults.set(newValue?.id, forKey: Keys.aiDefaultModel) }
+    }
+
+    /// A feature's own model, or nil while it follows the default.
+    public func aiModelOverride(for feature: AIFeature) -> AIModel? {
+        defaults.string(forKey: Keys.aiFeatureModelPrefix + feature.rawValue).flatMap(AIModel.init(id:))
+    }
+
+    public func setAIModelOverride(_ model: AIModel?, for feature: AIFeature) {
+        defaults.set(model?.id, forKey: Keys.aiFeatureModelPrefix + feature.rawValue)
+    }
+
+    /// The model a feature runs on: its override, else the default.
+    public func aiModel(for feature: AIFeature) -> AIModel? {
+        aiModelOverride(for: feature) ?? aiDefaultModel
+    }
+
+    /// Last tone picked in the panel, so the next rewrite starts from it.
+    public var aiRewriteTone: AIRewriteTone {
+        get { AIRewriteTone(rawValue: defaults.string(forKey: Keys.aiRewriteTone) ?? "") ?? .neutral }
+        set { defaults.set(newValue.rawValue, forKey: Keys.aiRewriteTone) }
+    }
+
+    /// Last translation target, or the natural one for the typing language.
+    public var aiTranslationTarget: AITranslationTarget {
+        get { AITranslationTarget(rawValue: defaults.string(forKey: Keys.aiTranslationTarget) ?? "") ?? .suggested(for: currentLanguage) }
+        set { defaults.set(newValue.rawValue, forKey: Keys.aiTranslationTarget) }
     }
 
     // MARK: Languages

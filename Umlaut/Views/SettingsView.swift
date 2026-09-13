@@ -129,6 +129,26 @@ struct SettingsView: View {
             }
 
             Section {
+                Toggle("Zwischenablage merken", isOn: $settings.clipboardHistory)
+                    .accessibilityIdentifier("clipboard-history")
+                Picker("Aufbewahren", selection: $settings.clipboardRetention) {
+                    ForEach(ClipboardRetention.allCases) { retention in
+                        Text(retention.title).tag(retention)
+                    }
+                }
+                .disabled(!settings.clipboardHistory)
+                NavigationLink {
+                    ClipboardHistoryView()
+                } label: {
+                    Label("Verlauf", systemImage: "doc.on.clipboard")
+                }
+            } header: {
+                Text("Zwischenablage")
+            } footer: {
+                Text("Kopierte Texte und Bilder erscheinen in der Tastatur hinter der „⋯“-Taste und lassen sich dort wieder einfügen. Bilder legt die Tastatur zurück in die Zwischenablage; eingefügt werden sie wie gewohnt über „Einfügen“. Der Verlauf bleibt auf dem iPhone und wird nach der gewählten Zeit gelöscht. iOS fragt beim ersten Mal, ob Umlaut aus anderen Apps einfügen darf – unter Einstellungen › Umlaut › „Einfügen aus anderen Apps“ lässt sich das dauerhaft erlauben.")
+            }
+
+            Section {
                 Toggle("Tippverhalten lernen", isOn: $settings.adaptiveTapMap)
                 NavigationLink {
                     TapMapView()

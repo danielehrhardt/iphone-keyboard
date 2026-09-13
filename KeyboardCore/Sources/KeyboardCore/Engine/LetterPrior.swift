@@ -21,7 +21,8 @@ public struct LetterPrior: Equatable, Sendable {
     public static let endProbabilityRange: ClosedRange<Float> = 0.05...0.95
 
     /// nil when `weights` carry no mass (nothing in the dictionary continues the prefix).
-    public init?(weights: [Float], endProbability: Float = 0) {
+    /// `endProbability` nil = unknown (no word typed yet); any estimate is held in the band.
+    public init?(weights: [Float], endProbability: Float? = nil) {
         precondition(weights.count == KeyAlphabet.count)
         let clamped = weights.map { $0.isFinite ? max($0, 0) : 0 }
         let total = clamped.reduce(0, +)
@@ -29,7 +30,8 @@ public struct LetterPrior: Equatable, Sendable {
         let floor = total * Self.smoothing
         let norm = total * (1 + Self.smoothing * Float(KeyAlphabet.count))
         probabilities = clamped.map { ($0 + floor) / norm }
-        self.endProbability = endProbability > 0 ? min(max(endProbability, Self.endProbabilityRange.lowerBound), Self.endProbabilityRange.upperBound) : 0
+        let band = Self.endProbabilityRange
+        self.endProbability = endProbability.map { min(max($0, band.lowerBound), band.upperBound) } ?? 0
     }
 
     /// Every letter equally likely, end of word unknown: the hit test then reduces to distance alone.
@@ -138,7 +140,7 @@ extension Predictor {
         if hasBigram {
             for i in mixed.indices { mixed[i] = (1 - Self.bigramWeight) * unigram[i] + Self.bigramWeight * bigram[i] }
         }
-        let endProbability = wordMass > 0 ? wordMass / (wordMass + continuationMass) : 0
+        let endProbability: Float? = prefix.isEmpty ? nil : wordMass / max(wordMass + continuationMass, .leastNonzeroMagnitude)
         if wordMass > 0, !mixed.contains(where: { $0 > 0 }) {
             // A word nothing continues ("Straße" is not one, but names are): the letters are
             // all equally unlikely and the space bar is what grows.
