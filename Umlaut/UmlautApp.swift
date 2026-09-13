@@ -1,6 +1,5 @@
 import SwiftUI
 import KeyboardCore
-import KeyboardCore
 
 @main
 struct UmlautApp: App {
@@ -59,6 +58,10 @@ struct RootView: View {
             if settings.keyboardEnabled && !settings.onboardingDone {
                 settings.onboardingDone = true
             }
+        }
+        // The keyboard's "hold . → gear" opens the app on the settings tab.
+        .onOpenURL { url in
+            if AppURL.isSettings(url) { selection = .settings }
         }
     }
 }

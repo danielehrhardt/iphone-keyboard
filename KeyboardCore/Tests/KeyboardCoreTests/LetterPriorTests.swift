@@ -30,6 +30,26 @@ final class LetterPriorTests: XCTestCase {
                              cold.probability(of: "h") + cold.probability(of: "b"))
     }
 
+    func testEndOfWordProbabilityFollowsTheDictionary() throws {
+        // "Hallo" is a word and a prefix of a few rare ones: it is most likely finished.
+        let hallo = try XCTUnwrap(predictor.letterPrior(prefix: "Hallo", previous: nil))
+        XCTAssertGreaterThan(hallo.endProbability, 0.5)
+        // "Hall" is a word too, but "Hallo", "Halle" … carry far more mass: probably not finished.
+        let hall = try XCTUnwrap(predictor.letterPrior(prefix: "Hall", previous: nil))
+        XCTAssertLessThan(hall.endProbability, hallo.endProbability)
+        // "Hal" is no word: the floor keeps a space possible (abbreviations), no more.
+        let hal = try XCTUnwrap(predictor.letterPrior(prefix: "Hal", previous: nil))
+        XCTAssertEqual(hal.endProbability, LetterPrior.endProbabilityRange.lowerBound)
+        // At the start of a word the space bar is left alone.
+        let start = try XCTUnwrap(predictor.letterPrior(prefix: "", previous: "ich"))
+        XCTAssertEqual(start.endProbability, 0)
+        XCTAssertEqual(start.logEndProbability, -.infinity)
+        // The letter probabilities stay conditional on the word going on.
+        XCTAssertEqual(hallo.probabilities.reduce(0, +), 1, accuracy: 0.001)
+        XCTAssertEqual(hallo.logProbability(code: KeyAlphabet.code(for: "s")!),
+                       log(1 - hallo.endProbability) + log(hallo.probability(of: "s")), accuracy: 0.0001)
+    }
+
     func testPriorIsNilForUnknownPrefix() {
         XCTAssertNil(predictor.letterPrior(prefix: "xqzv", previous: nil))
     }
@@ -176,6 +196,51 @@ final class LetterPriorTests: XCTestCase {
         let space = geometry.keyFrame(for: GermanLayouts.space)!
         let topOfSpace = touch(CGPoint(x: frame("b").center.x, y: space.frame.minY + 3))
         XCTAssertEqual(geometry.keyFrame(at: topOfSpace, prior: prior(favouring: "b"))?.key.id, "space")
+    }
+
+    /// The textbook example: after "kno" the w of "know" is far likelier than q or e, so a tap
+    /// that lands on e's edge (or in the gap) types w. Checked with the English dictionary.
+    func testKnoMakesWTheBigKey() throws {
+        let english = Predictor(lexicon: try Lexicon.loadBundled(language: .english))
+        let prior = try XCTUnwrap(english.letterPrior(prefix: "kno", previous: nil))
+        XCTAssertEqual(prior.mostLikely, "w")
+        let qwerty = KeyboardGeometry(layout: EnglishLayouts.letters(), size: CGSize(width: 390, height: 216))
+        let w = qwerty.keyFrames.first { $0.key.character == "w" }!, e = qwerty.keyFrames.first { $0.key.character == "e" }!
+        let intoE = touch(CGPoint(x: e.frame.minX + e.frame.width * 0.2, y: e.frame.midY))
+        XCTAssertEqual(qwerty.keyFrame(at: intoE)?.key.label, "e")
+        XCTAssertEqual(qwerty.keyFrame(at: intoE, prior: prior)?.key.label, "w")
+        XCTAssertEqual(qwerty.keyFrame(at: intoE, prior: prior, offsets: .neutral)?.key.label, "w")
+        // The word is not done: the space bar cannot be what the user means yet, and a tap on
+        // its top edge below b ("knob") still types b … 
+        let space = qwerty.keyFrames.first { $0.key.action == .space }!, b = qwerty.keyFrames.first { $0.key.character == "b" }!
+        let topOfSpace = touch(CGPoint(x: b.center.x, y: space.frame.minY + 2))
+        XCTAssertEqual(qwerty.keyFrame(at: topOfSpace)?.key.id, "space")
+        XCTAssertEqual(qwerty.keyFrame(at: topOfSpace, prior: prior)?.key.label, "b")
+        // … while a tap well inside the space bar is a space, whatever the prior.
+        let insideSpace = touch(CGPoint(x: b.center.x, y: space.frame.minY + space.frame.height * 0.35))
+        XCTAssertEqual(qwerty.keyFrame(at: insideSpace, prior: prior)?.key.id, "space")
+        XCTAssertEqual(w.key.label, "w")
+    }
+
+    /// Once the word is complete the space bar grows upward: a tap on the bottom edge of n or m
+    /// after "Hallo" is the space that ends it.
+    func testFinishedWordGrowsTheSpaceBar() throws {
+        let hallo = try XCTUnwrap(predictor.letterPrior(prefix: "Hallo", previous: nil))
+        let space = geometry.keyFrame(for: GermanLayouts.space)!
+        let n = frame("n"), m = frame("m")
+        for key in [n, m] {
+            let bottomEdge = touch(CGPoint(x: key.center.x, y: key.frame.maxY - 2))
+            XCTAssertEqual(geometry.keyFrame(at: bottomEdge)?.key.id, key.key.id)
+            XCTAssertEqual(geometry.keyFrame(at: bottomEdge, prior: hallo)?.key.id, "space")
+            XCTAssertEqual(geometry.keyFrame(at: bottomEdge, prior: hallo, offsets: .neutral)?.key.id, "space")
+            // The centre of the key is still the letter ("Hallos").
+            XCTAssertEqual(geometry.keyFrame(at: touch(key.center), prior: hallo)?.key.id, key.key.id)
+        }
+        // Space itself is unaffected away from the letters.
+        XCTAssertEqual(geometry.keyFrame(at: touch(space.center), prior: hallo)?.key.id, "space")
+        // The bottom row's function keys are not stolen from.
+        let backspace = geometry.keyFrame(for: GermanLayouts.backspace)!
+        XCTAssertEqual(geometry.keyFrame(at: touch(CGPoint(x: backspace.center.x, y: backspace.frame.maxY - 1)), prior: hallo)?.key.id, "backspace")
     }
 
     func testSymbolsLayerUsesPlainHitTest() {

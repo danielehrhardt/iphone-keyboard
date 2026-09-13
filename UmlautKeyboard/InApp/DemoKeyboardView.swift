@@ -35,6 +35,8 @@ final class DemoKeyboardView: UIInputView {
         overrideUserInterfaceStyle = KeyboardTheme.interfaceStyle(for: settings)
         coordinator.needsGlobeKey = false
         coordinator.onDismiss = { [weak textView] in textView?.resignFirstResponder() }
+        // Same route as the extension takes: the app handles its own URL and shows the settings tab.
+        coordinator.onOpenSettings = { UIApplication.shared.open(AppURL.settings) }
         var traits = FieldTraits()
         traits.returnKeyType = textView.returnKeyType
         traits.autocapitalization = textView.autocapitalizationType

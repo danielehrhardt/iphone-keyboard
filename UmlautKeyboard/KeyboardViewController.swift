@@ -32,6 +32,7 @@ final class KeyboardViewController: UIInputViewController {
             if let event { self.handleInputModeList(from: from, with: event) }
         }
         coordinator.onDismiss = { [weak self] in self?.dismissKeyboard() }
+        coordinator.onOpenSettings = { [weak self] in self?.openApp(AppURL.settings) }
         coordinator.engineProvider = { language, completion in Self.loadEngine(language: language, completion) }
 
         // Transparent: the system draws its keyboard material (Liquid Glass on iOS 26) behind us,
@@ -101,6 +102,25 @@ final class KeyboardViewController: UIInputViewController {
         coordinator.needsGlobeKey = needsInputModeSwitchKey
         coordinator.setFieldTraits(FieldTraits(proxy: textDocumentProxy))
         coordinator.input.textDidChangeExternally()
+    }
+
+    // MARK: Opening the app
+
+    /// Opens one of the app's URLs from the extension. `UIApplication` is off limits here, but
+    /// it still sits at the end of the responder chain, and `open(_:options:completionHandler:)`
+    /// invoked on it that way is what lets a keyboard hand the user over to its app.
+    private func openApp(_ url: URL) {
+        let selector = NSSelectorFromString("openURL:options:completionHandler:")
+        var responder: UIResponder? = self
+        while let r = responder {
+            if r.responds(to: selector), let method = class_getInstanceMethod(type(of: r), selector) {
+                typealias Open = @convention(c) (AnyObject, Selector, URL, NSDictionary, AnyObject?) -> Void
+                unsafeBitCast(method_getImplementation(method), to: Open.self)(r, selector, url, [:], nil)
+                return
+            }
+            responder = r.next
+        }
+        log.error("no responder can open \(url.absoluteString, privacy: .public)")
     }
 
     // MARK: Engine

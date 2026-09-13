@@ -338,7 +338,8 @@ extension KeyboardGeometry {
     /// its personal centre (geometric centre plus learned shift) instead of the printed one, and
     /// the next-letter `prior`, when given, tilts the decision as in `keyFrame(at:prior:)`.
     /// With neutral offsets this is that hit test; without offsets it falls back to it entirely.
-    /// Function keys are never affected: a touch in their hit box is theirs, whatever the map says.
+    /// Function keys are never affected (the space bar only through the prior's end-of-word
+    /// estimate): a touch in their hit box is theirs, whatever the map says.
     public func keyFrame(at touch: CGPoint, prior: LetterPrior?, offsets: TapMap.Offsets?) -> KeyFrame? {
         guard let offsets, layout.layer == .letters else { return keyFrame(at: touch, prior: prior) }
         let pitchX = unitWidth + horizontalGap, pitchY = rowHeight + verticalGap

@@ -15,6 +15,8 @@ final class KeyboardCoordinator: NSObject {
     /// Raw touch events from the globe key (extension wires this to `handleInputModeList`).
     var onGlobeEvent: ((UIView, UIEvent?) -> Void)?
     var onDismiss: (() -> Void)?
+    /// The gear in the period key's hold bubble was picked: open the app's settings.
+    var onOpenSettings: (() -> Void)?
     /// Asked for the engine of a language whenever the keyboard switches to it (the extension
     /// loads lexicons lazily and keeps only the active one; the demo keyboard caches them).
     /// Called back on the main queue, with nil when the lexicon is missing.
@@ -230,6 +232,7 @@ extension KeyboardCoordinator: KeyGridDelegate {
     func keyGrid(_ grid: KeyGridView, moveCursorBy offset: Int) { input.moveCursor(by: offset) }
     func keyGridDidDoubleTapShift(_ grid: KeyGridView) { input.lockShift() }
     func keyGrid(_ grid: KeyGridView, didShiftSlideTo key: Key) { input.shiftSlide(to: key) }
+    func keyGridDidRequestSettings(_ grid: KeyGridView) { onOpenSettings?() }
 }
 
 // MARK: - EmojiPanelDelegate
