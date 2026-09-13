@@ -17,6 +17,11 @@ final class KeyPopupView: UIView {
     private var bubbleRect: CGRect = .zero
     private var isShowing = false
 
+    /// Option that is drawn as a gear instead of text (the settings entry on the period key).
+    /// A private-use character, so it can never collide with something a key types.
+    static let settingsOption = "\u{E000}settings"
+    private static let settingsImage = UIImage(systemName: "gearshape")
+
     /// Corner radius of the bubble.
     private static let bubbleRadius: CGFloat = 11
     /// How far the shoulders flare out from the stem into the bubble's bottom edge.
@@ -169,8 +174,8 @@ final class KeyPopupView: UIView {
         }
         let font = UIFont.systemFont(ofSize: fontSize, weight: .regular)
         for (l, text) in zip(labels, options) {
-            l.text = text
             if l.font != font { l.font = font }
+            if text != Self.settingsOption { l.text = text }
         }
         updateHighlights()
     }
@@ -178,9 +183,22 @@ final class KeyPopupView: UIView {
     private func updateHighlights() {
         for (i, l) in labels.enumerated() {
             let selected = isExpanded && i == selectedIndex
+            let color = selected ? theme.onAccent : theme.keyText
             l.backgroundColor = selected ? theme.accent : .clear
-            l.textColor = selected ? theme.onAccent : theme.keyText
+            l.textColor = color
+            if options[i] == Self.settingsOption { l.attributedText = Self.gear(color: color, font: l.font) }
         }
+    }
+
+    /// The gear as an inline image, sized and coloured like the text options around it.
+    private static func gear(color: UIColor, font: UIFont) -> NSAttributedString {
+        let attachment = NSTextAttachment()
+        let config = UIImage.SymbolConfiguration(pointSize: font.pointSize * 0.85, weight: .regular)
+        attachment.image = settingsImage?.withConfiguration(config).withTintColor(color, renderingMode: .alwaysOriginal)
+        if let size = attachment.image?.size {
+            attachment.bounds = CGRect(x: 0, y: (font.capHeight - size.height) / 2, width: size.width, height: size.height)
+        }
+        return NSAttributedString(attachment: attachment)
     }
 
     private func layoutBubble() {

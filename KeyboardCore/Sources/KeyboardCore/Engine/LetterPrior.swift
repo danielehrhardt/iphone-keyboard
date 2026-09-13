@@ -1,17 +1,27 @@
 import Foundation
 
-/// How likely each letter is to be typed next, indexed by `KeyAlphabet` code. Drives the dynamic
-/// hit-target resizing of letter keys: likely keys own a larger share of their surroundings.
+/// How likely each letter is to be typed next, indexed by `KeyAlphabet` code, and how likely the
+/// word is to end here instead. Drives the dynamic hit-target resizing (next-letter prediction
+/// changes the invisible touch areas, never the drawn keys): likely keys own a larger share of
+/// their surroundings, and the space bar grows towards the bottom row once the word looks done.
 public struct LetterPrior: Equatable, Sendable {
-    /// Probabilities per letter code, smoothed so no letter is impossible; sums to 1.
+    /// Probabilities per letter code given that the word continues, smoothed so no letter is
+    /// impossible; sums to 1.
     public let probabilities: [Float]
+    /// Probability that the next tap ends the word (the space bar) rather than adding a letter.
+    /// 0 when nothing is known (start of a word): the space bar then keeps its plain hit box, in
+    /// both directions.
+    public let endProbability: Float
 
     /// Fraction of the mass spread evenly over all letters, so a dead-centre tap on an
     /// "unexpected" key still wins and a single dominant letter cannot swallow its neighbours.
     public static let smoothing: Float = 0.01
+    /// The end-of-word estimate never leaves this band once it is known: a prefix that is not a
+    /// word may still be an abbreviation followed by a space, and a word may still go on.
+    public static let endProbabilityRange: ClosedRange<Float> = 0.05...0.95
 
     /// nil when `weights` carry no mass (nothing in the dictionary continues the prefix).
-    public init?(weights: [Float]) {
+    public init?(weights: [Float], endProbability: Float = 0) {
         precondition(weights.count == KeyAlphabet.count)
         let clamped = weights.map { $0.isFinite ? max($0, 0) : 0 }
         let total = clamped.reduce(0, +)
@@ -19,17 +29,25 @@ public struct LetterPrior: Equatable, Sendable {
         let floor = total * Self.smoothing
         let norm = total * (1 + Self.smoothing * Float(KeyAlphabet.count))
         probabilities = clamped.map { ($0 + floor) / norm }
+        self.endProbability = endProbability > 0 ? min(max(endProbability, Self.endProbabilityRange.lowerBound), Self.endProbabilityRange.upperBound) : 0
     }
+
+    /// Every letter equally likely, end of word unknown: the hit test then reduces to distance alone.
+    public static let flat = LetterPrior(weights: [Float](repeating: 1, count: KeyAlphabet.count))!
 
     public func probability(of character: Character) -> Float {
         guard let code = KeyAlphabet.code(for: character) else { return 0 }
         return probabilities[Int(code)]
     }
 
+    /// log P(next tap is this letter) = log P(word continues) + log P(letter | continues).
     public func logProbability(code: UInt8) -> Float {
         guard Int(code) < probabilities.count else { return log(Self.smoothing) }
-        return log(probabilities[Int(code)])
+        return log(1 - endProbability) + log(probabilities[Int(code)])
     }
+
+    /// log P(next tap is the space bar); -inf while the end of the word is unknown.
+    public var logEndProbability: Float { endProbability > 0 ? log(endProbability) : -.infinity }
 
     public var mostLikely: Character {
         let i = probabilities.indices.max { probabilities[$0] < probabilities[$1] } ?? 0
@@ -76,13 +94,20 @@ extension Predictor {
     static let bigramWeight: Float = 0.65
 
     /// The next-letter distribution after `prefix` (the word being typed, may be empty) given the
-    /// previous word. Combines dictionary completions weighted by frequency, the bigram successors
-    /// of `previous` and the personal dictionary. nil when nothing is known about the prefix.
+    /// previous word, plus the chance that the word ends here. Combines dictionary completions
+    /// weighted by frequency, the bigram successors of `previous` and the personal dictionary.
+    /// nil when nothing is known about the prefix.
     public func letterPrior(prefix: String, previous: String?) -> LetterPrior? {
         var unigram = [Float](repeating: 0, count: KeyAlphabet.count)
         var bigram = [Float](repeating: 0, count: KeyAlphabet.count)
-        _ = lexicon.addNextLetterWeights(prefix: prefix, to: &unigram)
+        var continuationMass = lexicon.addNextLetterWeights(prefix: prefix, to: &unigram)
         let lowerPrefix = prefix.lowercased()
+        // P(end | prefix) = P(word == prefix) / P(word starts with prefix), from the same counts.
+        var wordMass: Float = 0
+        if !prefix.isEmpty {
+            if let id = lexicon.id(caseInsensitive: prefix) { wordMass += exp(lexicon.logProb[Int(id)]) }
+            if let user, user.isLearned(prefix), let boost = user.unigramLogBoost(prefix) { wordMass += exp(boost) }
+        }
 
         func add(_ word: String, weight: Float, to weights: inout [Float]) {
             let lower = word.lowercased()
@@ -93,8 +118,10 @@ extension Predictor {
         }
 
         if let user {
-            for w in user.completions(prefix: prefix, limit: 20) {
-                add(w, weight: exp(user.unigramLogBoost(w) ?? lexicon.minLogProb), to: &unigram)
+            for w in user.completions(prefix: prefix, limit: 20) where w.lowercased() != lowerPrefix {
+                let weight = exp(user.unigramLogBoost(w) ?? lexicon.minLogProb)
+                add(w, weight: weight, to: &unigram)
+                continuationMass += weight
             }
         }
         if let previous, !previous.isEmpty {
@@ -111,6 +138,12 @@ extension Predictor {
         if hasBigram {
             for i in mixed.indices { mixed[i] = (1 - Self.bigramWeight) * unigram[i] + Self.bigramWeight * bigram[i] }
         }
-        return LetterPrior(weights: mixed)
+        let endProbability = wordMass > 0 ? wordMass / (wordMass + continuationMass) : 0
+        if wordMass > 0, !mixed.contains(where: { $0 > 0 }) {
+            // A word nothing continues ("Straße" is not one, but names are): the letters are
+            // all equally unlikely and the space bar is what grows.
+            mixed = [Float](repeating: 1, count: KeyAlphabet.count)
+        }
+        return LetterPrior(weights: mixed, endProbability: endProbability)
     }
 }

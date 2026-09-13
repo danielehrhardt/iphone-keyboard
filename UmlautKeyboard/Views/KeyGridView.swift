@@ -19,6 +19,9 @@ protocol KeyGridDelegate: AnyObject {
     func keyGrid(_ grid: KeyGridView, didShiftSlideTo key: Key)
     /// Raw touch events on the globe key, forwarded to `handleInputModeList(from:with:)`.
     func keyGrid(_ grid: KeyGridView, globeTouchEvent event: UIEvent?)
+    /// The gear at the end of the period key's hold bubble was picked: open the app's settings.
+    /// Defaults to doing nothing.
+    func keyGridDidRequestSettings(_ grid: KeyGridView)
     var swipeTypingEnabled: Bool { get }
     var keyPreviewEnabled: Bool { get }
     var swipeTrailEnabled: Bool { get }
@@ -27,6 +30,7 @@ protocol KeyGridDelegate: AnyObject {
 
 extension KeyGridDelegate {
     func keyGrid(_ grid: KeyGridView, didTap key: Key, at point: CGPoint) { keyGrid(grid, didTap: key) }
+    func keyGridDidRequestSettings(_ grid: KeyGridView) {}
 }
 
 /// The key area: renders `KeyView`s from a `KeyboardGeometry` and turns raw touches into taps,
@@ -54,6 +58,8 @@ final class KeyGridView: UIView {
 
     /// How long a finger rests on a key before its hold action / alternates bubble.
     static let longPressDelay: TimeInterval = 0.42
+    /// The bottom-row period key: its hold bubble ends in a gear that opens the app's settings.
+    static let settingsKeyID = "."
 
     // MARK: Movement thresholds
 
@@ -457,7 +463,11 @@ final class KeyGridView: UIView {
             flushTapsBehindGlide()
         case .alternates:
             if let option = popup.selectedOption {
-                delegate?.keyGrid(self, didInsertAlternate: option, for: state.startFrame.key)
+                if option == KeyPopupView.settingsOption {
+                    delegate?.keyGridDidRequestSettings(self)
+                } else {
+                    delegate?.keyGrid(self, didInsertAlternate: option, for: state.startFrame.key)
+                }
                 feedback.keyTap()
             }
             popup.hide()
@@ -541,6 +551,9 @@ final class KeyGridView: UIView {
         options.append(contentsOf: kf.key.alternates.map { shifted ? $0.uppercased() : $0 })
         var seen = Set<String>()
         options = options.filter { seen.insert($0).inserted }
+        // The period key's bubble ends in a gear: the keyboard has no key to spare for a settings
+        // button, and a hold on "." is easy to find and never types anything by accident.
+        if kf.key.id == Self.settingsKeyID { options.append(KeyPopupView.settingsOption) }
 
         if options.count <= 1 {
             delegate?.keyGrid(self, didLongPress: kf.key)

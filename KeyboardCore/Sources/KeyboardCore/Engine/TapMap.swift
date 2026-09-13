@@ -341,24 +341,8 @@ extension KeyboardGeometry {
     /// Function keys are never affected: a touch in their hit box is theirs, whatever the map says.
     public func keyFrame(at touch: CGPoint, prior: LetterPrior?, offsets: TapMap.Offsets?) -> KeyFrame? {
         guard let offsets, layout.layer == .letters else { return keyFrame(at: touch, prior: prior) }
-        let plain = keyFrame(at: touch)
-        guard plain?.key.isLetter ?? false else { return plain }
         let pitchX = unitWidth + horizontalGap, pitchY = rowHeight + verticalGap
-        let sigmaX = pitchX * HitTuning.sigmaX, sigmaY = pitchY * HitTuning.sigmaY
-        // Candidates reach beyond their own (shifted) hit box by the prior's allowance.
-        let reachX = pitchX * HitTuning.maxReachX, reachY = pitchY * HitTuning.maxReachY
-
-        var best: KeyFrame?
-        var bestScore = -CGFloat.infinity
-        for kf in keyFrames where kf.key.isLetter {
-            guard let c = kf.key.character, let code = KeyAlphabet.code(for: c) else { continue }
-            let shift = offsets.shift(code: code, pitchX: pitchX, pitchY: pitchY)
-            guard kf.hitFrame.offsetBy(dx: shift.x, dy: shift.y).insetBy(dx: -reachX, dy: -reachY).contains(touch) else { continue }
-            let dx = (touch.x - kf.center.x - shift.x) / sigmaX, dy = (touch.y - kf.center.y - shift.y) / sigmaY
-            var score = -0.5 * (dx * dx + dy * dy)
-            if let prior { score += HitTuning.priorWeight * CGFloat(prior.logProbability(code: code)) }
-            if score > bestScore { bestScore = score; best = kf }
-        }
-        return best ?? plain
+        let prior = prior ?? LetterPrior.flat
+        return predictedKeyFrame(at: touch, prior: prior) { code in offsets.shift(code: code, pitchX: pitchX, pitchY: pitchY) }
     }
 }

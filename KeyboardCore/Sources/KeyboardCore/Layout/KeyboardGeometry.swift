@@ -126,32 +126,53 @@ public struct KeyboardGeometry: Hashable, Sendable {
         public static let touchOffsetY: CGFloat = 0.08
     }
 
-    /// Hit test with dynamic key resizing: on the letters layer, letter keys that are likely to
-    /// be typed next (`prior`) own the gaps around them and a sliver of their neighbours' edges.
-    /// Without a prior, or for any non-letter key, this is the plain geometric hit test.
+    /// Hit test with dynamic hit-target resizing: on the letters layer, letter keys that are
+    /// likely to be typed next (`prior`) own the gaps around them and a good part of their
+    /// neighbours' edges, and the space bar joins in once the word may be complete (it grows
+    /// into the bottom row, or shrinks while the word clearly goes on). The drawn keys never
+    /// change, only the invisible touch areas. Without a prior, or for any other key, this is the
+    /// plain geometric hit test.
     public func keyFrame(at touch: CGPoint, prior: LetterPrior?) -> KeyFrame? {
         guard let prior, layout.layer == .letters else { return keyFrame(at: touch) }
         let point = CGPoint(x: touch.x, y: touch.y - rowHeight * HitTuning.touchOffsetY)
-        guard let exact = keyFrame(at: point), exact.key.isLetter else { return keyFrame(at: point) }
+        return predictedKeyFrame(at: point, prior: prior, shift: { _ in .zero })
+    }
+
+    /// The shared core of the predictive hit tests: every letter key, judged from its centre moved
+    /// by `shift` (the learned tap-map offset, `.zero` for the printed centre), and the space bar
+    /// when the prior knows whether the word may end, compete for the touch by
+    /// `priorWeight · log P(key) − ½ · normalised squared distance`. A candidate must reach the
+    /// touch within `maxReachX/Y` of its own hit box. Any other key keeps its plain hit box.
+    func predictedKeyFrame(at point: CGPoint, prior: LetterPrior, shift: (UInt8) -> CGPoint) -> KeyFrame? {
+        guard let plain = keyFrame(at: point) else { return nil }
+        guard plain.key.isLetter || (plain.key.action == .space && prior.endProbability > 0) else { return plain }
 
         let pitchX = unitWidth + horizontalGap, pitchY = rowHeight + verticalGap
         let sigmaX = pitchX * HitTuning.sigmaX, sigmaY = pitchY * HitTuning.sigmaY
         let reachX = pitchX * HitTuning.maxReachX, reachY = pitchY * HitTuning.maxReachY
 
-        func score(_ kf: KeyFrame, _ code: UInt8) -> CGFloat {
-            let dx = (point.x - kf.center.x) / sigmaX, dy = (point.y - kf.center.y) / sigmaY
-            return HitTuning.priorWeight * CGFloat(prior.logProbability(code: code)) - 0.5 * (dx * dx + dy * dy)
+        var best: KeyFrame?
+        var bestScore = -CGFloat.infinity
+        for kf in keyFrames {
+            let logPrior: CGFloat, offset: CGPoint
+            if kf.key.isLetter, let c = kf.key.character, let code = KeyAlphabet.code(for: c) {
+                logPrior = CGFloat(prior.logProbability(code: code))
+                offset = shift(code)
+            } else if kf.key.action == .space, prior.endProbability > 0 {
+                logPrior = CGFloat(prior.logEndProbability)
+                offset = .zero
+            } else {
+                continue
+            }
+            guard kf.hitFrame.offsetBy(dx: offset.x, dy: offset.y).insetBy(dx: -reachX, dy: -reachY).contains(point) else { continue }
+            // A wide key (the space bar) is as close as its nearest key-sized slot, not its middle.
+            let halfSpan = max(0, (kf.frame.width - unitWidth) / 2)
+            let cx = min(max(point.x, kf.center.x + offset.x - halfSpan), kf.center.x + offset.x + halfSpan)
+            let dx = (point.x - cx) / sigmaX, dy = (point.y - kf.center.y - offset.y) / sigmaY
+            let score = HitTuning.priorWeight * logPrior - 0.5 * (dx * dx + dy * dy)
+            if score > bestScore { bestScore = score; best = kf }
         }
-
-        var best = exact
-        var bestScore = exact.key.character.flatMap(KeyAlphabet.code(for:)).map { score(exact, $0) } ?? -.infinity
-        for kf in keyFrames where kf.key.isLetter && kf.key.id != exact.key.id {
-            guard let c = kf.key.character, let code = KeyAlphabet.code(for: c),
-                  kf.hitFrame.insetBy(dx: -reachX, dy: -reachY).contains(point) else { continue }
-            let s = score(kf, code)
-            if s > bestScore { bestScore = s; best = kf }
-        }
-        return best
+        return best ?? plain
     }
 
     public func keyFrame(for key: Key) -> KeyFrame? {

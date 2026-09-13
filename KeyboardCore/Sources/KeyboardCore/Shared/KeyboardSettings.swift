@@ -76,6 +76,7 @@ public final class KeyboardSettings: @unchecked Sendable {
             Keys.theme: Theme.system.rawValue, Keys.accent: Accent.blue.rawValue, Keys.keySize: KeySize.regular.rawValue,
             Keys.longPressNumbers: true, Keys.commaKey: true, Keys.emojiOnCommaKey: true, Keys.smartHitTargets: true, Keys.adaptiveTapMap: true, Keys.justinMode: false, Keys.onboardingDone: false,
             Keys.germanUmlautKeys: true,
+            Keys.clipboardHistory: true, Keys.clipboardRetention: ClipboardRetention.day.rawValue,
             Keys.enabledLanguages: [KeyboardLanguage.default.rawValue], Keys.currentLanguage: KeyboardLanguage.default.rawValue,
         ])
     }
@@ -104,6 +105,9 @@ public final class KeyboardSettings: @unchecked Sendable {
         static let justinMode = "justinMode"
         static let onboardingDone = "onboardingDone"
         static let germanUmlautKeys = "germanUmlautKeys"
+        static let clipboardHistory = "clipboardHistory"
+        static let clipboardRetention = "clipboardRetention"
+        static let clipboardChangeCount = "clipboardChangeCount"
     }
 
     public var swipeTyping: Bool { get { defaults.bool(forKey: Keys.swipeTyping) } set { defaults.set(newValue, forKey: Keys.swipeTyping) } }
@@ -133,6 +137,20 @@ public final class KeyboardSettings: @unchecked Sendable {
     /// The German layout shows ü/ö/ä as keys of their own. Off, it has ten keys per row like the
     /// English one and the umlauts are reached by holding u/o/a (ß stays on s).
     public var germanUmlautKeys: Bool { get { defaults.bool(forKey: Keys.germanUmlautKeys) } set { defaults.set(newValue, forKey: Keys.germanUmlautKeys) } }
+
+    // MARK: Clipboard
+
+    /// The keyboard remembers what was copied (text and images) and offers it again from its
+    /// action menu. Needs "Full Access", like everything else the extension shares with the app.
+    public var clipboardHistory: Bool { get { defaults.bool(forKey: Keys.clipboardHistory) } set { defaults.set(newValue, forKey: Keys.clipboardHistory) } }
+    /// How long copied items are kept.
+    public var clipboardRetention: ClipboardRetention {
+        get { ClipboardRetention(rawValue: defaults.string(forKey: Keys.clipboardRetention) ?? "") ?? .day }
+        set { defaults.set(newValue.rawValue, forKey: Keys.clipboardRetention) }
+    }
+    /// `UIPasteboard.changeCount` of the last clip either process captured, so the app and the
+    /// keyboard never read the same clip twice (reading shows the system's paste banner).
+    public var clipboardChangeCount: Int { get { defaults.integer(forKey: Keys.clipboardChangeCount) } set { defaults.set(newValue, forKey: Keys.clipboardChangeCount) } }
 
     public var theme: Theme {
         get { Theme(rawValue: defaults.string(forKey: Keys.theme) ?? "") ?? .system }
