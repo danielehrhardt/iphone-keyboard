@@ -57,6 +57,23 @@ as a `UITextView.inputView`, so swipe typing can be tried before the extension i
 sources under `UmlautKeyboard/` are compiled into both targets; only `KeyboardViewController.swift`
 (extension) and `UmlautKeyboard/InApp/` (app) are target-specific.
 
+## Clipboard history
+
+The keyboard remembers what was copied – text and images – and offers it again behind the „⋯“
+button at the leading edge of the suggestion strip (the *action menu*, which also holds emoji,
+the language switch and hide-keyboard). `ClipboardHistory` (KeyboardCore) keeps the entries as
+`clipboard/index.json` plus image files in the app group; `ClipboardMonitor` (keyboard target,
+also compiled into the app) feeds it from `UIPasteboard.general`. The pasteboard is only *read*
+when its `changeCount` moved since the last capture (the count of the last clip is stored in
+the shared settings, so app and extension never read the same clip twice) – reading shows the
+system paste banner and, on iOS 16+, asks once whether Umlaut may paste from other apps. Images
+are downscaled through ImageIO's thumbnail path (never decoded at full size in the extension)
+and stored at ≤ 1280 px plus a 200 px preview. Picking a text entry types it; picking an image
+puts it back on the pasteboard, from where the system's Paste command inserts it (a keyboard
+cannot insert images). „Einstellungen › Zwischenablage“ switches the history off, sets the
+retention (1 hour … forever, pruned on every keyboard appearance) and lists the entries.
+Reading the pasteboard needs „Vollen Zugriff“ like everything else the extension shares.
+
 ## How the engine works
 
 **Languages** – `KeyboardLanguage` (`.german`, `.english`) is the one switch everything hangs off:
