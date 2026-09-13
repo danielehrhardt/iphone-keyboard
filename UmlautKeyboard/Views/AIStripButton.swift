@@ -79,6 +79,7 @@ final class AIStripButton: UIControl {
         super.layoutSubviews()
         let radius = bounds.height / 2
         layer.cornerRadius = radius
+        layer.shadowPath = UIBezierPath(roundedRect: bounds, cornerRadius: radius).cgPath
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         gradient.frame = bounds

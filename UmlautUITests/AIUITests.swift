@@ -61,7 +61,10 @@ final class AIUITests: XCTestCase {
         shot("ai-03-configured")
         XCTAssertTrue(app.staticTexts["Claude Opus 5"].waitForExistence(timeout: 5), "first key picks the provider's default model")
 
-        element("ai-default-model").tap()
+        app.swipeUp()
+        let modelRow = element("ai-default-model")
+        XCTAssertTrue(modelRow.waitForExistence(timeout: 5))
+        modelRow.tap()
         XCTAssertTrue(app.staticTexts["gpt-5.6-sol"].waitForExistence(timeout: 5))
         shot("ai-04-model-picker")
         app.navigationBars.buttons.element(boundBy: 0).tap()

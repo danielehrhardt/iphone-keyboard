@@ -38,6 +38,26 @@ final class AIInputTests: XCTestCase {
 
     // MARK: Sentence check
 
+    func testSentenceFinishedAfterASwipeWordIsReported() {
+        var reported: [String] = []
+        input.onSentenceCompleted = { reported.append($0) }
+        type("das ist ")
+        // A swiped word carries its own trailing space; the period then hops in front of it.
+        let codes = KeyAlphabet.swipeCodes("super")
+        var pts: [CGPoint] = []
+        let centers = codes.map { keyMap.centers[Int($0)] }
+        for i in 1..<centers.count {
+            let a = centers[i - 1], b = centers[i]
+            for s in 0..<8 { let t = CGFloat(s) / 8; pts.append(CGPoint(x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t)) }
+        }
+        pts.append(centers.last!)
+        input.handleSwipe(path: pts, keyMap: keyMap, fallbackKey: nil)
+        input.handle(key: GermanLayouts.period)
+        XCTAssertTrue(proxy.text.hasSuffix(". "), proxy.text)
+        XCTAssertEqual(reported.count, 1, "\(reported)")
+        XCTAssertTrue(reported.first?.hasSuffix(".") == true)
+    }
+
     func testFinishedSentenceIsReportedOnce() {
         var reported: [String] = []
         input.onSentenceCompleted = { reported.append($0) }

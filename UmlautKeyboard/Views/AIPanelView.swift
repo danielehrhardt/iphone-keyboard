@@ -44,7 +44,9 @@ final class AIPanelView: UIView {
     private let optionStack = UIStackView()
     private var optionButtons: [UIButton] = []
     private let contentScroll = UIScrollView()
-    private let contentStack = UIStackView()
+    /// The result cards or the message of the current phase, laid out top to bottom by hand
+    /// (multi-line labels and Auto Layout fitting sizes don't mix well inside a scroll view).
+    private var contentViews: [UIView & AIPanelContent] = []
     private let lettersButton = UIButton(type: .system)
     private let undoButton = UIButton(type: .system)
     private let settingsButton = UIButton(type: .system)
@@ -90,9 +92,6 @@ final class AIPanelView: UIView {
         contentScroll.alwaysBounceVertical = true
         contentScroll.clipsToBounds = true
         addSubview(contentScroll)
-        contentStack.axis = .vertical
-        contentStack.spacing = 8
-        contentScroll.addSubview(contentStack)
 
         lettersButton.setTitle("ABC", for: .normal)
         lettersButton.titleLabel?.font = .systemFont(ofSize: 15, weight: .medium)
@@ -204,10 +203,13 @@ final class AIPanelView: UIView {
         let barY = contentBottom - Self.barHeight
         contentScroll.frame = CGRect(x: x + Self.sideInset, y: y, width: width - Self.sideInset * 2, height: max(0, barY - y))
         let contentWidth = contentScroll.bounds.width
-        let contentHeight = contentStack.systemLayoutSizeFitting(CGSize(width: contentWidth, height: UIView.layoutFittingCompressedSize.height),
-                                                                 withHorizontalFittingPriority: .required, verticalFittingPriority: .fittingSizeLevel).height
-        contentStack.frame = CGRect(x: 0, y: 4, width: contentWidth, height: contentHeight)
-        contentScroll.contentSize = CGSize(width: contentWidth, height: contentHeight + 8)
+        var cy: CGFloat = 4
+        for v in contentViews {
+            let h = v.height(for: contentWidth)
+            v.frame = CGRect(x: 0, y: cy, width: contentWidth, height: h)
+            cy += h + 8
+        }
+        contentScroll.contentSize = CGSize(width: contentWidth, height: cy)
         loadingView?.frame = CGRect(x: 0, y: 0, width: contentWidth, height: contentScroll.bounds.height)
 
         let barH = Self.barHeight - 6
@@ -284,9 +286,15 @@ final class AIPanelView: UIView {
     // MARK: Content
 
     private func clearContent() {
-        contentStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        contentViews.forEach { $0.removeFromSuperview() }
+        contentViews = []
         loadingView?.removeFromSuperview()
         loadingView = nil
+    }
+
+    private func add(_ v: UIView & AIPanelContent) {
+        contentScroll.addSubview(v)
+        contentViews.append(v)
     }
 
     private func renderContent() {
@@ -302,7 +310,7 @@ final class AIPanelView: UIView {
                 title = "Erst etwas schreiben."
                 detail = "Die KI bearbeitet die Auswahl oder den Text vor dem Cursor."
             }
-            contentStack.addArrangedSubview(makeMessage(symbol: "sparkles", title: title, detail: detail, tint: theme.accent))
+            add(MessageView(theme: theme, symbol: "sparkles", title: title, detail: detail, tint: theme.accent))
         case .loading:
             let v = LoadingView(theme: theme, feature: feature)
             contentScroll.addSubview(v)
@@ -312,7 +320,7 @@ final class AIPanelView: UIView {
                 let card = ResultCard(theme: theme, text: item, action: feature?.applyLabel ?? "Einsetzen", tag: i)
                 card.accessibilityIdentifier = "ai-result-\(i)"
                 card.addTarget(self, action: #selector(resultTapped(_:)), for: .touchUpInside)
-                contentStack.addArrangedSubview(card)
+                add(card)
                 card.alpha = 0
                 card.transform = CGAffineTransform(translationX: 0, y: 8)
                 UIView.animate(withDuration: 0.28, delay: 0.05 * Double(i), options: [.curveEaseOut, .allowUserInteraction]) {
@@ -321,51 +329,20 @@ final class AIPanelView: UIView {
                 }
             }
         case .failed(let error):
-            let message = makeMessage(symbol: error.needsSetup ? "key" : "exclamationmark.triangle",
-                                      title: error.errorDescription ?? "Fehler",
-                                      detail: error.needsSetup ? "API-Schlüssel und Modell legst du in der Umlaut-App unter Einstellungen › KI fest." : "Tippe auf die Funktion, um es noch einmal zu versuchen.",
-                                      tint: error.needsSetup ? theme.accent : theme.keyText)
-            contentStack.addArrangedSubview(message)
+            add(MessageView(theme: theme, symbol: error.needsSetup ? "key" : "exclamationmark.triangle",
+                            title: error.errorDescription ?? "Fehler",
+                            detail: error.needsSetup ? "API-Schlüssel und Modell legst du in der Umlaut-App unter Einstellungen › KI fest." : "Tippe auf die Funktion, um es noch einmal zu versuchen.",
+                            tint: error.needsSetup ? theme.accent : theme.keyText))
             if error.needsSetup {
                 let b = makeChip(title: "In der App einrichten", symbol: "arrow.up.forward.app", size: 14)
                 b.accessibilityIdentifier = "ai-open-settings"
                 style(b, selected: true)
                 b.addTarget(self, action: #selector(settingsTapped), for: .touchUpInside)
-                let row = UIStackView(arrangedSubviews: [b, UIView()])
-                row.axis = .horizontal
-                contentStack.addArrangedSubview(row)
+                add(ChipRow(chip: b))
             }
         }
         setNeedsLayout()
         layoutIfNeeded()
-    }
-
-    private func makeMessage(symbol: String, title: String, detail: String, tint: UIColor) -> UIView {
-        let icon = UIImageView(image: UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .medium)))
-        icon.tintColor = tint
-        icon.contentMode = .center
-        icon.setContentHuggingPriority(.required, for: .horizontal)
-        icon.widthAnchor.constraint(equalToConstant: 30).isActive = true
-        let titleLabel = UILabel()
-        titleLabel.text = title
-        titleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
-        titleLabel.textColor = theme.keyText
-        titleLabel.numberOfLines = 2
-        let detailLabel = UILabel()
-        detailLabel.text = detail
-        detailLabel.font = .systemFont(ofSize: 13)
-        detailLabel.textColor = theme.hintText
-        detailLabel.numberOfLines = 3
-        let texts = UIStackView(arrangedSubviews: [titleLabel, detailLabel])
-        texts.axis = .vertical
-        texts.spacing = 3
-        let row = UIStackView(arrangedSubviews: [icon, texts])
-        row.axis = .horizontal
-        row.alignment = .top
-        row.spacing = 8
-        row.isLayoutMarginsRelativeArrangement = true
-        row.layoutMargins = UIEdgeInsets(top: 8, left: 6, bottom: 8, right: 6)
-        return row
     }
 
     private static func preview(_ text: String) -> String {
@@ -402,7 +379,7 @@ final class AIPanelView: UIView {
     // MARK: Subviews
 
     /// One result: the text and, bottom right, what a tap does.
-    final class ResultCard: UIControl {
+    final class ResultCard: UIControl, AIPanelContent {
         private let label = UILabel()
         private let hint = UILabel()
         private let theme: KeyboardTheme
@@ -437,24 +414,95 @@ final class AIPanelView: UIView {
 
         required init?(coder: NSCoder) { fatalError() }
 
-        override var intrinsicContentSize: CGSize {
-            let width = bounds.width > 0 ? bounds.width : 300
-            let textHeight = label.sizeThatFits(CGSize(width: width - 24, height: .greatestFiniteMagnitude)).height
-            return CGSize(width: UIView.noIntrinsicMetric, height: min(textHeight, 140) + 12 + 22)
+        private static let maxTextHeight: CGFloat = 140
+
+        private func textHeight(for width: CGFloat) -> CGFloat {
+            min(label.sizeThatFits(CGSize(width: max(width - 24, 10), height: .greatestFiniteMagnitude)).height, Self.maxTextHeight)
         }
+
+        func height(for width: CGFloat) -> CGFloat { textHeight(for: width) + 9 + 24 }
 
         override func layoutSubviews() {
             super.layoutSubviews()
-            let textHeight = min(label.sizeThatFits(CGSize(width: bounds.width - 24, height: .greatestFiniteMagnitude)).height, 140)
-            label.frame = CGRect(x: 12, y: 9, width: bounds.width - 24, height: textHeight)
+            label.frame = CGRect(x: 12, y: 9, width: bounds.width - 24, height: textHeight(for: bounds.width))
             hint.frame = CGRect(x: 12, y: bounds.height - 22, width: bounds.width - 24, height: 16)
             hint.textAlignment = .right
-            invalidateIntrinsicContentSize()
         }
 
         @objc private func down() { backgroundColor = theme.keyPressedBackground }
         @objc private func up() {
             UIView.animate(withDuration: 0.18) { self.backgroundColor = self.theme.keyBackground }
+        }
+    }
+
+    /// Icon, a title and a detail line, wrapping as needed.
+    final class MessageView: UIView, AIPanelContent {
+        private let icon = UIImageView()
+        private let titleLabel = UILabel()
+        private let detailLabel = UILabel()
+        private static let iconWidth: CGFloat = 30
+        private static let margin = UIEdgeInsets(top: 8, left: 6, bottom: 8, right: 6)
+
+        init(theme: KeyboardTheme, symbol: String, title: String, detail: String, tint: UIColor) {
+            super.init(frame: .zero)
+            isUserInteractionEnabled = false
+            icon.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 20, weight: .medium))
+            icon.tintColor = tint
+            icon.contentMode = .center
+            addSubview(icon)
+            titleLabel.text = title
+            titleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
+            titleLabel.textColor = theme.keyText
+            titleLabel.numberOfLines = 3
+            addSubview(titleLabel)
+            detailLabel.text = detail
+            detailLabel.font = .systemFont(ofSize: 13)
+            detailLabel.textColor = theme.hintText
+            detailLabel.numberOfLines = 4
+            addSubview(detailLabel)
+        }
+
+        required init?(coder: NSCoder) { fatalError() }
+
+        private func textWidth(_ width: CGFloat) -> CGFloat {
+            max(width - Self.margin.left - Self.margin.right - Self.iconWidth - 8, 10)
+        }
+
+        private func heights(for width: CGFloat) -> (title: CGFloat, detail: CGFloat) {
+            let w = textWidth(width)
+            let big = CGSize(width: w, height: .greatestFiniteMagnitude)
+            return (titleLabel.sizeThatFits(big).height, detailLabel.sizeThatFits(big).height)
+        }
+
+        func height(for width: CGFloat) -> CGFloat {
+            let h = heights(for: width)
+            return Self.margin.top + h.title + 3 + h.detail + Self.margin.bottom
+        }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            let h = heights(for: bounds.width)
+            let x = Self.margin.left + Self.iconWidth + 8
+            icon.frame = CGRect(x: Self.margin.left, y: Self.margin.top - 2, width: Self.iconWidth, height: 26)
+            titleLabel.frame = CGRect(x: x, y: Self.margin.top, width: textWidth(bounds.width), height: h.title)
+            detailLabel.frame = CGRect(x: x, y: titleLabel.frame.maxY + 3, width: textWidth(bounds.width), height: h.detail)
+        }
+    }
+
+    /// A single chip, leading-aligned.
+    final class ChipRow: UIView, AIPanelContent {
+        private let chip: UIButton
+        init(chip: UIButton) {
+            self.chip = chip
+            super.init(frame: .zero)
+            addSubview(chip)
+        }
+        required init?(coder: NSCoder) { fatalError() }
+        func height(for width: CGFloat) -> CGFloat { 34 }
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            let w = min(chip.intrinsicContentSize.width, bounds.width - 12)
+            chip.frame = CGRect(x: 6, y: 0, width: w, height: 32)
         }
     }
 
@@ -524,4 +572,9 @@ final class AIPanelView: UIView {
             }
         }
     }
+}
+
+/// A view the panel stacks in its content area; it reports its height for the available width.
+protocol AIPanelContent: AnyObject {
+    func height(for width: CGFloat) -> CGFloat
 }

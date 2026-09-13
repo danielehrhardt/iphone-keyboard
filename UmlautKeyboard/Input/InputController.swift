@@ -511,6 +511,7 @@ final class InputController {
                 insertText(" ")
                 lastCommit = nil
                 afterEdit(lastWasSpace: false)
+                notifySentenceIfCompleted()
                 return
             }
             commitComposingIfNeeded(trigger: text)

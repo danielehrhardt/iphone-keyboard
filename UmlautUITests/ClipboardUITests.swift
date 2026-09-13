@@ -41,7 +41,7 @@ final class ClipboardUITests: XCTestCase {
         clipboardRow.tap()
         sleep(1)
         shot("21-after-clipboard-tap")
-        app.tap()   // lets a pending permission alert reach the interruption monitor
+        try? app.debugDescription.write(to: Self.outDir.appendingPathComponent("21-tree.txt"), atomically: true, encoding: .utf8)
         // The "ABC" button is the panel's one element that is always an accessibility element.
         let panel = app.descendants(matching: .any)["clipboard-letters"]
         XCTAssertTrue(panel.waitForExistence(timeout: 3), "clipboard panel did not open")
