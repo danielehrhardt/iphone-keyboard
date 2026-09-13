@@ -13,6 +13,17 @@ final class KeyboardCoordinator: NSObject {
     let clipboard: ClipboardMonitor
     /// Whether the pasteboard may be read: the extension needs "Full Access", the app always has it.
     var hasFullAccess = true
+    /// The AI features: model/key lookup and the requests behind the panel and the strip.
+    let ai: AIAssistant
+    /// What the panel's current request works on, captured when the panel opened.
+    private var aiSource: AISource?
+    /// The last text the assistant put into the document, for "Rückgängig".
+    private var lastAIApplication: (inserted: String, original: String)?
+
+    private struct AISource {
+        let text: String
+        let isSelection: Bool
+    }
     private let thumbnails = NSCache<NSUUID, UIImage>()
 
     /// Hooks the owner provides (extension: system APIs; in-app demo: no-ops).
@@ -47,6 +58,7 @@ final class KeyboardCoordinator: NSObject {
         self.clipboard = clipboard ?? ClipboardMonitor(history: .shared(appGroup: KeyboardSettings.appGroup), settings: settings)
         language = settings.currentLanguage
         feedback = Feedback(settings: settings)
+        ai = AIAssistant(settings: settings)
         let theme = KeyboardTheme.current(traits: traits, settings: settings)
         view = KeyboardView(theme: theme, feedback: feedback)
         // An engine for another language is of no use; wait for the provider instead.
@@ -78,6 +90,16 @@ final class KeyboardCoordinator: NSObject {
             self.switchToNextLanguage()
         }
         view.suggestionBar.language = settings.hasMultipleLanguages ? language : nil
+        view.aiDelegate = self
+        view.suggestionBar.showsAI = settings.aiEnabled
+        view.suggestionBar.onAI = { [weak self] in
+            guard let self else { return }
+            self.feedback.functionTap()
+            self.showAIPanel()
+        }
+        input.onSentenceCompleted = { [weak self] sentence in self?.sentenceCompleted(sentence) }
+        input.onWordBoundary = { [weak self] text in self?.wordBoundary(text) }
+        input.onTyping = { [weak self] in self?.ai.cancelContinuations() }
         view.onLayout = { [weak self] in self?.rebuildGridIfNeeded() }
     }
 
@@ -104,6 +126,66 @@ final class KeyboardCoordinator: NSObject {
         view.isActionMenuVisible = false
         if !settings.clipboardHistory, view.isClipboardVisible { view.isClipboardVisible = false }
         pasteboardMayHaveChanged()
+        // Keys and models may have changed in the app.
+        ai.reload()
+        view.suggestionBar.showsAI = settings.aiEnabled
+        if !settings.aiEnabled, view.isAIVisible { view.isAIVisible = false }
+        if view.isAIVisible { view.aiPanel?.canUndo = canUndoAI }
+    }
+
+    // MARK: AI
+
+    /// Opens the panel on the selection, or the text before the cursor.
+    func showAIPanel() {
+        view.grid.cancelAllTouches()
+        view.isAIVisible = true
+        guard let panel = view.aiPanel else { return }
+        aiSource = currentAISource()
+        panel.open(source: aiSource?.text, isSelection: aiSource?.isSelection ?? false,
+                   tone: settings.aiRewriteTone, target: settings.aiTranslationTarget)
+        panel.modelTitle = settings.aiDefaultModel?.title
+        panel.canUndo = canUndoAI
+        if let error = aiSetupError() { panel.set(phase: .failed(error)) }
+    }
+
+    /// Whatever keeps every feature from running, checked up front so the panel says so at once.
+    private func aiSetupError() -> AIError? {
+        guard settings.aiEnabled else { return .disabled }
+        guard hasFullAccess else { return .needsFullAccess }
+        guard let model = settings.aiDefaultModel else { return .noModel }
+        guard ai.keys.hasKey(for: model.provider) else { return .missingKey(model.provider) }
+        return nil
+    }
+
+    private func currentAISource() -> AISource? {
+        if let selected = input.selectedText, !selected.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return AISource(text: selected, isSelection: true)
+        }
+        let before = AIText.source(before: input.textBeforeCursor)
+        return before.isEmpty ? nil : AISource(text: before, isSelection: false)
+    }
+
+    private var canUndoAI: Bool {
+        guard let last = lastAIApplication else { return false }
+        return input.textBeforeCursor.hasSuffix(last.inserted)
+    }
+
+    /// A sentence was finished: have it checked quietly; a correction shows up in the strip.
+    private func sentenceCompleted(_ sentence: String) {
+        guard settings.aiEnabled, settings.aiAutocorrect, hasFullAccess, input.traits.allowsSuggestions else { return }
+        ai.checkSentence(sentence, language: language) { [weak self] corrected in
+            guard let self, let corrected else { return }
+            self.input.aiSentence = (sentence, corrected)
+        }
+    }
+
+    /// The cursor rests after a space: after a short pause, ask for continuations.
+    private func wordBoundary(_ text: String) {
+        guard settings.aiEnabled, settings.aiSuggestions, hasFullAccess, input.traits.allowsSuggestions else { return }
+        ai.continuations(after: text, language: language) { [weak self] items in
+            guard let self, !items.isEmpty else { return }
+            self.input.aiContinuations = (text, items)
+        }
     }
 
     /// The host reported an edit (or the keyboard appeared): a copy may have happened meanwhile.
@@ -294,6 +376,7 @@ extension KeyboardCoordinator: InputControllerDelegate {
         view.grid.letterPrior = state.letterPrior
         view.grid.tapOffsets = state.tapOffsets
         view.suggestionBar.set(state.suggestions)
+        view.suggestionBar.aiButton.showsBadge = state.suggestions.contains { $0.kind == .ai }
     }
 
     func inputControllerRequestsGlobe(_ c: InputController) { onGlobe?() }
@@ -390,4 +473,78 @@ extension KeyboardCoordinator: ClipboardPanelDelegate {
         view.isClipboardVisible = false
         input.refresh()
     }
+}
+
+// MARK: - AIPanelDelegate
+
+extension KeyboardCoordinator: AIPanelDelegate {
+    func aiPanel(_ panel: AIPanelView, didRequest feature: AIFeature, tone: AIRewriteTone, target: AITranslationTarget) {
+        settings.aiRewriteTone = tone
+        settings.aiTranslationTarget = target
+        panel.modelTitle = settings.aiModel(for: feature)?.title
+        if let error = aiSetupError() { panel.set(phase: .failed(error)); return }
+        aiSource = currentAISource()
+        guard let source = aiSource else { panel.set(phase: .failed(.emptySource)); return }
+        let spec = AIRequestSpec(feature: feature, text: source.text, language: language, tone: tone, target: target)
+        panel.set(phase: .loading)
+        view.suggestionBar.aiButton.isBusy = true
+        ai.run(spec) { [weak self] result in
+            guard let self else { return }
+            self.view.suggestionBar.aiButton.isBusy = false
+            guard self.view.isAIVisible, let panel = self.view.aiPanel, panel.feature == feature else { return }
+            switch result {
+            case .success(let items):
+                panel.set(phase: .results(items))
+                self.feedback.selectionTick()
+            case .failure(let error):
+                guard error != .cancelled else { return }
+                panel.set(phase: .failed(error))
+            }
+        }
+    }
+
+    func aiPanel(_ panel: AIPanelView, didPick result: String) {
+        guard let feature = panel.feature else { return }
+        let inserted: String
+        let original: String
+        if feature.replacesSource {
+            guard let source = aiSource else { panel.set(phase: .failed(.emptySource)); return }
+            if source.isSelection {
+                input.replaceSelection(with: result)
+            } else if !input.replaceTextBeforeCursor(source.text, with: result) {
+                panel.set(phase: .failed(.textChanged))
+                return
+            }
+            inserted = result
+            original = source.text
+        } else {
+            inserted = input.insertAIText(result)
+            original = ""
+        }
+        lastAIApplication = (inserted, original)
+        feedback.swipeCommit()
+        view.isAIVisible = false
+        input.refresh()
+    }
+
+    func aiPanelDidTapLetters(_ panel: AIPanelView) {
+        ai.cancel()
+        view.suggestionBar.aiButton.isBusy = false
+        view.isAIVisible = false
+        input.refresh()
+    }
+
+    func aiPanelDidTapUndo(_ panel: AIPanelView) {
+        guard let last = lastAIApplication, input.replaceTextBeforeCursor(last.inserted, with: last.original) else {
+            panel.canUndo = false
+            return
+        }
+        lastAIApplication = nil
+        panel.canUndo = false
+        feedback.deleteTap()
+        view.isAIVisible = false
+        input.refresh()
+    }
+
+    func aiPanelDidTapSettings(_ panel: AIPanelView) { onOpenSettings?() }
 }

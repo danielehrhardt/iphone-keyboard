@@ -23,8 +23,7 @@ enum AIAvailability: Equatable {
 
 /// The keyboard's side of the AI features: knows which model and key a feature uses, runs the
 /// panel's requests (one at a time) and the two passive ones (sentence check, continuations).
-/// Everything is called and called back on the main queue.
-@MainActor
+/// Called on the main queue; completions come back on the main queue.
 final class AIAssistant {
 
     let settings: KeyboardSettings
@@ -88,7 +87,7 @@ final class AIAssistant {
                 result = .failure(Self.aiError(error))
             }
             guard !Task.isCancelled, self != nil else { return }
-            completion(result)
+            await MainActor.run { completion(result) }
         }
     }
 
@@ -112,8 +111,10 @@ final class AIAssistant {
             let corrected = (try? await client.run(spec, model: model, apiKey: key))?.first
             guard !Task.isCancelled, let self else { return }
             let result = corrected.flatMap { AIText.differs($0, sentence) ? $0 : nil }
-            self.remember(sentence: sentence, result: result)
-            completion(result)
+            await MainActor.run {
+                self.remember(sentence: sentence, result: result)
+                completion(result)
+            }
         }
     }
 
@@ -132,9 +133,11 @@ final class AIAssistant {
             guard !Task.isCancelled else { return }
             let items = (try? await client.run(spec, model: model, apiKey: key)) ?? []
             guard !Task.isCancelled, let self else { return }
-            self.continuationCache[source] = items
-            if self.continuationCache.count > 32 { self.continuationCache.removeAll() }
-            completion(items)
+            await MainActor.run {
+                self.continuationCache[source] = items
+                if self.continuationCache.count > 32 { self.continuationCache.removeAll() }
+                completion(items)
+            }
         }
     }
 

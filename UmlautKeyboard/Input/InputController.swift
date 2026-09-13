@@ -57,6 +57,23 @@ final class InputController {
     /// Where this user's taps land per key; nil disables learning and adaptive hit targets.
     let tapMap: TapMap?
 
+    // MARK: AI hooks
+
+    /// A sentence was just finished with a terminator and a space or newline (for the passive
+    /// AI check). Not called in fields without suggestions.
+    var onSentenceCompleted: ((String) -> Void)?
+    /// The cursor sits after a space with nothing composing: the text before it, for AI continuations.
+    var onWordBoundary: ((String) -> Void)?
+    /// Any other edit: a pending continuation request is moot.
+    var onTyping: (() -> Void)?
+    /// The assistant's correction of the sentence that ends the text. Shown in the strip while
+    /// that sentence still ends the text; a tap replaces it.
+    var aiSentence: (original: String, corrected: String)? { didSet { refreshNow() } }
+    /// Continuations the assistant suggested for `context` (the text before the cursor at the
+    /// time); shown while the text is still exactly that.
+    var aiContinuations: (context: String, items: [String])? { didSet { refreshNow() } }
+    private var lastNotifiedSentence: String?
+
     private var lastCommit: Commit?
     private var autoSpacePending = false
     private var lastKeyWasSpace = false
@@ -341,6 +358,24 @@ final class InputController {
         var autocorrectAllowed: Bool
         var predictions: Bool
         var justinMode: Bool
+        /// The assistant's entries for the strip, already checked against the document.
+        var ai: [Suggestion] = []
+    }
+
+    /// The strip's AI entries: the pending sentence correction while the sentence still ends the
+    /// text, else the continuations while the text is still the context they were made for.
+    private func aiSuggestions() -> [Suggestion] {
+        guard suggestionsAllowed, !justinModeActive, composingWord.isEmpty else { return [] }
+        if let ai = aiSentence {
+            if let found = AIText.lastSentence(in: textBefore), found.sentence == ai.original {
+                return [Suggestion(text: ai.corrected, kind: .ai)]
+            }
+            return []
+        }
+        if let c = aiContinuations, c.context == textBefore {
+            return c.items.prefix(2).map { Suggestion(text: $0, kind: .ai) }
+        }
+        return []
     }
 
     private func suggestionInput(layer: KeyboardLayer) -> SuggestionInput {
@@ -359,7 +394,8 @@ final class InputController {
             allowed: suggestionsAllowed && layer == .letters,
             autocorrectAllowed: autocorrectAllowed,
             predictions: settings.predictions,
-            justinMode: justin)
+            justinMode: justin,
+            ai: engine == nil ? [] : aiSuggestions())
     }
 
     private static func buildSuggestions(_ input: SuggestionInput) -> [Suggestion] {
@@ -374,8 +410,13 @@ final class InputController {
                 for alt in alternates.prefix(2) { items.insert(Suggestion(text: alt, kind: .alternate), at: items.count == 1 ? 0 : items.count) }
                 return items
             }
-            guard input.predictions else { return [] }
-            return engine.predictor.nextWords(after: input.previous, isSentenceStart: input.isSentenceStart).map { Suggestion(text: $0, kind: .prediction) }
+            // A corrected sentence takes the whole strip; continuations share it with predictions.
+            if input.ai.count == 1, input.ai[0].kind == .ai, input.predictions == false || input.ai[0].text.contains(" ") && aiSentenceLike(input.ai[0].text) {
+                return input.ai
+            }
+            guard input.predictions else { return input.ai }
+            let predicted = engine.predictor.nextWords(after: input.previous, isSentenceStart: input.isSentenceStart).map { Suggestion(text: $0, kind: .prediction) }
+            return Array((input.ai + predicted).prefix(3))
         }
 
         guard let autocorrect = input.autocorrect else { return [] }
@@ -410,6 +451,11 @@ final class InputController {
         return items
     }
 
+    /// A strip entry that reads as a full sentence (ends with a terminator) rather than a phrase.
+    private static func aiSentenceLike(_ text: String) -> Bool {
+        text.last.map { AIText.sentenceTerminators.contains($0) } ?? false
+    }
+
     // MARK: Key events
 
     /// `touch` is where the finger landed on the key grid (grid coordinates); it feeds the tap map.
@@ -439,6 +485,7 @@ final class InputController {
             commitComposingIfNeeded(trigger: "\n")
             insertText("\n")
             afterEdit(lastWasSpace: false)
+            notifySentenceIfCompleted()
         case .switchLayer(let layer):
             var s = state
             s.layer = layer
@@ -511,12 +558,14 @@ final class InputController {
                 insertText(". ")
                 lastCommit = nil
                 afterEdit(lastWasSpace: false)
+                notifySentenceIfCompleted()
                 return
             }
         }
         commitComposingIfNeeded(trigger: " ")
         insertText(" ")
         afterEdit(lastWasSpace: true)
+        notifySentenceIfCompleted()
     }
 
     private func handleBackspace() {
@@ -632,6 +681,82 @@ final class InputController {
         afterEdit(lastWasSpace: false)
     }
 
+    // MARK: Edits from the AI panel and strip
+
+    /// The text before the cursor as the keyboard knows it (reads the host when nothing is known).
+    var textBeforeCursor: String { textBefore }
+
+    /// The host's selection, if any.
+    var selectedText: String? { proxy.selectedText }
+
+    /// Replaces `source`, which must end the text before the cursor, with `replacement`.
+    /// Returns false (and changes nothing) when the text no longer ends with `source`.
+    @discardableResult
+    func replaceTextBeforeCursor(_ source: String, with replacement: String) -> Bool {
+        guard textBefore.hasSuffix(source) else { return false }
+        resetAfterAIEdit()
+        delete(count: source.count)
+        insertText(replacement)
+        afterEdit(lastWasSpace: replacement.last == " ")
+        return true
+    }
+
+    /// Replaces the host's selection. The keyboard's view of the document cannot model a
+    /// selection, so it is read afresh afterwards.
+    func replaceSelection(with text: String) {
+        resetAfterAIEdit()
+        isEditing = true
+        proxy.insert(text)
+        isEditing = false
+        forgetDocument()
+        afterEdit(lastWasSpace: false)
+    }
+
+    /// Inserts a continuation at the cursor, joined with a space where needed and followed by
+    /// one so typing goes on; returns exactly what was inserted (for undo).
+    @discardableResult
+    func insertAIText(_ text: String) -> String {
+        let joiner = AIText.joiner(before: textBefore, continuation: text)
+        let trailing = text.last.map { $0.isWhitespace || $0.isNewline } == true ? "" : " "
+        let inserted = joiner + text + trailing
+        resetAfterAIEdit()
+        insertText(inserted)
+        lastCommit = .suggestion(word: text)
+        autoSpacePending = !trailing.isEmpty
+        afterEdit(lastWasSpace: !trailing.isEmpty, consumedShift: true)
+        return inserted
+    }
+
+    /// Swaps the finished sentence for the assistant's correction (the strip's ✦ entry).
+    func applyAISentence() {
+        guard let ai = aiSentence, let found = AIText.lastSentence(in: textBefore), found.sentence == ai.original else {
+            aiSentence = nil
+            return
+        }
+        resetAfterAIEdit()
+        delete(count: found.sentence.count + found.trailing.count)
+        insertText(ai.corrected + found.trailing)
+        lastNotifiedSentence = ai.corrected
+        afterEdit(lastWasSpace: found.trailing.hasSuffix(" "))
+    }
+
+    private func resetAfterAIEdit() {
+        lastCommit = nil
+        autoSpacePending = false
+        wordTaps.removeAll()
+        canUndoTapLearning = false
+        if aiSentence != nil { aiSentence = nil }
+        if aiContinuations != nil { aiContinuations = nil }
+    }
+
+    /// Tells the owner about a sentence that was just finished (once per sentence).
+    private func notifySentenceIfCompleted() {
+        guard let onSentenceCompleted, suggestionsAllowed, !justinModeActive,
+              let found = AIText.lastSentence(in: textBefore), found.sentence != lastNotifiedSentence else { return }
+        lastNotifiedSentence = found.sentence
+        onSentenceCompleted(found.sentence)
+    }
+
     // MARK: Swipe
 
     func handleSwipe(path: [CGPoint], keyMap: KeyMap, fallbackKey: Key?) {
@@ -689,6 +814,14 @@ final class InputController {
             lastCommit = .suggestion(word: Self.justinWord)
             autoSpacePending = true
             afterEdit(lastWasSpace: true, consumedShift: true)
+            return
+        }
+        if suggestion.kind == .ai {
+            if let ai = aiSentence, ai.corrected == suggestion.text {
+                applyAISentence()
+            } else {
+                insertAIText(suggestion.text)
+            }
             return
         }
         switch (suggestion.kind, lastCommit) {
@@ -808,5 +941,10 @@ final class InputController {
         // Typing a character ends a manual shift override; auto-capitalisation takes over again.
         if consumedShift { shiftTouchedManually = false }
         refreshNow()
+        if lastWasSpace, composingCount == 0, suggestionsAllowed, !justinModeActive, let onWordBoundary {
+            onWordBoundary(textBefore)
+        } else {
+            onTyping?()
+        }
     }
 }

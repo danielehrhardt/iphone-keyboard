@@ -15,6 +15,9 @@ final class KeyboardView: UIView {
     /// Created on first use, like the emoji panel.
     private(set) var clipboardPanel: ClipboardPanelView?
     weak var clipboardDelegate: ClipboardPanelDelegate?
+    /// The AI panel (strip button ✦); created on first use, like the emoji panel.
+    private(set) var aiPanel: AIPanelView?
+    weak var aiDelegate: AIPanelDelegate?
     /// The dropdown under the strip's "⋯" button; created on first use.
     private(set) var actionMenu: ActionMenuView?
     private(set) var theme: KeyboardTheme
@@ -30,7 +33,7 @@ final class KeyboardView: UIView {
                 addSubview(panel)
                 emojiPanel = panel
             }
-            if isEmojiVisible { isClipboardVisible = false; isActionMenuVisible = false }
+            if isEmojiVisible { isClipboardVisible = false; isActionMenuVisible = false; isAIVisible = false }
             emojiPanel?.isHidden = !isEmojiVisible
             updateOverlayVisibility()
             if isEmojiVisible { emojiPanel?.refreshRecents() }
@@ -45,8 +48,22 @@ final class KeyboardView: UIView {
                 addSubview(panel)
                 clipboardPanel = panel
             }
-            if isClipboardVisible { isEmojiVisible = false; isActionMenuVisible = false }
+            if isClipboardVisible { isEmojiVisible = false; isActionMenuVisible = false; isAIVisible = false }
             clipboardPanel?.isHidden = !isClipboardVisible
+            updateOverlayVisibility()
+        }
+    }
+    var isAIVisible = false {
+        didSet {
+            if isAIVisible, aiPanel == nil {
+                let panel = AIPanelView(theme: theme, tone: .neutral, target: .english)
+                panel.delegate = aiDelegate
+                panel.frame = bounds
+                addSubview(panel)
+                aiPanel = panel
+            }
+            if isAIVisible { isEmojiVisible = false; isClipboardVisible = false; isActionMenuVisible = false }
+            aiPanel?.isHidden = !isAIVisible
             updateOverlayVisibility()
         }
     }
@@ -77,7 +94,7 @@ final class KeyboardView: UIView {
 
     /// The grid and the strip only show while no panel covers them.
     private func updateOverlayVisibility() {
-        let covered = isEmojiVisible || isClipboardVisible
+        let covered = isEmojiVisible || isClipboardVisible || isAIVisible
         grid.isHidden = covered
         suggestionBar.isHidden = covered
     }
@@ -101,6 +118,7 @@ final class KeyboardView: UIView {
         grid.apply(theme: theme)
         emojiPanel?.apply(theme: theme)
         clipboardPanel?.apply(theme: theme)
+        aiPanel?.apply(theme: theme)
         actionMenu?.apply(theme: theme)
     }
 
@@ -114,6 +132,7 @@ final class KeyboardView: UIView {
         if let menu = actionMenu, !menu.isHidden { return menu.hitTest(convert(point, to: menu), with: event) ?? menu }
         if let panel = emojiPanel, !panel.isHidden { return super.hitTest(point, with: event) }
         if let panel = clipboardPanel, !panel.isHidden { return super.hitTest(point, with: event) }
+        if let panel = aiPanel, !panel.isHidden { return super.hitTest(point, with: event) }
         if !grid.isHidden, grid.isUserInteractionEnabled, grid.alpha >= 0.01, point.y >= grid.frame.minY {
             return grid
         }
@@ -135,6 +154,7 @@ final class KeyboardView: UIView {
         grid.frame = CGRect(x: x, y: suggestionHeight, width: width, height: gridHeight)
         emojiPanel?.frame = bounds
         clipboardPanel?.frame = bounds
+        aiPanel?.frame = bounds
         actionMenu?.frame = bounds
         // The card hangs from the "⋯" button.
         actionMenu?.anchor = CGPoint(x: x + SuggestionBarView.dismissInset, y: suggestionHeight - 4)

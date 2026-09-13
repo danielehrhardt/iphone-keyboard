@@ -39,15 +39,18 @@ final class ClipboardUITests: XCTestCase {
         XCTAssertTrue(clipboardRow.waitForExistence(timeout: 3), "action menu did not open")
         shot("20-action-menu")
         clipboardRow.tap()
+        sleep(1)
+        shot("21-after-clipboard-tap")
         app.tap()   // lets a pending permission alert reach the interruption monitor
-        let panel = app.descendants(matching: .any)["clipboard-panel"]
+        // The "ABC" button is the panel's one element that is always an accessibility element.
+        let panel = app.descendants(matching: .any)["clipboard-letters"]
         XCTAssertTrue(panel.waitForExistence(timeout: 3), "clipboard panel did not open")
         let entry = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", clip)).firstMatch
         XCTAssertTrue(entry.waitForExistence(timeout: 5), "copied text not listed")
-        shot("21-clipboard-panel")
+        shot("22-clipboard-panel")
         entry.tap()
         sleep(1)
-        shot("22-reinserted")
+        shot("23-reinserted")
         let value = textView.value as? String ?? ""
         XCTAssertTrue(value.contains(clip), "got \(value)")
         XCTAssertTrue(app.descendants(matching: .any)["key-q"].waitForExistence(timeout: 3), "keys not back after picking an entry")

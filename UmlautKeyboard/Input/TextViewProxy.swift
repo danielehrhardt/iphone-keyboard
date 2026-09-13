@@ -19,6 +19,11 @@ final class TextViewProxy: TextProxy {
 
     func insert(_ text: String) { textView?.insertText(text) }
 
+    var selectedText: String? {
+        guard let tv = textView, let range = tv.selectedTextRange, !range.isEmpty else { return nil }
+        return tv.text(in: range)
+    }
+
     func deleteBackward() { textView?.deleteBackward() }
 
     func moveCursor(by offset: Int) {

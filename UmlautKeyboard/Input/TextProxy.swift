@@ -7,6 +7,12 @@ protocol TextProxy: AnyObject {
     func insert(_ text: String)
     func deleteBackward()
     func moveCursor(by offset: Int)
+    /// The selected text, if the host exposes it (the AI panel works on a selection first).
+    var selectedText: String? { get }
+}
+
+extension TextProxy {
+    var selectedText: String? { nil }
 }
 
 extension UITextDocumentProxy {
@@ -22,6 +28,10 @@ final class DocumentProxyAdapter: TextProxy {
     func insert(_ text: String) { proxy().insertText(text) }
     func deleteBackward() { proxy().deleteBackward() }
     func moveCursor(by offset: Int) { proxy().adjustTextPosition(byCharacterOffset: offset) }
+    var selectedText: String? {
+        guard let s = proxy().selectedText, !s.isEmpty else { return nil }
+        return s
+    }
 }
 
 /// Field traits that change keyboard behaviour.

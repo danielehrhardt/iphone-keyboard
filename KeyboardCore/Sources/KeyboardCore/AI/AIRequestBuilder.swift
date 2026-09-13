@@ -120,6 +120,8 @@ public enum AIError: Error, Equatable, LocalizedError, Sendable {
     case refused
     case cancelled
     case textChanged
+    /// The extension runs without "Allow Full Access": no network, no shared keys.
+    case needsFullAccess
 
     public var errorDescription: String? {
         switch self {
@@ -142,13 +144,14 @@ public enum AIError: Error, Equatable, LocalizedError, Sendable {
         case .refused: return "Das Modell hat diese Anfrage abgelehnt."
         case .cancelled: return "Abgebrochen."
         case .textChanged: return "Der Text hat sich inzwischen geändert."
+        case .needsFullAccess: return "Die KI braucht „Vollen Zugriff“ (iOS-Einstellungen › Tastaturen › Umlaut)."
         }
     }
 
     /// True when the fix lives in the app's settings rather than in retrying.
     public var needsSetup: Bool {
         switch self {
-        case .disabled, .missingKey, .noModel: return true
+        case .disabled, .missingKey, .noModel, .needsFullAccess: return true
         default: return false
         }
     }

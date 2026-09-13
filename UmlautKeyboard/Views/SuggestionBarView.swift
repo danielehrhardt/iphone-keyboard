@@ -2,10 +2,17 @@ import UIKit
 import KeyboardCore
 
 struct Suggestion: Equatable {
-    enum Kind: Equatable { case primary, alternate, literal, prediction }
+    /// `.ai` is a result of the assistant (a corrected sentence, a continuation), marked with ✦.
+    enum Kind: Equatable { case primary, alternate, literal, prediction, ai }
     let text: String
     let kind: Kind
-    var display: String { kind == .literal ? "„\(text)“" : text }
+    var display: String {
+        switch kind {
+        case .literal: return "„\(text)“"
+        case .ai: return "✦ \(text)"
+        default: return text
+        }
+    }
 }
 
 /// Three suggestion cells with hairline dividers, the primary one in the middle and bold.
@@ -19,6 +26,7 @@ final class SuggestionBarView: UIView {
     var onDismiss: (() -> Void)?
     var onLanguage: (() -> Void)?
     var onActions: (() -> Void)?
+    var onAI: (() -> Void)?
     private var buttons: [UIButton] = []
     /// Visual pill per cell. The button itself spans the whole cell so the tap target is large;
     /// only this inset view shows the highlight.
@@ -27,6 +35,9 @@ final class SuggestionBarView: UIView {
     private let dismissButton = UIButton(type: .system)
     private let languageButton = UIButton(type: .system)
     let actionsButton = UIButton(type: .system)
+    /// The sparkles capsule that opens the AI panel; hidden while the assistant is off.
+    let aiButton = AIStripButton()
+    static let aiWidth: CGFloat = 44
     static let dismissWidth: CGFloat = 46
     static let languageWidth: CGFloat = 44
     static let actionsWidth: CGFloat = 46
@@ -34,8 +45,17 @@ final class SuggestionBarView: UIView {
     /// Width taken by the "⋯" button and its inset at the leading edge.
     static var leadingReserved: CGFloat { actionsWidth + dismissInset }
     /// Width taken by the dismiss button (and the language badge, when shown) at the trailing edge.
-    static func trailingReserved(hasLanguage: Bool) -> CGFloat {
-        dismissWidth + dismissInset * 2 + (hasLanguage ? languageWidth + dismissInset : 0)
+    static func trailingReserved(hasLanguage: Bool, hasAI: Bool = false) -> CGFloat {
+        dismissWidth + dismissInset * 2 + (hasLanguage ? languageWidth + dismissInset : 0) + (hasAI ? aiWidth + dismissInset : 0)
+    }
+
+    /// Whether the AI button is shown (the assistant is switched on in the app).
+    var showsAI = false {
+        didSet {
+            guard showsAI != oldValue else { return }
+            aiButton.isHidden = !showsAI
+            setNeedsLayout()
+        }
     }
     private(set) var suggestions: [Suggestion] = []
     private var theme: KeyboardTheme
@@ -90,6 +110,9 @@ final class SuggestionBarView: UIView {
         actionsButton.accessibilityLabel = "Aktionen"
         actionsButton.addTarget(self, action: #selector(actionsTapped), for: .touchUpInside)
         addSubview(actionsButton)
+        aiButton.isHidden = true
+        aiButton.addTarget(self, action: #selector(aiTapped), for: .touchUpInside)
+        addSubview(aiButton)
         apply(theme: theme)
     }
 
@@ -101,6 +124,7 @@ final class SuggestionBarView: UIView {
         configureDismissButton()
         configureLanguageButton()
         configureActionsButton()
+        aiButton.apply(theme: theme)
         render()
     }
 
@@ -185,9 +209,9 @@ final class SuggestionBarView: UIView {
             let size: CGFloat = traitCollection.userInterfaceIdiom == .pad ? 19 : 17
             b.setTitle(s?.display, for: .normal)
             b.titleLabel?.font = .systemFont(ofSize: size, weight: weight)
-            b.setTitleColor(theme.suggestionText, for: .normal)
+            b.setTitleColor(s?.kind == .ai ? theme.accent : theme.suggestionText, for: .normal)
             b.isHidden = s == nil
-            b.accessibilityLabel = s.map { "Vorschlag \($0.text)" }
+            b.accessibilityLabel = s.map { ($0.kind == .ai ? "KI-Vorschlag " : "Vorschlag ") + $0.text }
         }
         let visible = suggestions.count
         dividers[0].isHidden = visible < 2
@@ -197,7 +221,7 @@ final class SuggestionBarView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         let leading = Self.leadingReserved
-        let reserved = leading + Self.trailingReserved(hasLanguage: language != nil)
+        let reserved = leading + Self.trailingReserved(hasLanguage: language != nil, hasAI: showsAI)
         // The visible words share the whole strip: one word gets all of it, two get halves. A
         // tap anywhere around a word then reaches it instead of a dead third of the strip.
         let visible = max(min(suggestions.count, buttons.count), 1)
@@ -213,6 +237,10 @@ final class SuggestionBarView: UIView {
         languageButton.frame = CGRect(x: dismissButton.frame.minX - Self.dismissInset - Self.languageWidth,
                                       y: (bounds.height - buttonHeight) / 2,
                                       width: Self.languageWidth, height: buttonHeight)
+        // Sparkles sit left of the language badge (or of the dismiss button without one).
+        let aiRight = language == nil ? dismissButton.frame.minX : languageButton.frame.minX
+        aiButton.frame = CGRect(x: aiRight - Self.dismissInset - Self.aiWidth, y: (bounds.height - buttonHeight) / 2,
+                                width: Self.aiWidth, height: buttonHeight)
         // The button covers its whole cell (full height, no gaps) so a tap anywhere near the
         // word registers; the pill inside carries the inset look.
         for (i, b) in buttons.enumerated() {
@@ -236,6 +264,8 @@ final class SuggestionBarView: UIView {
     @objc private func languageTapped() { onLanguage?() }
 
     @objc private func actionsTapped() { onActions?() }
+
+    @objc private func aiTapped() { onAI?() }
 
     @objc private func highlight(_ sender: UIButton) {
         pills[safe: sender.tag]?.backgroundColor = theme.suggestionHighlight
