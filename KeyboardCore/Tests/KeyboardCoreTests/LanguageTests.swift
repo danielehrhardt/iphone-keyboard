@@ -59,8 +59,9 @@ final class LanguageTests: XCTestCase {
         let first = g.keyFrame(for: row.keys.first!)!, last = g.keyFrame(for: row.keys.last!)!
         XCTAssertEqual(first.frame.minX, metrics.sideInset, accuracy: 0.5)
         XCTAssertEqual(last.frame.maxX, width - metrics.sideInset, accuracy: 0.5)
-        // Shift and backspace keep a wider gap to the letters, like Apple's English keyboard.
-        XCTAssertGreaterThan(g.keyFrame(for: row.keys[1])!.frame.minX - first.frame.maxX, g.horizontalGap + 1)
+        // Shift and backspace absorb the leftover width; the gap to the letters stays standard.
+        XCTAssertEqual(g.keyFrame(for: row.keys[1])!.frame.minX - first.frame.maxX, g.horizontalGap, accuracy: 0.5)
+        XCTAssertGreaterThan(first.frame.width, row.keys.first!.width * g.unitWidth + 1)
         // The home row is inset by half a key on both sides.
         let a = g.keyFrame(for: g.layout.rows[1].keys.first!)!, q = g.keyFrame(for: g.layout.rows[0].keys.first!)!
         XCTAssertEqual(a.frame.minX - q.frame.minX, (g.unitWidth + g.horizontalGap) / 2, accuracy: 0.5)

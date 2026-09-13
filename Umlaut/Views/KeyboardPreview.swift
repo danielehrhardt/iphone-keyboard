@@ -22,6 +22,7 @@ struct KeyboardPreview: View {
     var emojiOnCommaKey = true
     var language: KeyboardLanguage = .default
     var showsLanguageName = false
+    var germanUmlautKeys = true
 
     @Environment(\.colorScheme) private var environmentScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -35,7 +36,8 @@ struct KeyboardPreview: View {
     private static let referenceHeight: CGFloat = 216
     private var layout: KeyboardLayout {
         KeyboardLayouts.letters(options: LayoutOptions(showsCommaKey: showsCommaKey, emojiOnCommaKey: emojiOnCommaKey,
-                                                       language: language, showsLanguageName: showsLanguageName))
+                                                       language: language, showsLanguageName: showsLanguageName,
+                                                       germanUmlautKeys: germanUmlautKeys))
     }
 
     private var isDark: Bool { (scheme ?? environmentScheme) == .dark }

@@ -26,11 +26,10 @@ public enum EnglishLayouts {
         ],
     ]
 
-    /// Shift and backspace are a little narrower than on the German layout so that the row of
-    /// seven letters leaves the wider gaps next to them that Apple's English keyboard has.
-    static let flankWidth: CGFloat = 1.25
-    public static let shift = Key(id: "shift", action: .shift, label: "⇧", width: flankWidth, isFunction: true, symbolName: "shift")
-    public static let backspace = Key(id: "backspace", action: .backspace, label: "⌫", width: flankWidth, isFunction: true, symbolName: "delete.left")
+    /// Shift and backspace are a little narrower than on the eleven-column German layout so that
+    /// the row of seven letters leaves the wider gaps next to them that Apple's English keyboard has.
+    public static let shift = LayoutParts.narrowShift
+    public static let backspace = LayoutParts.narrowBackspace
 
     /// The family knows its language: the bottom row is built for English whatever `options` say.
     private static func english(_ options: LayoutOptions) -> LayoutOptions {
@@ -42,7 +41,7 @@ public enum EnglishLayouts {
     /// Letters layer: 10 / 9 / 7 letters, the home row inset by half a key.
     public static func letters(options: LayoutOptions = LayoutOptions()) -> KeyboardLayout {
         let options = english(options)
-        let row3 = KeyRow([shift] + letterRows[2] + [backspace], expandsFlankGaps: true)
+        let row3 = KeyRow([shift] + letterRows[2] + [backspace], stretchesFlankKeys: true)
         return KeyboardLayout(
             layer: .letters,
             rows: [KeyRow(letterRows[0]),
@@ -72,7 +71,7 @@ public enum EnglishLayouts {
         KeyboardLayout(
             layer: .symbols,
             rows: [KeyRow(LayoutParts.digitRow), KeyRow(symbolRow2),
-                   KeyRow([LayoutParts.toExtra] + LayoutParts.punctuationRow + [LayoutParts.symbolBackspace], expandsFlankGaps: true),
+                   KeyRow([LayoutParts.toExtra] + LayoutParts.punctuationRow + [LayoutParts.symbolBackspace], stretchesFlankKeys: true),
                    LayoutParts.bottomRow(options: english(options), layerSwitch: LayoutParts.toLetters)],
             columns: 10
         )
@@ -82,7 +81,7 @@ public enum EnglishLayouts {
         KeyboardLayout(
             layer: .extraSymbols,
             rows: [KeyRow(LayoutParts.extraRow1), KeyRow(extraRow2),
-                   KeyRow([LayoutParts.toSymbolsFromExtra] + LayoutParts.punctuationRow + [LayoutParts.symbolBackspace], expandsFlankGaps: true),
+                   KeyRow([LayoutParts.toSymbolsFromExtra] + LayoutParts.punctuationRow + [LayoutParts.symbolBackspace], stretchesFlankKeys: true),
                    LayoutParts.bottomRow(options: english(options), layerSwitch: LayoutParts.toLetters)],
             columns: 10
         )

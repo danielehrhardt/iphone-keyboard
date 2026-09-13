@@ -36,6 +36,19 @@ struct SettingsView: View {
                      : "Schalte weitere Sprachen ein, um in der Tastatur zwischen ihnen zu wechseln. Layout, Wörterbuch, Autokorrektur und gelernte Wörter folgen der Sprache.")
             }
 
+            if settings.isEnabled(.german) {
+                Section {
+                    Toggle("Umlaut-Tasten Ü, Ö, Ä", isOn: $settings.germanUmlautKeys)
+                        .accessibilityIdentifier("german-umlaut-keys")
+                } header: {
+                    Text("Deutsche Tastatur")
+                } footer: {
+                    Text(settings.germanUmlautKeys
+                         ? "Ü, Ö und Ä haben eigene Tasten am rechten Rand, wie auf der deutschen Systemtastatur."
+                         : "Ohne eigene Umlaut-Tasten sind die Tasten breiter – zehn pro Reihe wie auf der englischen Tastatur. Umlaute erreichst du durch Halten von U, O und A, das ß wie gewohnt auf dem S.")
+                }
+            }
+
             Section("Eingabe") {
                 Toggle("Swipe-Eingabe", isOn: $settings.swipeTyping)
                 Toggle("Autokorrektur", isOn: $settings.autocorrect)
@@ -82,10 +95,12 @@ struct SettingsView: View {
                                 showsCommaKey: settings.commaKey,
                                 emojiOnCommaKey: settings.emojiOnCommaKey,
                                 language: settings.currentLanguage,
-                                showsLanguageName: settings.enabledLanguages.count > 1)
+                                showsLanguageName: settings.enabledLanguages.count > 1,
+                                germanUmlautKeys: settings.germanUmlautKeys)
                     .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
                     .listRowBackground(Color.clear)
                     .animation(.easeInOut(duration: 0.25), value: settings.keySize)
+                    .animation(.easeInOut(duration: 0.25), value: settings.germanUmlautKeys)
 
                 Picker("Erscheinungsbild", selection: $settings.theme) {
                     ForEach(KeyboardSettings.Theme.allCases) { theme in

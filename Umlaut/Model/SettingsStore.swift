@@ -44,6 +44,8 @@ final class SettingsStore: ObservableObject {
     }
     /// The language the keyboard is currently typing in (the keyboard changes it too).
     @Published var currentLanguage: KeyboardLanguage = .default { didSet { write { settings.currentLanguage = currentLanguage } } }
+    /// ü/ö/ä as keys of their own on the German layout; off, they sit on a hold of u/o/a.
+    @Published var germanUmlautKeys = true { didSet { write { settings.germanUmlautKeys = germanUmlautKeys } } }
 
     func isEnabled(_ language: KeyboardLanguage) -> Bool { enabledLanguages.contains(language) }
 
@@ -103,6 +105,7 @@ final class SettingsStore: ObservableObject {
         justinMode = settings.justinMode
         enabledLanguages = settings.enabledLanguages
         currentLanguage = settings.currentLanguage
+        germanUmlautKeys = settings.germanUmlautKeys
         keyPreview = settings.keyPreview
         swipeTrail = settings.swipeTrail
         haptics = settings.haptics

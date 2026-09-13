@@ -87,6 +87,50 @@ final class KeyboardViewHitTests: XCTestCase {
         XCTAssertFalse(hit === view.grid, "a tap on the suggestion strip must not type a key")
     }
 
+    /// A word on the strip is hit anywhere in its cell, not just on the glyphs: the top edge,
+    /// the bottom edge and the padding beside the text all select it.
+    func testWholeSuggestionCellSelectsTheWord() {
+        var picked: [String] = []
+        view.suggestionBar.onSelect = { picked.append($0.text) }
+        view.suggestionBar.set([Suggestion(text: "a", kind: .alternate),
+                                Suggestion(text: "Hallo", kind: .primary),
+                                Suggestion(text: "b", kind: .alternate)])
+        view.layoutIfNeeded()
+        let cellWidth = (390 - 46 - 12) / 3.0
+        for point in [CGPoint(x: cellWidth + 2, y: 1),                    // top-left corner of the middle cell
+                      CGPoint(x: cellWidth * 2 - 2, y: suggestions - 1),  // bottom-right corner
+                      CGPoint(x: cellWidth * 1.5, y: 3)] {                // above the pill
+            let hit = view.hitTest(point, with: nil) as? UIButton
+            XCTAssertNotNil(hit, "no button at \(point)")
+            hit?.sendActions(for: .touchUpInside)
+        }
+        XCTAssertEqual(picked, ["Hallo", "Hallo", "Hallo"])
+    }
+
+    /// With fewer than three words the ones shown spread over the whole strip, so a single
+    /// suggestion is reachable from the leading edge right up to the dismiss button.
+    func testFewerSuggestionsFillTheStrip() {
+        var picked: [String] = []
+        view.suggestionBar.onSelect = { picked.append($0.text) }
+        view.suggestionBar.set([Suggestion(text: "Hallo", kind: .primary)])
+        view.layoutIfNeeded()
+        for x: CGFloat in [4, 195, 390 - 46 - 12 - 4] {
+            let hit = view.hitTest(CGPoint(x: x, y: suggestions / 2), with: nil) as? UIButton
+            XCTAssertNotNil(hit, "no button at x=\(x)")
+            hit?.sendActions(for: .touchUpInside)
+        }
+        XCTAssertEqual(picked, ["Hallo", "Hallo", "Hallo"])
+
+        picked = []
+        view.suggestionBar.set([Suggestion(text: "links", kind: .alternate), Suggestion(text: "rechts", kind: .primary)])
+        view.layoutIfNeeded()
+        let half = (390 - 46 - 12) / 2.0
+        for x in [half - 4, half + 4] {
+            (view.hitTest(CGPoint(x: x, y: suggestions / 2), with: nil) as? UIButton)?.sendActions(for: .touchUpInside)
+        }
+        XCTAssertEqual(picked, ["links", "rechts"])
+    }
+
     func testEmojiPanelCoversTheStrip() {
         view.emojiDelegate = nil
         view.isEmojiVisible = true

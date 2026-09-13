@@ -71,7 +71,9 @@ language's engine in memory (a second lexicon would cost another ~14 MB) and rel
 keeps working meanwhile, suggestions return once the engine is there. Adding a language: a case in
 `KeyboardLanguage`, a layout family, a `LanguageRules` value, and `scripts/build_dictionary.py <lang>`.
 
-**Layout** – `GermanLayouts` defines the QWERTZ layers (letters with ü/ö/ä keys, ß on long-press s),
+**Layout** – `GermanLayouts` defines the QWERTZ layers (letters with ü/ö/ä keys, ß on long-press s;
+with `KeyboardSettings.germanUmlautKeys` off – „Umlaut-Tasten“ in the app – the letters layer is
+10/9/7 wide like QWERTY and ü/ö/ä sit first in the hold bubble of u/o/a),
 `EnglishLayouts` the QWERTY layers (10/9/7 letters, umlauts on long-press, `$` on the symbol layer);
 `LayoutParts` holds what they share (function keys, digit and punctuation rows, number pads, bottom
 row). `KeyboardGeometry` places keys for any size; `KeyMap` exposes letter centres to the engines. The

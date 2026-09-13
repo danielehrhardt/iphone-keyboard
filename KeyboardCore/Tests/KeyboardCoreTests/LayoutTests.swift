@@ -11,6 +11,53 @@ final class LayoutTests: XCTestCase {
         XCTAssertEqual(layout.rows[2].keys.filter(\.isLetter).map(\.label).joined(), "yxcvbnm")
     }
 
+    /// „Umlaut-Tasten“ off: ten keys per row like QWERTY, y/z still swapped, ü/ö/ä first in the
+    /// hold bubble of u/o/a, and the key map folds them onto those keys for swipe and autocorrect.
+    func testGermanLayoutWithoutUmlautKeysIsTenColumnsWithUmlautsOnHold() {
+        let layout = GermanLayouts.letters(options: LayoutOptions(germanUmlautKeys: false))
+        XCTAssertEqual(layout.columns, 10)
+        XCTAssertEqual(layout.rows[0].keys.map(\.label).joined(), "qwertzuiop")
+        XCTAssertEqual(layout.rows[1].keys.map(\.label).joined(), "asdfghjkl")
+        XCTAssertEqual(layout.rows[1].leadingInset, 0.5)
+        XCTAssertEqual(layout.rows[1].trailingInset, 0.5)
+        XCTAssertEqual(layout.rows[2].keys.filter(\.isLetter).map(\.label).joined(), "yxcvbnm")
+        XCTAssertEqual(layout.rows[2].keys.first?.width, EnglishLayouts.shift.width)
+
+        let letters = Set(layout.letterKeys.compactMap(\.character))
+        for c in KeyAlphabet.letters.prefix(KeyAlphabet.baseCount) { XCTAssertTrue(letters.contains(c), "missing \(c)") }
+        for c in ["ä", "ö", "ü"] as [Character] { XCTAssertFalse(letters.contains(c), "\(c) still has a key") }
+        func alternates(_ c: Character) -> [String] { layout.letterKeys.first { $0.character == c }!.alternates }
+        XCTAssertEqual(alternates("u").first, "ü")
+        XCTAssertEqual(alternates("o").first, "ö")
+        XCTAssertEqual(alternates("a").first, "ä")
+        XCTAssertTrue(alternates("u").contains("ú"), "the accents stay behind the umlaut")
+        XCTAssertTrue(alternates("s").contains("ß"))
+        // Still the German keyboard: bottom row, space label and the other layers are unchanged.
+        XCTAssertEqual(layout.rows[3].keys.first { $0.action == .space }?.label, "Leerzeichen")
+        XCTAssertEqual(GermanLayouts.symbols(options: LayoutOptions(germanUmlautKeys: false)), GermanLayouts.symbols())
+        let ids = layout.allKeys.map(\.id)
+        XCTAssertEqual(ids.count, Set(ids).count)
+
+        let keyMap = KeyMap(geometry: KeyboardGeometry(layout: layout, size: CGSize(width: 390, height: 216)))!
+        XCTAssertEqual(keyMap.foldedCodes, Set(["ä", "ö", "ü"].map { KeyAlphabet.code(for: $0)! }))
+        XCTAssertEqual(keyMap.centers[Int(KeyAlphabet.code(for: "ü")!)], keyMap.centers[Int(KeyAlphabet.code(for: "u")!)])
+        // Its own tap-map layer: the arrangement differs from both the 11-column German and the QWERTY one.
+        XCTAssertNotEqual(TapMap.arrangement(of: keyMap), TapMap.arrangement(of: KeyMap.reference()))
+        XCTAssertNotEqual(TapMap.arrangement(of: keyMap), TapMap.arrangement(of: KeyMap.reference(language: .english)))
+
+        // Default and the English layout are untouched by the option.
+        XCTAssertEqual(GermanLayouts.letters(options: LayoutOptions(germanUmlautKeys: true)), GermanLayouts.letters())
+        XCTAssertEqual(GermanLayouts.letters().columns, 11)
+        XCTAssertEqual(EnglishLayouts.letters(options: LayoutOptions(germanUmlautKeys: false)), EnglishLayouts.letters())
+    }
+
+    func testUmlautKeysSettingDefaultsToOn() {
+        let settings = KeyboardSettings(defaults: UserDefaults(suiteName: "umlaut-keys-tests-\(UUID())")!)
+        XCTAssertTrue(settings.germanUmlautKeys)
+        settings.germanUmlautKeys = false
+        XCTAssertFalse(settings.germanUmlautKeys)
+    }
+
     func testGeometryFitsWidthAndSpaceBarStretches() {
         let g = KeyboardGeometry(layout: GermanLayouts.letters(), size: CGSize(width: 390, height: 216))
         for kf in g.keyFrames {
@@ -34,11 +81,14 @@ final class LayoutTests: XCTestCase {
             // Flush with the row edges, like the system keyboard.
             XCTAssertEqual(first.frame.minX, metrics.sideInset, accuracy: 0.5, "\(layer) leading key")
             XCTAssertEqual(last.frame.maxX, width - metrics.sideInset, accuracy: 0.5, "\(layer) trailing key")
-            // The slack sits in the gaps next to them, not at the edges.
+            // The slack widens the two keys; the gaps next to them stay standard, with no empty space.
             let secondKey = g.keyFrame(for: row.keys[1])!
-            XCTAssertGreaterThan(secondKey.frame.minX - first.frame.maxX, g.horizontalGap + 1, "\(layer) leading gap")
+            XCTAssertEqual(secondKey.frame.minX - first.frame.maxX, g.horizontalGap, accuracy: 0.5, "\(layer) leading gap")
             let penultimate = g.keyFrame(for: row.keys[row.keys.count - 2])!
-            XCTAssertGreaterThan(last.frame.minX - penultimate.frame.maxX, g.horizontalGap + 1, "\(layer) trailing gap")
+            XCTAssertEqual(last.frame.minX - penultimate.frame.maxX, g.horizontalGap, accuracy: 0.5, "\(layer) trailing gap")
+            let nominal = row.keys.first!.width * g.unitWidth + (row.keys.first!.width - 1) * g.horizontalGap
+            XCTAssertGreaterThan(first.frame.width, nominal + 1, "\(layer) leading key stretched")
+            XCTAssertEqual(first.frame.width, last.frame.width, accuracy: 0.5, "\(layer) flank keys match")
             // Touches at the very edge still belong to them.
             XCTAssertEqual(g.keyFrame(at: CGPoint(x: 0, y: first.frame.midY))?.key.id, first.key.id)
             XCTAssertEqual(g.keyFrame(at: CGPoint(x: width - 1, y: last.frame.midY))?.key.id, last.key.id)

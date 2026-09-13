@@ -20,6 +20,11 @@ public enum KeyboardLayouts {
 enum LayoutParts {
     static let shift = Key(id: "shift", action: .shift, label: "⇧", width: 1.5, isFunction: true, symbolName: "shift")
     static let backspace = Key(id: "backspace", action: .backspace, label: "⌫", width: 1.5, isFunction: true, symbolName: "delete.left")
+    /// Shift and backspace for ten-column letter layers: a little narrower so that the row of seven
+    /// letters leaves the wider gaps next to them that Apple's ten-column keyboards have.
+    static let narrowFlankWidth: CGFloat = 1.25
+    static let narrowShift = Key(id: "shift", action: .shift, label: "⇧", width: narrowFlankWidth, isFunction: true, symbolName: "shift")
+    static let narrowBackspace = Key(id: "backspace", action: .backspace, label: "⌫", width: narrowFlankWidth, isFunction: true, symbolName: "delete.left")
     static let newline = Key(id: "return", action: .newline, label: "Return", width: 2.2, isFunction: true, symbolName: "return")
     static let globe = Key(id: "globe", action: .globe, label: "🌐", width: 1.25, isFunction: true, symbolName: "globe")
     static let emoji = Key(id: "emoji", action: .emoji, label: "☺", width: 1.25, isFunction: true, symbolName: "face.smiling")
@@ -114,6 +119,8 @@ enum LayoutParts {
 
 /// The German QWERTZ layout family, matching what German iPhone users expect
 /// (ü/ö/ä as first-class keys, ß via long-press on s, y and z swapped vs. QWERTY).
+/// With the umlaut keys switched off (`LayoutOptions.germanUmlautKeys`) the letters layer has
+/// ten keys per row like QWERTY, y and z still swapped, and ü/ö/ä on a hold of u/o/a.
 public enum GermanLayouts {
 
     // MARK: Letters
@@ -137,6 +144,20 @@ public enum GermanLayouts {
         ],
     ]
 
+    /// `letterRows` without the umlaut keys: ü/ö/ä move to the front of the hold bubble of u/o/a.
+    public static let compactLetterRows: [[Key]] = letterRows.map { row in
+        row.compactMap { key in
+            guard let c = key.character else { return key }
+            switch c {
+            case "ü", "ö", "ä": return nil
+            case "u": return key.replacingAlternates(["ü"] + key.alternates)
+            case "o": return key.replacingAlternates(["ö"] + key.alternates)
+            case "a": return key.replacingAlternates(["ä"] + key.alternates)
+            default: return key
+            }
+        }
+    }
+
     // Shared keys, kept here under their long-standing names.
     public static let shift = LayoutParts.shift
     public static let backspace = LayoutParts.backspace
@@ -159,11 +180,22 @@ public enum GermanLayouts {
     }
 
     /// Letters layer. Row 3 is centred with shift/backspace on the flanks like Apple's German keyboard.
+    /// Without umlaut keys the rows are 10 / 9 / 7 letters wide, the home row inset by half a key.
     public static func letters(options: LayoutOptions = LayoutOptions()) -> KeyboardLayout {
-        let row3 = KeyRow([shift] + letterRows[2] + [backspace], expandsFlankGaps: true)
+        let bottom = LayoutParts.bottomRow(options: german(options), layerSwitch: toSymbols)
+        guard options.germanUmlautKeys else {
+            let rows = compactLetterRows
+            let row3 = KeyRow([LayoutParts.narrowShift] + rows[2] + [LayoutParts.narrowBackspace], stretchesFlankKeys: true)
+            return KeyboardLayout(
+                layer: .letters,
+                rows: [KeyRow(rows[0]), KeyRow(rows[1], leadingInset: 0.5, trailingInset: 0.5), row3, bottom],
+                columns: 10
+            )
+        }
+        let row3 = KeyRow([shift] + letterRows[2] + [backspace], stretchesFlankKeys: true)
         return KeyboardLayout(
             layer: .letters,
-            rows: [KeyRow(letterRows[0]), KeyRow(letterRows[1]), row3, LayoutParts.bottomRow(options: german(options), layerSwitch: toSymbols)],
+            rows: [KeyRow(letterRows[0]), KeyRow(letterRows[1]), row3, bottom],
             columns: 11
         )
     }
@@ -186,7 +218,7 @@ public enum GermanLayouts {
         KeyboardLayout(
             layer: .symbols,
             rows: [KeyRow(symbolRows1[0]), KeyRow(symbolRows1[1]),
-                   KeyRow([toExtra] + symbolRows1[2] + [LayoutParts.symbolBackspace], expandsFlankGaps: true),
+                   KeyRow([toExtra] + symbolRows1[2] + [LayoutParts.symbolBackspace], stretchesFlankKeys: true),
                    LayoutParts.bottomRow(options: german(options), layerSwitch: toLetters)],
             columns: 10
         )
@@ -196,7 +228,7 @@ public enum GermanLayouts {
         KeyboardLayout(
             layer: .extraSymbols,
             rows: [KeyRow(symbolRows2[0]), KeyRow(symbolRows2[1]),
-                   KeyRow([LayoutParts.toSymbolsFromExtra] + symbolRows1[2] + [LayoutParts.symbolBackspace], expandsFlankGaps: true),
+                   KeyRow([LayoutParts.toSymbolsFromExtra] + symbolRows1[2] + [LayoutParts.symbolBackspace], stretchesFlankKeys: true),
                    LayoutParts.bottomRow(options: german(options), layerSwitch: toLetters)],
             columns: 10
         )
@@ -221,6 +253,11 @@ public enum GermanLayouts {
 extension Key {
     func renamed(_ newID: String) -> Key {
         Key(id: newID, action: action, label: label, alternates: alternates, width: width,
+            isLetter: isLetter, isFunction: isFunction, symbolName: symbolName, longPressAction: longPressAction)
+    }
+
+    func replacingAlternates(_ newAlternates: [String]) -> Key {
+        Key(id: id, action: action, label: label, alternates: newAlternates, width: width,
             isLetter: isLetter, isFunction: isFunction, symbolName: symbolName, longPressAction: longPressAction)
     }
 }

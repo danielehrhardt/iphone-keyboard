@@ -131,8 +131,10 @@ final class SuggestionBarView: UIView {
     func set(_ new: [Suggestion]) {
         guard new != suggestions else { return }
         let hadContent = !suggestions.isEmpty
+        let countChanged = new.count != suggestions.count
         suggestions = new
         render()
+        if countChanged { setNeedsLayout() }
         // A soft fade when the strip fills after being empty (e.g. first letter of a word).
         if !hadContent, !new.isEmpty {
             buttons.forEach { $0.titleLabel?.alpha = 0 }
@@ -162,7 +164,10 @@ final class SuggestionBarView: UIView {
         super.layoutSubviews()
         let languageReserved = language == nil ? 0 : Self.languageWidth + Self.dismissInset
         let reserved = Self.dismissWidth + Self.dismissInset * 2 + languageReserved
-        let w = max(bounds.width - reserved, 0) / 3
+        // The visible words share the whole strip: one word gets all of it, two get halves. A
+        // tap anywhere around a word then reaches it instead of a dead third of the strip.
+        let visible = max(min(suggestions.count, buttons.count), 1)
+        let w = max(bounds.width - reserved, 0) / CGFloat(visible)
         let inset: CGFloat = 6
         let h = bounds.height - 12
         let buttonHeight = min(h, 32)
@@ -172,10 +177,10 @@ final class SuggestionBarView: UIView {
         languageButton.frame = CGRect(x: dismissButton.frame.minX - Self.dismissInset - Self.languageWidth,
                                       y: (bounds.height - buttonHeight) / 2,
                                       width: Self.languageWidth, height: buttonHeight)
-        // The button covers its whole third of the strip (full height, no gaps) so a tap anywhere
-        // near the word registers; the pill inside carries the inset look.
+        // The button covers its whole cell (full height, no gaps) so a tap anywhere near the
+        // word registers; the pill inside carries the inset look.
         for (i, b) in buttons.enumerated() {
-            b.frame = CGRect(x: CGFloat(i) * w, y: 0, width: w, height: bounds.height)
+            b.frame = CGRect(x: CGFloat(min(i, visible - 1)) * w, y: 0, width: w, height: bounds.height)
             let pill = pills[i]
             pill.frame = CGRect(x: inset, y: 6, width: max(w - inset * 2, 0), height: max(h, 0))
             pill.layer.cornerRadius = min(max(h, 0) / 2, 12)

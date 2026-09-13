@@ -85,16 +85,16 @@ public struct KeyRow: Hashable, Sendable {
     /// Extra horizontal padding on each side, in units of a standard key width.
     public var leadingInset: CGFloat
     public var trailingInset: CGFloat
-    /// System-keyboard behaviour for rows framed by function keys (shift/#+= … backspace): the row
-    /// spans the full width and the leftover goes into the two gaps next to the flanking keys,
-    /// instead of centring the row and leaving margins at the edges.
-    public var expandsFlankGaps: Bool
+    /// Rows framed by function keys (shift/#+= … backspace): the row spans the full width and the
+    /// leftover widens the two flanking keys, instead of centring the row and leaving margins at
+    /// the edges or empty space next to those keys.
+    public var stretchesFlankKeys: Bool
 
-    public init(_ keys: [Key], leadingInset: CGFloat = 0, trailingInset: CGFloat = 0, expandsFlankGaps: Bool = false) {
+    public init(_ keys: [Key], leadingInset: CGFloat = 0, trailingInset: CGFloat = 0, stretchesFlankKeys: Bool = false) {
         self.keys = keys
         self.leadingInset = leadingInset
         self.trailingInset = trailingInset
-        self.expandsFlankGaps = expandsFlankGaps
+        self.stretchesFlankKeys = stretchesFlankKeys
     }
 }
 
@@ -129,10 +129,14 @@ public struct LayoutOptions: Hashable, Sendable {
     public var language: KeyboardLanguage
     /// Space bar shows the language's name instead of "space" (several languages enabled).
     public var showsLanguageName: Bool
+    /// German letters layer with ü/ö/ä as keys of their own (eleven per row). Off, the German
+    /// layout has ten keys per row like QWERTY and the umlauts sit on a hold of u/o/a.
+    public var germanUmlautKeys: Bool
 
     public init(needsGlobeKey: Bool = true, showsEmojiKey: Bool = true, isEmailOrURL: Bool = false,
                 showsCommaKey: Bool = true, emojiOnCommaKey: Bool = true,
-                language: KeyboardLanguage = .default, showsLanguageName: Bool = false) {
+                language: KeyboardLanguage = .default, showsLanguageName: Bool = false,
+                germanUmlautKeys: Bool = true) {
         self.needsGlobeKey = needsGlobeKey
         self.showsEmojiKey = showsEmojiKey
         self.isEmailOrURL = isEmailOrURL
@@ -140,5 +144,6 @@ public struct LayoutOptions: Hashable, Sendable {
         self.emojiOnCommaKey = emojiOnCommaKey
         self.language = language
         self.showsLanguageName = showsLanguageName
+        self.germanUmlautKeys = germanUmlautKeys
     }
 }

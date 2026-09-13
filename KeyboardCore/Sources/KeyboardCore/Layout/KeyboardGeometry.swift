@@ -70,15 +70,15 @@ public struct KeyboardGeometry: Hashable, Sendable {
             let hasSpace = row.keys.contains { $0.action == .space }
             let spaceWidth = hasSpace ? max(unit, usableWidth - fixedTotal - insets) : 0
             let rowWidth = fixedTotal + spaceWidth + insets
-            // Rows framed by function keys fill the width, the slack sitting next to those keys.
-            let flankGap = row.expandsFlankGaps && !hasSpace && row.keys.count > 2
+            // Rows framed by function keys fill the width, the slack widening those two keys.
+            let flankExtra = row.stretchesFlankKeys && !hasSpace && row.keys.count > 2
                 ? max(0, usableWidth - rowWidth) / 2 : 0
-            var x = metrics.sideInset + (usableWidth - rowWidth - flankGap * 2) / 2 + row.leadingInset * (unit + horizontalGap)
+            var x = metrics.sideInset + (usableWidth - rowWidth - flankExtra * 2) / 2 + row.leadingInset * (unit + horizontalGap)
 
             var caps: [CGRect] = []
             for (i, key) in row.keys.enumerated() {
-                if i == 1 || i == row.keys.count - 1 { x += flankGap }
-                let w = key.action == .space ? spaceWidth : fixedWidths[i]
+                let isFlank = i == 0 || i == row.keys.count - 1
+                let w = key.action == .space ? spaceWidth : fixedWidths[i] + (isFlank ? flankExtra : 0)
                 caps.append(CGRect(x: x, y: y, width: w, height: rh))
                 x += w + horizontalGap
             }

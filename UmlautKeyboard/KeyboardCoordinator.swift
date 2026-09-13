@@ -155,7 +155,8 @@ final class KeyboardCoordinator: NSObject {
         let options = LayoutOptions(needsGlobeKey: needsGlobeKey, showsEmojiKey: true,
                                     isEmailOrURL: input.traits.isEmailOrURL, showsCommaKey: settings.commaKey,
                                     emojiOnCommaKey: settings.emojiOnCommaKey,
-                                    language: language, showsLanguageName: settings.hasMultipleLanguages)
+                                    language: language, showsLanguageName: settings.hasMultipleLanguages,
+                                    germanUmlautKeys: settings.germanUmlautKeys)
         // Called after every keystroke (the host reports each edit back); only a real change
         // is worth a layout pass.
         guard options != layoutOptions || lastOptions == nil else { return }

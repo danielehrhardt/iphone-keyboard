@@ -75,6 +75,7 @@ public final class KeyboardSettings: @unchecked Sendable {
             Keys.haptics: true, Keys.sound: true, Keys.swipeTrail: true, Keys.learnWords: true,
             Keys.theme: Theme.system.rawValue, Keys.accent: Accent.blue.rawValue, Keys.keySize: KeySize.regular.rawValue,
             Keys.longPressNumbers: true, Keys.commaKey: true, Keys.emojiOnCommaKey: true, Keys.smartHitTargets: true, Keys.adaptiveTapMap: true, Keys.justinMode: false, Keys.onboardingDone: false,
+            Keys.germanUmlautKeys: true,
             Keys.enabledLanguages: [KeyboardLanguage.default.rawValue], Keys.currentLanguage: KeyboardLanguage.default.rawValue,
         ])
     }
@@ -102,6 +103,7 @@ public final class KeyboardSettings: @unchecked Sendable {
         static let adaptiveTapMap = "adaptiveTapMap"
         static let justinMode = "justinMode"
         static let onboardingDone = "onboardingDone"
+        static let germanUmlautKeys = "germanUmlautKeys"
     }
 
     public var swipeTyping: Bool { get { defaults.bool(forKey: Keys.swipeTyping) } set { defaults.set(newValue, forKey: Keys.swipeTyping) } }
@@ -128,6 +130,9 @@ public final class KeyboardSettings: @unchecked Sendable {
     /// Every typed or swiped word is replaced by „Justin“.
     public var justinMode: Bool { get { defaults.bool(forKey: Keys.justinMode) } set { defaults.set(newValue, forKey: Keys.justinMode) } }
     public var onboardingDone: Bool { get { defaults.bool(forKey: Keys.onboardingDone) } set { defaults.set(newValue, forKey: Keys.onboardingDone) } }
+    /// The German layout shows ü/ö/ä as keys of their own. Off, it has ten keys per row like the
+    /// English one and the umlauts are reached by holding u/o/a (ß stays on s).
+    public var germanUmlautKeys: Bool { get { defaults.bool(forKey: Keys.germanUmlautKeys) } set { defaults.set(newValue, forKey: Keys.germanUmlautKeys) } }
 
     public var theme: Theme {
         get { Theme(rawValue: defaults.string(forKey: Keys.theme) ?? "") ?? .system }
