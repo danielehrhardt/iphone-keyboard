@@ -360,27 +360,30 @@ final class InputController {
         var justinMode: Bool
         /// The assistant's entries for the strip, already checked against the document.
         var ai: [Suggestion] = []
+        /// The AI entry is a corrected sentence: it gets the whole strip.
+        var aiFillsStrip = false
     }
 
     /// The strip's AI entries: the pending sentence correction while the sentence still ends the
     /// text, else the continuations while the text is still the context they were made for.
-    private func aiSuggestions() -> [Suggestion] {
-        guard suggestionsAllowed, !justinModeActive, composingWord.isEmpty else { return [] }
+    private func aiSuggestions() -> (items: [Suggestion], fillsStrip: Bool) {
+        guard suggestionsAllowed, !justinModeActive, composingWord.isEmpty else { return ([], false) }
         if let ai = aiSentence {
             if let found = AIText.lastSentence(in: textBefore), found.sentence == ai.original {
-                return [Suggestion(text: ai.corrected, kind: .ai)]
+                return ([Suggestion(text: ai.corrected, kind: .ai)], true)
             }
-            return []
+            return ([], false)
         }
         if let c = aiContinuations, c.context == textBefore {
-            return c.items.prefix(2).map { Suggestion(text: $0, kind: .ai) }
+            return (c.items.prefix(2).map { Suggestion(text: $0, kind: .ai) }, false)
         }
-        return []
+        return ([], false)
     }
 
     private func suggestionInput(layer: KeyboardLayer) -> SuggestionInput {
         let engine = suggestionsAllowed && layer == .letters && self.engine?.language == language ? self.engine : nil
         let justin = justinModeActive
+        let ai: (items: [Suggestion], fillsStrip: Bool) = engine == nil ? ([], false) : aiSuggestions()
         let composing = engine == nil ? "" : composingWord
         // Only the correction search needs context; skip the reads when nothing will run.
         let needsContext = engine != nil && !justin
@@ -395,7 +398,8 @@ final class InputController {
             autocorrectAllowed: autocorrectAllowed,
             predictions: settings.predictions,
             justinMode: justin,
-            ai: engine == nil ? [] : aiSuggestions())
+            ai: engine == nil ? [] : ai.items,
+            aiFillsStrip: engine == nil ? false : ai.fillsStrip)
     }
 
     private static func buildSuggestions(_ input: SuggestionInput) -> [Suggestion] {
@@ -411,9 +415,7 @@ final class InputController {
                 return items
             }
             // A corrected sentence takes the whole strip; continuations share it with predictions.
-            if input.ai.count == 1, input.ai[0].kind == .ai, input.predictions == false || input.ai[0].text.contains(" ") && aiSentenceLike(input.ai[0].text) {
-                return input.ai
-            }
+            if input.aiFillsStrip { return input.ai }
             guard input.predictions else { return input.ai }
             let predicted = engine.predictor.nextWords(after: input.previous, isSentenceStart: input.isSentenceStart).map { Suggestion(text: $0, kind: .prediction) }
             return Array((input.ai + predicted).prefix(3))
@@ -449,11 +451,6 @@ final class InputController {
         items.append(Suggestion(text: primary, kind: .primary))
         if let next = pool.first { items.append(Suggestion(text: next, kind: .alternate)) }
         return items
-    }
-
-    /// A strip entry that reads as a full sentence (ends with a terminator) rather than a phrase.
-    private static func aiSentenceLike(_ text: String) -> Bool {
-        text.last.map { AIText.sentenceTerminators.contains($0) } ?? false
     }
 
     // MARK: Key events

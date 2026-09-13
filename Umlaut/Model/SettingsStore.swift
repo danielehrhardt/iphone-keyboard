@@ -68,6 +68,55 @@ final class SettingsStore: ObservableObject {
     @Published var clipboardHistory = true { didSet { write { settings.clipboardHistory = clipboardHistory } } }
     @Published var clipboardRetention: ClipboardRetention = .day { didSet { write { settings.clipboardRetention = clipboardRetention } } }
 
+    // MARK: KI
+
+    /// Master switch: the ✦ button in the strip and the passive features.
+    @Published var aiEnabled = false { didSet { write { settings.aiEnabled = aiEnabled } } }
+    @Published var aiAutocorrect = false { didSet { write { settings.aiAutocorrect = aiAutocorrect } } }
+    @Published var aiSuggestions = false { didSet { write { settings.aiSuggestions = aiSuggestions } } }
+    /// The model every feature uses unless it has an override in `aiFeatureModels`.
+    @Published var aiDefaultModel: AIModel? { didSet { write { settings.aiDefaultModel = aiDefaultModel } } }
+    @Published private(set) var aiFeatureModels: [AIFeature: AIModel] = [:]
+    /// Providers with a key in the keychain.
+    @Published private(set) var aiConfiguredProviders: Set<AIProvider> = []
+    private let aiKeys = AIKeyStore.shared
+
+    func aiModel(for feature: AIFeature) -> AIModel? { aiFeatureModels[feature] ?? aiDefaultModel }
+
+    func setAIModel(_ model: AIModel?, for feature: AIFeature) {
+        if let model { aiFeatureModels[feature] = model } else { aiFeatureModels.removeValue(forKey: feature) }
+        settings.setAIModelOverride(model, for: feature)
+    }
+
+    func aiKey(for provider: AIProvider) -> String? { aiKeys.key(for: provider) }
+
+    /// Stores (or with nil removes) a key. The first key also picks that provider's default
+    /// model; removing the key behind the default model moves it to another configured provider.
+    func setAIKey(_ key: String?, for provider: AIProvider) {
+        aiKeys.setKey(key, for: provider)
+        refreshAIKeys()
+        if aiConfiguredProviders.contains(provider) {
+            if aiDefaultModel == nil { aiDefaultModel = provider.defaultModel }
+        } else {
+            if aiDefaultModel?.provider == provider {
+                aiDefaultModel = aiConfiguredProviders.sorted { $0.rawValue < $1.rawValue }.first?.defaultModel
+            }
+            for (feature, model) in aiFeatureModels where model.provider == provider { setAIModel(nil, for: feature) }
+        }
+    }
+
+    func refreshAIKeys() {
+        aiKeys.invalidateCache()
+        aiConfiguredProviders = Set(aiKeys.configuredProviders)
+    }
+
+    /// One line for the settings list: off, not set up, or the default model.
+    var aiStatus: String {
+        guard aiEnabled else { return "Aus" }
+        guard let model = aiDefaultModel, aiConfiguredProviders.contains(model.provider) else { return "Nicht eingerichtet" }
+        return model.title
+    }
+
     // MARK: Feedback
 
     @Published var keyPreview = true { didSet { write { settings.keyPreview = keyPreview } } }
@@ -114,6 +163,12 @@ final class SettingsStore: ObservableObject {
         germanUmlautKeys = settings.germanUmlautKeys
         clipboardHistory = settings.clipboardHistory
         clipboardRetention = settings.clipboardRetention
+        aiEnabled = settings.aiEnabled
+        aiAutocorrect = settings.aiAutocorrect
+        aiSuggestions = settings.aiSuggestions
+        aiDefaultModel = settings.aiDefaultModel
+        aiFeatureModels = Dictionary(uniqueKeysWithValues: AIFeature.allCases.compactMap { f in settings.aiModelOverride(for: f).map { (f, $0) } })
+        refreshAIKeys()
         keyPreview = settings.keyPreview
         swipeTrail = settings.swipeTrail
         haptics = settings.haptics

@@ -36,6 +36,27 @@ struct SettingsView: View {
                      : "Schalte weitere Sprachen ein, um in der Tastatur zwischen ihnen zu wechseln. Layout, Wörterbuch, Autokorrektur und gelernte Wörter folgen der Sprache.")
             }
 
+            Section {
+                NavigationLink {
+                    AISettingsView()
+                } label: {
+                    HStack(spacing: 12) {
+                        AISparkleIcon(size: 30)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Umlaut AI")
+                            Text(settings.aiStatus)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .accessibilityIdentifier("ai-settings")
+            } header: {
+                Text("KI")
+            } footer: {
+                Text("Korrigieren, umformulieren, weiterschreiben, übersetzen und antworten – mit deinem eigenen Schlüssel von Anthropic, OpenAI oder Google.")
+            }
+
             if settings.isEnabled(.german) {
                 Section {
                     Toggle("Umlaut-Tasten Ü, Ö, Ä", isOn: $settings.germanUmlautKeys)
@@ -166,7 +187,7 @@ struct SettingsView: View {
             } header: {
                 Text("Info")
             } footer: {
-                Text("Datenschutz: Umlaut arbeitet vollständig offline. Tastenanschläge, gelernte Wörter und Einstellungen verlassen dein iPhone nie – es gibt weder Server noch Analyse.")
+                Text("Datenschutz: Umlaut arbeitet offline. Tastenanschläge, gelernte Wörter und Einstellungen verlassen dein iPhone nie – es gibt weder Server noch Analyse. Einzige Ausnahme sind die KI-Funktionen: Sie schicken den Text, den du bearbeiten lässt, direkt an den von dir gewählten Anbieter.")
             }
         }
         .navigationTitle("Einstellungen")

@@ -74,6 +74,29 @@ cannot insert images). „Einstellungen › Zwischenablage“ switches the histo
 retention (1 hour … forever, pruned on every keyboard appearance) and lists the entries.
 Reading the pasteboard needs „Vollen Zugriff“ like everything else the extension shares.
 
+## AI features
+
+Optional, off by default, and always with the user's own API key – there is no Umlaut server.
+The app's „Einstellungen › KI“ screen takes a key per provider (Anthropic, OpenAI, Google; stored
+in the keychain and shared with the extension through the app group), a default model and, per
+feature, an override. Current model IDs live in `AIProvider.models`.
+
+With the assistant on, a ✦ button sits in the suggestion strip next to the language badge and the
+hide-keyboard button. It opens the AI panel (`AIPanelView`) over the keys: **Korrigieren**,
+**Umformulieren** (neutral / förmlich / locker / kürzer / länger), **Weiterschreiben**,
+**Übersetzen** (six target languages) and **Antworten**. Each works on the selection when there is
+one, otherwise on the text before the cursor (`AIText.source`, capped at 2000 characters); a result
+card replaces that text or is inserted at the cursor, and the panel offers „Rückgängig“ while the
+inserted text still ends the document. Two passive features are opt-in: every finished sentence is
+proofread in the background and a differing correction shows up as a ✦ entry in the strip (a tap
+swaps the sentence), and after a short pause at a word boundary the strip offers continuations.
+
+`KeyboardCore/AI` holds the provider-independent part – models, prompts, the three wire formats
+(`AIRequestBuilder`: Anthropic Messages, OpenAI Responses, Gemini `generateContent`), the
+`URLSession` client and the keychain store – and is unit-tested without a network. `AIAssistant`
+in the keyboard target picks model and key per feature and runs the requests. The extension needs
+„Vollen Zugriff“ for the network; without it the panel says so.
+
 ## How the engine works
 
 **Languages** – `KeyboardLanguage` (`.german`, `.english`) is the one switch everything hangs off:

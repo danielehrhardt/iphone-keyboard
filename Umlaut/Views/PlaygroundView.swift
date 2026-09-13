@@ -19,6 +19,9 @@ struct PlaygroundView: View {
         Tip(symbol: "arrow.left.and.right",
             title: "Cursor bewegen",
             detail: "Halte die Leertaste gedrückt und zieh sie – der Cursor folgt deinem Finger."),
+        Tip(symbol: "sparkles",
+            title: "KI fragen",
+            detail: "Tippe auf ✦ neben der Ausblenden-Taste: korrigieren, umformulieren, weiterschreiben, übersetzen. Schlüssel und Modell wählst du unter Einstellungen › KI."),
     ]
 
     var body: some View {
