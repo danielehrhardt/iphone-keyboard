@@ -110,14 +110,16 @@ public struct KeyboardGeometry: Hashable, Sendable {
         public static let sigmaX: CGFloat = 0.3
         public static let sigmaY: CGFloat = 0.3
         /// Tempering of the prior (1 = trust it fully). Keeps the Gaussian term meaningful: a
-        /// moderately likely key moves the boundary by a few points, only a near-certain one
-        /// reaches the cap.
-        public static let priorWeight: CGFloat = 0.5
-        /// How far a likely key may reach beyond its own hit box. Slightly more than half a gap,
-        /// so the winner takes the whole gap plus a sliver of the neighbour's cap edge; the
-        /// neighbour keeps the central ~80 % of its cap, well inside normal touch scatter.
-        public static let maxReachX: CGFloat = 0.15
-        public static let maxReachY: CGFloat = 0.12
+        /// moderately likely key wins the gap and a sliver of its neighbour, only a near-certain
+        /// one reaches the cap below.
+        public static let priorWeight: CGFloat = 0.75
+        /// How far a likely key may reach beyond its own hit box. The winner takes the whole gap
+        /// plus a good part of the neighbour's cap edge, so a slightly off tap towards a likely
+        /// letter lands on it instead of feeling like it hit dead space. The neighbour always
+        /// keeps the central half of its cap (see `LetterPriorTests`), well inside normal touch
+        /// scatter, so a deliberate tap on an "unexpected" key is never stolen.
+        public static let maxReachX: CGFloat = 0.26
+        public static let maxReachY: CGFloat = 0.2
         /// Finger pads land a little below where the user believes they tapped; touches are
         /// nudged upward to compensate (fraction of the row height). Part of the feature, so
         /// disabling dynamic hit targets restores the plain hit test exactly.

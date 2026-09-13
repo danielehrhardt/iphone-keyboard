@@ -19,9 +19,10 @@ private final class Recorder: KeyGridDelegate {
     func keyGrid(_ grid: KeyGridView, didLongPress key: Key) {}
     func keyGridBackspaceRepeat(_ grid: KeyGridView, wordwise: Bool) {}
     func keyGrid(_ grid: KeyGridView, moveCursorBy offset: Int) {}
-    func keyGridDidDoubleTapShift(_ grid: KeyGridView) {}
+    func keyGridDidDoubleTapShift(_ grid: KeyGridView) { taps.append("shift-lock") }
     func keyGrid(_ grid: KeyGridView, didShiftSlideTo key: Key) {}
-    func keyGrid(_ grid: KeyGridView, globeTouchEvent event: UIEvent?) {}
+    /// Down and up both arrive here; the sweep below counts a landing as one event.
+    func keyGrid(_ grid: KeyGridView, globeTouchEvent event: UIEvent?) { taps.append("globe") }
 }
 
 /// On a phone with a home indicator the keyboard is taller than its keys: a strip the height of
@@ -80,6 +81,24 @@ final class KeyboardViewHitTests: XCTestCase {
         tap(at: CGPoint(x: 382, y: rowY))
         let bottom = view.grid.geometry!.layout.rows.last!.keys
         XCTAssertEqual(recorder.taps, [bottom.first!.id, bottom.last!.id])
+    }
+
+    /// There is no dead area anywhere in the key area: every point from the top of the grid
+    /// down to the screen edge, gaps and insets included, types exactly one key.
+    func testEveryPointOfTheKeyAreaTypesAKey() {
+        let bottom = suggestions + keys + bottomInset
+        var y = suggestions
+        while y < bottom {
+            var x: CGFloat = 0
+            while x < 390 {
+                recorder.taps = []
+                tap(at: CGPoint(x: x, y: y))
+                // One key per tap (the globe key forwards its raw events, down and up, for one key).
+                XCTAssertEqual(Set(recorder.taps).count, 1, "at \(x),\(y): \(recorder.taps)")
+                x += 3
+            }
+            y += 3
+        }
     }
 
     func testSuggestionBarKeepsItsTouches() {

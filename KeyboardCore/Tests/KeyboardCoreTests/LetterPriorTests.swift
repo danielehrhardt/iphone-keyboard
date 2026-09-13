@@ -98,6 +98,21 @@ final class LetterPriorTests: XCTestCase {
         XCTAssertEqual(geometry.keyFrame(at: gap, prior: prior(favouring: "p"))?.key.label, "p")
     }
 
+    /// A near-certain letter owns a good part of its neighbour's cap edge, not just the gap: a
+    /// tap a quarter of the way into p (from the edge facing o) lands on o when o is expected.
+    func testLikelyKeyReachesWellIntoNeighbourCap() {
+        let o = frame("o"), p = frame("p")
+        let quarterIntoP = touch(CGPoint(x: p.frame.minX + p.frame.width * 0.2, y: p.frame.midY))
+        XCTAssertEqual(geometry.keyFrame(at: quarterIntoP, prior: nil)?.key.label, "p")
+        XCTAssertEqual(geometry.keyFrame(at: quarterIntoP, prior: prior(favouring: "o"))?.key.label, "o")
+        // The same on the tap-map path, which the extension uses whenever the map is on.
+        XCTAssertEqual(geometry.keyFrame(at: quarterIntoP, prior: prior(favouring: "o"), offsets: .neutral)?.key.label, "o")
+        // Past the central half of p the tap is p's, whatever the prior says.
+        let nearCentreOfP = touch(CGPoint(x: p.center.x - p.frame.width * 0.25, y: p.frame.midY))
+        XCTAssertEqual(geometry.keyFrame(at: nearCentreOfP, prior: prior(favouring: "o"))?.key.label, "p")
+        XCTAssertEqual(geometry.keyFrame(at: nearCentreOfP, prior: prior(favouring: "o"), offsets: .neutral)?.key.label, "p")
+    }
+
     func testDeadCentreTapIsNeverStolen() {
         for kf in geometry.keyFrames where kf.key.isLetter {
             for likely in ["e", "n", "o", "a"] {
@@ -134,8 +149,9 @@ final class LetterPriorTests: XCTestCase {
         let w = frame("w"), e = frame("e")
         let gap = touch(CGPoint(x: (w.frame.maxX + e.frame.minX) / 2, y: w.frame.midY))
         XCTAssertEqual(geometry.keyFrame(at: gap, prior: afterD)?.key.label, "e")
-        // Ordinary scatter: up to 60 % of the way from w's centre to its edge still hits w.
-        for fraction in stride(from: 0.0, through: 0.6, by: 0.1) {
+        // Ordinary scatter: the central half of w's cap (up to 50 % of the way from its centre
+        // to its edge) still hits w, however likely e is.
+        for fraction in stride(from: 0.0, through: 0.5, by: 0.1) {
             let x = w.center.x + (w.frame.maxX - w.center.x) * fraction
             let hit = geometry.keyFrame(at: touch(CGPoint(x: x, y: w.frame.midY)), prior: afterD)
             XCTAssertEqual(hit?.key.label, "w", "stolen at \(fraction) of the half cap")
