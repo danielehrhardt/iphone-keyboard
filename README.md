@@ -50,6 +50,28 @@ xcrun simctl spawn booted defaults write -g AppleKeyboards -array \
   "de.codext.umlaut.keyboard" "de_DE@sw=QWERTZ-German;hw=Automatic" "emoji@sw=Emoji"
 ```
 
+## Suggestion strip
+
+`[✦] [clipboard]   word | WORD | word   [DE] [hide]` – every action exists once and is one tap
+away: the assistant (while it is on), the clipboard history (while it is kept), up to three
+suggestions with the primary one bold in the middle, the language badge (while several typing
+languages are enabled; a tap switches) and hide-keyboard. Emoji sit on the comma key (hold) or a
+key of their own. While a glide is in flight the words give way to a live preview of the word
+being traced, decoded off the main thread a few times a second. The strip's bottom 6 pt belong to
+the top row of keys: a fast thumb that lands a little high types the key instead of picking a word.
+
+## Fast typing
+
+Touch handling (`KeyGridView`) is built so that no tap is ever lost or reordered: a second finger
+commits the pending key first (two-thumb rollover, resolved on the layout that key may have
+switched to), taps behind a glide in flight are queued and typed after it, a touch the system
+cancels a moment after it landed is typed anyway, a thumb that skids over the space bar types a
+space unless the cursor actually moved, the strip below the bottom row and the side insets belong
+to the nearest key, and the extension turns off the screen-edge gesture gates' touch delay
+(`delaysTouchesBegan`), which otherwise holds back the keys along the edges. A key event never
+reads the host document and hands the suggestion search to a background queue; the caps only
+redraw when their state really changes.
+
 ## In-app demo keyboard
 
 The app's „Ausprobieren“ screen hosts the *same* keyboard UI (`KeyboardCoordinator` + `DemoKeyboardView`)
@@ -59,9 +81,8 @@ sources under `UmlautKeyboard/` are compiled into both targets; only `KeyboardVi
 
 ## Clipboard history
 
-The keyboard remembers what was copied – text and images – and offers it again behind the „⋯“
-button at the leading edge of the suggestion strip (the *action menu*, which also holds emoji,
-the language switch and hide-keyboard). `ClipboardHistory` (KeyboardCore) keeps the entries as
+The keyboard remembers what was copied – text and images – and offers it again behind the
+clipboard button at the leading edge of the suggestion strip. `ClipboardHistory` (KeyboardCore) keeps the entries as
 `clipboard/index.json` plus image files in the app group; `ClipboardMonitor` (keyboard target,
 also compiled into the app) feeds it from `UIPasteboard.general`. The pasteboard is only *read*
 when its `changeCount` moved since the last capture (the count of the last clip is stored in
@@ -81,8 +102,9 @@ The app's „Einstellungen › KI“ screen takes a key per provider (Anthropic,
 in the keychain and shared with the extension through the app group), a default model and, per
 feature, an override. Current model IDs live in `AIProvider.models`.
 
-With the assistant on, a ✦ button sits in the suggestion strip next to the language badge and the
-hide-keyboard button. It opens the AI panel (`AIPanelView`) over the keys: **Korrigieren**,
+With the assistant on, a ✦ button (the sparkles glyph in an iridescent gradient, a circling ring
+while a request runs) sits at the leading edge of the suggestion strip. It opens the AI panel
+(`AIPanelView`) over the keys: **Korrigieren**,
 **Umformulieren** (neutral / förmlich / locker / kürzer / länger), **Weiterschreiben**,
 **Übersetzen** (six target languages) and **Antworten**. Each works on the selection when there is
 one, otherwise on the text before the cursor (`AIText.source`, capped at 2000 characters); a result

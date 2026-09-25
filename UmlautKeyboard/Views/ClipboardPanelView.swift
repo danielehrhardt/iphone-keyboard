@@ -84,7 +84,9 @@ final class ClipboardPanelView: UIView, UICollectionViewDataSource, UICollection
         hintLabel.alpha = 0
         hintLabel.isUserInteractionEnabled = false
         addSubview(hintLabel)
-        setClearArmed(false)
+        // Starts out as an empty history: the message shows and "Löschen" hides until the first
+        // `set(items:)` brings entries (one that brings none changes nothing and returns early).
+        updateEmptyState()
         apply(theme: theme)
     }
 

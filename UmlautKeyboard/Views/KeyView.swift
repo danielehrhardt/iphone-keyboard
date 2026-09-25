@@ -21,11 +21,12 @@ final class KeyView: UIView {
     private(set) var isPressed = false
 
     /// Long-press digit/symbol shown in the corner (top row numbers).
-    var hint: String? { didSet { hintLabel.text = hint; hintLabel.isHidden = hint == nil } }
-    var shiftState: ShiftState = .off { didSet { refresh() } }
-    var returnLabel: String? { didSet { refresh() } }
-    var isAccented = false { didSet { refresh() } }
-    var isCompact = false { didSet { refresh() } }
+    var hint: String? { didSet { if hint != oldValue { hintLabel.text = hint; hintLabel.isHidden = hint == nil; setNeedsLayout() } } }
+    // Only a real change redraws: these are set on every layout pass and after every keystroke.
+    var shiftState: ShiftState = .off { didSet { if shiftState != oldValue { refresh(); setNeedsLayout() } } }
+    var returnLabel: String? { didSet { if returnLabel != oldValue { refresh() } } }
+    var isAccented = false { didSet { if isAccented != oldValue { refresh() } } }
+    var isCompact = false { didSet { if isCompact != oldValue { refresh() } } }
 
     init(key: Key, theme: KeyboardTheme) {
         self.key = key
@@ -50,7 +51,7 @@ final class KeyView: UIView {
         label.baselineAdjustment = .alignCenters
         addSubview(label)
 
-        hintLabel.font = .systemFont(ofSize: 10, weight: .medium)
+        hintLabel.font = .systemFont(ofSize: 9.5, weight: .medium)
         hintLabel.textAlignment = .right
         hintLabel.isHidden = true
         addSubview(hintLabel)
@@ -101,9 +102,12 @@ final class KeyView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        label.frame = bounds
+        // A capital is as tall as the corner digit is low: it sits a little lower so the two
+        // never touch (lowercase letters leave the corner free on their own).
+        let capitalDrop: CGFloat = hint != nil && shiftState.isActive && key.isLetter ? 2 : 0
+        label.frame = bounds.offsetBy(dx: 0, dy: capitalDrop)
         iconView.frame = bounds
-        hintLabel.frame = CGRect(x: 0, y: 2, width: bounds.width - 4, height: 12)
+        hintLabel.frame = CGRect(x: 0, y: 1, width: bounds.width - 3.5, height: 11)
         hintIcon.frame = CGRect(x: bounds.width - 16, y: 2, width: 12, height: 12)
         let r = layer.cornerRadius
         layer.shadowPath = UIBezierPath(roundedRect: bounds, cornerRadius: r).cgPath

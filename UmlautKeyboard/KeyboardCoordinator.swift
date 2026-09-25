@@ -25,6 +25,12 @@ final class KeyboardCoordinator: NSObject {
         let isSelection: Bool
     }
     private let thumbnails = NSCache<NSUUID, UIImage>()
+    private var lastPasteboardCheck: CFTimeInterval = 0
+    /// Decodes the glide in flight for the live preview, off the main thread; one at a time.
+    private let glidePreviewQueue = DispatchQueue(label: "de.codext.umlaut.glide-preview", qos: .userInitiated)
+    /// Bumped whenever a glide ends, so a preview still being decoded never lands afterwards.
+    private var glidePreviewGeneration = 0
+    private var glidePreviewBusy = false
 
     /// Hooks the owner provides (extension: system APIs; in-app demo: no-ops).
     var onGlobe: (() -> Void)?
@@ -73,11 +79,12 @@ final class KeyboardCoordinator: NSObject {
         view.grid.delegate = self
         view.emojiDelegate = self
         view.clipboardDelegate = self
-        view.suggestionBar.onActions = { [weak self] in
+        view.suggestionBar.onClipboard = { [weak self] in
             guard let self else { return }
             self.feedback.functionTap()
-            self.toggleActionMenu()
+            self.showClipboard()
         }
+        view.suggestionBar.showsClipboard = settings.clipboardHistory
         view.suggestionBar.onSelect = { [weak self] s in self?.input.accept(s) }
         view.suggestionBar.onDismiss = { [weak self] in
             guard let self else { return }
@@ -123,9 +130,9 @@ final class KeyboardCoordinator: NSObject {
         input.forgetDocument()
         // The app may have switched the current language off meanwhile.
         select(language: settings.currentLanguage)
-        view.isActionMenuVisible = false
+        view.suggestionBar.showsClipboard = settings.clipboardHistory
         if !settings.clipboardHistory, view.isClipboardVisible { view.isClipboardVisible = false }
-        pasteboardMayHaveChanged()
+        pasteboardMayHaveChanged(force: true)
         // Keys and models may have changed in the app.
         ai.reload()
         view.suggestionBar.showsAI = settings.aiEnabled
@@ -189,53 +196,16 @@ final class KeyboardCoordinator: NSObject {
     }
 
     /// The host reported an edit (or the keyboard appeared): a copy may have happened meanwhile.
-    /// Cheap unless the pasteboard's change count moved; at most one check every two seconds.
-    func pasteboardMayHaveChanged() {
+    /// The host reports every keystroke, so the history is looked at once every two seconds at
+    /// most (the pasteboard's change count itself is only read then, too).
+    func pasteboardMayHaveChanged(force: Bool = false) {
         guard hasFullAccess, settings.clipboardHistory else { return }
+        let now = CACurrentMediaTime()
+        guard force || view.isClipboardVisible || now - lastPasteboardCheck >= 2 else { return }
+        lastPasteboardCheck = now
         clipboard.prune()
-        if clipboard.captureIfChanged(minimumInterval: 2) != nil || view.isClipboardVisible {
+        if clipboard.captureIfChanged() != nil || view.isClipboardVisible {
             refreshClipboardPanel()
-        }
-    }
-
-    // MARK: Actions
-
-    /// The rows of the "⋯" menu for the current state.
-    var availableActions: [KeyboardAction] {
-        var actions: [KeyboardAction] = []
-        if settings.clipboardHistory {
-            actions.append(KeyboardAction(kind: .clipboard, title: "Zwischenablage", symbol: "doc.on.clipboard"))
-        }
-        actions.append(KeyboardAction(kind: .emoji, title: "Emoji", symbol: "face.smiling"))
-        if settings.hasMultipleLanguages {
-            let next = settings.nextLanguage(after: language)
-            actions.append(KeyboardAction(kind: .language, title: "Sprache: \(next.title)", symbol: "globe"))
-        }
-        actions.append(KeyboardAction(kind: .dismiss, title: "Tastatur ausblenden", symbol: "keyboard.chevron.compact.down"))
-        return actions
-    }
-
-    func toggleActionMenu() {
-        if view.isActionMenuVisible {
-            view.isActionMenuVisible = false
-            return
-        }
-        view.grid.cancelAllTouches()
-        view.isActionMenuVisible = true
-        guard let menu = view.actionMenu else { return }
-        menu.set(actions: availableActions)
-        menu.onSelect = { [weak self] action in self?.perform(action) }
-        menu.onClose = { [weak self] in self?.view.isActionMenuVisible = false }
-    }
-
-    func perform(_ action: KeyboardAction) {
-        view.isActionMenuVisible = false
-        feedback.keyTap()
-        switch action.kind {
-        case .clipboard: showClipboard()
-        case .emoji: view.isEmojiVisible = true
-        case .language: switchToNextLanguage()
-        case .dismiss: onDismiss?()
         }
     }
 
@@ -384,7 +354,6 @@ extension KeyboardCoordinator: InputControllerDelegate {
         // Reached from a hold on the comma key with the finger still down: the grid is about to be
         // hidden, so end its touches here rather than waiting for a lift it may never see.
         view.grid.cancelAllTouches()
-        view.isActionMenuVisible = false
         view.isEmojiVisible = true
     }
     func inputControllerRequestsDismiss(_ c: InputController) { onDismiss?() }
@@ -415,6 +384,30 @@ extension KeyboardCoordinator: KeyGridDelegate {
     func keyGridDidDoubleTapShift(_ grid: KeyGridView) { input.lockShift() }
     func keyGrid(_ grid: KeyGridView, didShiftSlideTo key: Key) { input.shiftSlide(to: key) }
     func keyGridDidRequestSettings(_ grid: KeyGridView) { onOpenSettings?() }
+
+    /// Decodes the path so far in the background and shows the best word in the strip, like
+    /// Gboard's gesture preview. A decode still running when the next update comes skips that
+    /// update (the finger moves on faster than it is worth decoding every step).
+    func keyGrid(_ grid: KeyGridView, glideDidMove path: [CGPoint], keyMap: KeyMap) {
+        guard settings.swipeTyping, !glidePreviewBusy, let engine = input.engine, engine.language == language else { return }
+        glidePreviewBusy = true
+        let generation = glidePreviewGeneration
+        let previous = input.glidePreviousWord
+        glidePreviewQueue.async { [weak self, weak engine] in
+            let best = engine?.decodeSwipe(path: path, keyMap: keyMap, previousWord: previous, limit: 1).first?.word
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.glidePreviewBusy = false
+                guard generation == self.glidePreviewGeneration, let best else { return }
+                self.view.suggestionBar.glidePreview = self.input.previewCased(best)
+            }
+        }
+    }
+
+    func keyGridGlideDidEnd(_ grid: KeyGridView) {
+        glidePreviewGeneration += 1
+        view.suggestionBar.glidePreview = nil
+    }
 }
 
 // MARK: - EmojiPanelDelegate

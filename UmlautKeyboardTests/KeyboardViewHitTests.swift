@@ -106,8 +106,22 @@ final class KeyboardViewHitTests: XCTestCase {
         XCTAssertFalse(hit === view.grid, "a tap on the suggestion strip must not type a key")
     }
 
+    /// A thumb aiming at the top row at speed lands a little high as often as low: a tap in the
+    /// strip's bottom margin, below the words, types the key underneath instead of picking a word.
+    func testTapJustAboveTheTopRowTypesTheKey() {
+        view.suggestionBar.set([Suggestion(text: "a", kind: .alternate),
+                                Suggestion(text: "Hallo", kind: .primary),
+                                Suggestion(text: "b", kind: .alternate)])
+        view.layoutIfNeeded()
+        let t = view.grid.geometry!.keyFrames.first { $0.key.id == "t" }!
+        tap(at: CGPoint(x: t.center.x, y: suggestions - KeyboardView.gridReachIntoStrip + 1))
+        XCTAssertEqual(recorder.taps, ["t"])
+        let above = view.hitTest(CGPoint(x: t.center.x, y: suggestions - KeyboardView.gridReachIntoStrip - 1), with: nil)
+        XCTAssertFalse(above === view.grid, "the words keep the rest of the strip")
+    }
+
     /// A word on the strip is hit anywhere in its cell, not just on the glyphs: the top edge,
-    /// the bottom edge and the padding beside the text all select it.
+    /// the bottom edge (down to the keys' reach) and the padding beside the text all select it.
     func testWholeSuggestionCellSelectsTheWord() {
         var picked: [String] = []
         view.suggestionBar.onSelect = { picked.append($0.text) }
@@ -115,10 +129,12 @@ final class KeyboardViewHitTests: XCTestCase {
                                 Suggestion(text: "Hallo", kind: .primary),
                                 Suggestion(text: "b", kind: .alternate)])
         view.layoutIfNeeded()
-        let leading = SuggestionBarView.leadingReserved
-        let cellWidth = (390 - leading - SuggestionBarView.trailingReserved(hasLanguage: false)) / 3.0
+        let words = view.suggestionBar.wordArea
+        let leading = words.minX
+        let cellWidth = words.width / 3.0
+        let bottom = suggestions - KeyboardView.gridReachIntoStrip - 1
         for point in [CGPoint(x: leading + cellWidth + 2, y: 1),                    // top-left corner of the middle cell
-                      CGPoint(x: leading + cellWidth * 2 - 2, y: suggestions - 1),  // bottom-right corner
+                      CGPoint(x: leading + cellWidth * 2 - 2, y: bottom),           // bottom-right corner
                       CGPoint(x: leading + cellWidth * 1.5, y: 3)] {                // above the pill
             let hit = view.hitTest(point, with: nil) as? UIButton
             XCTAssertNotNil(hit, "no button at \(point)")
@@ -128,14 +144,14 @@ final class KeyboardViewHitTests: XCTestCase {
     }
 
     /// With fewer than three words the ones shown spread over the whole strip, so a single
-    /// suggestion is reachable from the "⋯" button right up to the dismiss button.
+    /// suggestion is reachable from the leading icons right up to the dismiss button.
     func testFewerSuggestionsFillTheStrip() {
         var picked: [String] = []
         view.suggestionBar.onSelect = { picked.append($0.text) }
         view.suggestionBar.set([Suggestion(text: "Hallo", kind: .primary)])
         view.layoutIfNeeded()
-        let leading = SuggestionBarView.leadingReserved
-        let trailing = SuggestionBarView.trailingReserved(hasLanguage: false)
+        let leading = view.suggestionBar.wordArea.minX
+        let trailing = 390 - view.suggestionBar.wordArea.maxX
         for x: CGFloat in [leading + 4, 195, 390 - trailing - 4] {
             let hit = view.hitTest(CGPoint(x: x, y: suggestions / 2), with: nil) as? UIButton
             XCTAssertNotNil(hit, "no button at x=\(x)")
@@ -161,36 +177,60 @@ final class KeyboardViewHitTests: XCTestCase {
         XCTAssertTrue(hit?.isDescendant(of: view.emojiPanel!) ?? false)
     }
 
-    /// The "⋯" button sits at the leading edge of the strip and opens the action menu; while
-    /// the menu is open every touch belongs to it, and a tap beside the card closes it.
-    func testActionMenuOwnsTouchesWhileOpen() {
-        var opened = 0
-        view.suggestionBar.onActions = { opened += 1 }
-        let button = view.hitTest(CGPoint(x: 20, y: suggestions / 2), with: nil) as? UIButton
-        XCTAssertTrue(button === view.suggestionBar.actionsButton, "no actions button at the leading edge")
-        button?.sendActions(for: .touchUpInside)
-        XCTAssertEqual(opened, 1)
-
-        view.isActionMenuVisible = true
-        let menu = view.actionMenu!
-        menu.set(actions: [KeyboardAction(kind: .clipboard, title: "Zwischenablage", symbol: "doc.on.clipboard"),
-                           KeyboardAction(kind: .dismiss, title: "Tastatur ausblenden", symbol: "keyboard.chevron.compact.down")])
-        var picked: [KeyboardAction.Kind] = []
-        var closed = 0
-        menu.onSelect = { picked.append($0.kind) }
-        menu.onClose = { closed += 1 }
+    /// Every action in the strip exists once and is one tap away: the clipboard sits at the
+    /// leading edge (no "⋯" dropdown repeating the language and hide buttons), the language
+    /// badge and the hide button at the trailing edge.
+    func testStripIconsActDirectly() {
+        var calls: [String] = []
+        view.suggestionBar.onClipboard = { calls.append("clipboard") }
+        view.suggestionBar.onLanguage = { calls.append("language") }
+        view.suggestionBar.onDismiss = { calls.append("dismiss") }
+        view.suggestionBar.language = .german
+        view.suggestionBar.showsClipboard = true
         view.layoutIfNeeded()
-        let onGrid = view.hitTest(CGPoint(x: 300, y: suggestions + keys - 10), with: nil)
-        XCTAssertFalse(onGrid === view.grid, "the grid must not type while the menu is open")
-        XCTAssertTrue(onGrid?.isDescendant(of: menu) ?? false)
-        let row = view.hitTest(CGPoint(x: 60, y: suggestions + ActionMenuView.rowHeight / 2), with: nil) as? UIButton
-        XCTAssertNotNil(row, "no menu row under the button")
-        row?.sendActions(for: .touchUpInside)
-        XCTAssertEqual(picked, [.clipboard])
+        for x: CGFloat in [20, 390 - 60, 390 - 20] {
+            let hit = view.hitTest(CGPoint(x: x, y: suggestions / 2), with: nil) as? UIControl
+            XCTAssertNotNil(hit, "no control at x=\(x)")
+            hit?.sendActions(for: .touchUpInside)
+        }
+        XCTAssertEqual(calls, ["clipboard", "language", "dismiss"])
 
-        view.isActionMenuVisible = false
-        let hit = view.hitTest(CGPoint(x: 300, y: suggestions + keys - 10), with: nil)
-        XCTAssertTrue(hit === view.grid, "the grid types again once the menu is closed")
+        view.suggestionBar.showsClipboard = false
+        view.suggestionBar.language = nil
+        view.layoutIfNeeded()
+        XCTAssertEqual(view.suggestionBar.wordArea.minX, SuggestionBarView.edgeInset, "no clipboard: the words start at the edge")
+        let hit = view.hitTest(CGPoint(x: 390 - 60, y: suggestions / 2), with: nil)
+        XCTAssertFalse(hit === view.suggestionBar.languageButton, "a hidden badge takes no touches")
+    }
+
+    /// While a glide is in flight the strip shows the word being traced instead of the
+    /// suggestions, and a tap on it picks nothing.
+    func testGlidePreviewReplacesTheWords() {
+        var picked: [String] = []
+        view.suggestionBar.onSelect = { picked.append($0.text) }
+        view.suggestionBar.set([Suggestion(text: "Hallo", kind: .primary)])
+        view.suggestionBar.glidePreview = "Wochenende"
+        view.layoutIfNeeded()
+        (view.hitTest(CGPoint(x: 195, y: suggestions / 2), with: nil) as? UIButton)?.sendActions(for: .touchUpInside)
+        XCTAssertTrue(picked.isEmpty)
+        view.suggestionBar.glidePreview = nil
+        (view.hitTest(CGPoint(x: 195, y: suggestions / 2), with: nil) as? UIButton)?.sendActions(for: .touchUpInside)
+        XCTAssertEqual(picked, ["Hallo"])
+    }
+
+    /// A history with nothing in it says so, and offers nothing to delete.
+    func testEmptyClipboardSaysSo() {
+        view.clipboardDelegate = nil
+        view.isClipboardVisible = true
+        view.clipboardPanel!.set(items: [])
+        view.layoutIfNeeded()
+        func all(_ v: UIView) -> [UIView] { [v] + v.subviews.flatMap(all) }
+        let views = all(view.clipboardPanel!)
+        let message = views.compactMap { $0 as? UILabel }.first { $0.text?.hasPrefix("Noch nichts kopiert") == true }
+        XCTAssertNotNil(message)
+        XCTAssertEqual(message?.isHidden, false)
+        let clear = views.first { $0.accessibilityIdentifier == "clipboard-clear" }
+        XCTAssertEqual(clear?.isHidden, true)
     }
 
     func testClipboardPanelCoversTheKeys() {

@@ -1,6 +1,6 @@
 import XCTest
 
-/// Copies text on the simulator, opens the clipboard history from the keyboard's "⋯" menu and
+/// Copies text on the simulator, opens the clipboard history from the strip's clipboard button and
 /// types the entry back into the demo text view. Screenshots go to /tmp/umlaut-ui.
 final class ClipboardUITests: XCTestCase {
     let app = XCUIApplication()
@@ -32,13 +32,10 @@ final class ClipboardUITests: XCTestCase {
         let textView = app.textViews.firstMatch
         XCTAssertTrue(textView.waitForExistence(timeout: 5))
         textView.tap()
-        let actions = app.descendants(matching: .any)["keyboard-actions"]
-        XCTAssertTrue(actions.waitForExistence(timeout: 5), "no ⋯ button on the suggestion strip")
-        actions.tap()
-        let clipboardRow = app.descendants(matching: .any)["action-clipboard"]
-        XCTAssertTrue(clipboardRow.waitForExistence(timeout: 3), "action menu did not open")
-        shot("20-action-menu")
-        clipboardRow.tap()
+        let clipboardButton = app.descendants(matching: .any)["keyboard-clipboard"]
+        XCTAssertTrue(clipboardButton.waitForExistence(timeout: 5), "no clipboard button on the suggestion strip")
+        shot("20-strip")
+        clipboardButton.tap()
         sleep(1)
         shot("21-after-clipboard-tap")
         try? app.debugDescription.write(to: Self.outDir.appendingPathComponent("21-tree.txt"), atomically: true, encoding: .utf8)

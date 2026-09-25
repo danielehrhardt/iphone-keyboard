@@ -70,6 +70,7 @@ final class AIPanelView: UIView {
             scroll.showsHorizontalScrollIndicator = false
             scroll.alwaysBounceHorizontal = true
             scroll.contentInset = UIEdgeInsets(top: 0, left: Self.sideInset, bottom: 0, right: Self.sideInset)
+            scroll.contentOffset = CGPoint(x: -Self.sideInset, y: 0)
             addSubview(scroll)
         }
         featureStack.axis = .horizontal
@@ -140,6 +141,10 @@ final class AIPanelView: UIView {
         renderOptions()
         renderContent()
         contentScroll.setContentOffset(.zero, animated: false)
+        // The chip rows rest at their leading inset, not flush against the edge.
+        for scroll in [featureScroll, optionScroll] {
+            scroll.setContentOffset(CGPoint(x: -scroll.contentInset.left, y: 0), animated: false)
+        }
     }
 
     func set(phase new: Phase) {

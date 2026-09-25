@@ -21,12 +21,20 @@ private final class GridRecorder: KeyGridDelegate {
     var swipeTrailEnabled = true
     var longPressNumbersEnabled = true
 
-    func keyGrid(_ grid: KeyGridView, didTap key: Key) { taps.append(key.id); events.append(key.id) }
+    var cursorMoves: [Int] = []
+    var glideUpdates = 0
+    var glideEnds = 0
+    /// Runs after a tap is recorded, like the coordinator reacting to it (e.g. a layer switch).
+    var afterTap: ((Key) -> Void)?
+
+    func keyGrid(_ grid: KeyGridView, didTap key: Key) { taps.append(key.id); events.append(key.id); afterTap?(key) }
+    func keyGrid(_ grid: KeyGridView, glideDidMove path: [CGPoint], keyMap: KeyMap) { glideUpdates += 1 }
+    func keyGridGlideDidEnd(_ grid: KeyGridView) { glideEnds += 1 }
     func keyGrid(_ grid: KeyGridView, didInsertAlternate text: String, for key: Key) { alternates.append(text) }
     func keyGrid(_ grid: KeyGridView, didSwipe path: [CGPoint], keyMap: KeyMap) { swipes += 1; events.append("glide") }
     func keyGrid(_ grid: KeyGridView, didLongPress key: Key) { longPresses.append(key.id) }
     func keyGridBackspaceRepeat(_ grid: KeyGridView, wordwise: Bool) {}
-    func keyGrid(_ grid: KeyGridView, moveCursorBy offset: Int) {}
+    func keyGrid(_ grid: KeyGridView, moveCursorBy offset: Int) { cursorMoves.append(offset) }
     func keyGridDidDoubleTapShift(_ grid: KeyGridView) {}
     func keyGrid(_ grid: KeyGridView, didShiftSlideTo key: Key) { taps.append(key.id) }
     func keyGrid(_ grid: KeyGridView, globeTouchEvent event: UIEvent?) {}
@@ -313,6 +321,98 @@ final class KeyGridViewTests: XCTestCase {
         XCTAssertEqual(recorder.taps, ["e"])
         XCTAssertEqual(recorder.alternates, [])
         XCTAssertEqual(recorder.longPresses, [])
+    }
+
+    /// A thumb that skids sideways over the space bar at speed types a space; only a drag that
+    /// really moves the cursor gives the space up.
+    func testSpaceSkidStillTypesASpace() {
+        let space = center(of: "space")
+        let skid = press("space")
+        skid.point = CGPoint(x: space.x + 30, y: space.y + 2)     // past the drag threshold, short of a cursor step
+        grid.touchesMoved([skid], with: nil)
+        release(skid)
+        XCTAssertEqual(recorder.taps, ["space"])
+        XCTAssertEqual(recorder.cursorMoves, [])
+        XCTAssertFalse(grid.isTrackpadMode)
+
+        let drag = press("space")
+        for i in 1...5 { drag.point = CGPoint(x: space.x + CGFloat(i) * 20, y: space.y); grid.touchesMoved([drag], with: nil) }
+        XCTAssertTrue(grid.isTrackpadMode, "the caps blank once the cursor moves")
+        release(drag)
+        XCTAssertEqual(recorder.taps, ["space"], "a cursor drag types nothing")
+        XCTAssertFalse(recorder.cursorMoves.isEmpty)
+    }
+
+    /// Holding the space bar arms the trackpad; lifting without moving types nothing.
+    func testHeldSpaceWithoutMovingTypesNothing() {
+        let t = press("space")
+        spin(KeyGridView.longPressDelay + 0.1)
+        XCTAssertTrue(grid.isTrackpadMode)
+        release(t)
+        XCTAssertEqual(recorder.taps, [])
+    }
+
+    /// The space skid of one thumb and the next letter of the other keep their order.
+    func testSpaceSkidThenOtherThumbKeepsOrder() {
+        let space = center(of: "space")
+        let skid = press("space")
+        skid.point = CGPoint(x: space.x + 30, y: space.y)
+        grid.touchesMoved([skid], with: nil)
+        let w = press("w")
+        release(w)
+        release(skid)
+        XCTAssertEqual(recorder.events, ["space", "w"])
+    }
+
+    /// When the system takes a touch back a moment after it landed (an edge gesture it was
+    /// still weighing), the tap is typed rather than lost. A cancelled glide types nothing.
+    func testCancelledQuickTapIsTyped() {
+        let t = press("q")
+        grid.touchesCancelled([t], with: nil)
+        XCTAssertEqual(recorder.taps, ["q"])
+
+        let a = center(of: "a")
+        let glide = press("a")
+        for i in 1...6 { glide.point = CGPoint(x: a.x + CGFloat(i) * 14, y: a.y); grid.touchesMoved([glide], with: nil) }
+        grid.touchesCancelled([glide], with: nil)
+        XCTAssertEqual(recorder.taps, ["q"])
+        XCTAssertEqual(recorder.swipes, 0)
+        XCTAssertEqual(recorder.glideEnds, 1)
+    }
+
+    /// "123" with one thumb and a symbol with the other while the first is still down: the
+    /// second touch belongs to the symbol layer the first one switched to, not to the letter
+    /// that was under it a moment before.
+    func testSecondThumbAfterLayerSwitchHitsTheNewLayer() {
+        recorder.afterTap = { [unowned self] key in
+            guard case .switchLayer = key.action else { return }
+            self.grid.cancelAllTouches()
+            self.grid.configure(layout: GermanLayouts.symbols(), metrics: .phonePortrait)
+        }
+        let toSymbols = press("123")
+        let symbols = KeyboardGeometry(layout: GermanLayouts.symbols(), size: grid.bounds.size, metrics: .phonePortrait)
+        let seven = symbols.keyFrames.first { $0.key.label == "7" }!
+        let t = FakeTouch()
+        t.point = seven.center
+        grid.touchesBegan([t], with: nil)
+        release(toSymbols)
+        release(t)
+        XCTAssertEqual(recorder.taps, ["123", seven.key.id])
+    }
+
+    /// A glide in flight reports its path for the live word preview, and says when it is over.
+    func testGlideReportsItsPathForThePreview() {
+        let a = center(of: "a")
+        let glide = press("a")
+        for i in 1...6 {
+            glide.point = CGPoint(x: a.x + CGFloat(i) * 14, y: a.y)
+            grid.touchesMoved([glide], with: nil)
+            spin(KeyGridView.glidePreviewInterval + 0.01)
+        }
+        XCTAssertGreaterThan(recorder.glideUpdates, 1)
+        release(glide)
+        XCTAssertEqual(recorder.glideEnds, 1)
+        XCTAssertEqual(recorder.swipes, 1)
     }
 
     func testPreviewDisabledStillTypes() {

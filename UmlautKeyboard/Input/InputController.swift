@@ -52,7 +52,9 @@ final class InputController {
     var suggestionQueue: DispatchQueue?
 
     private(set) var state = InputUIState() { didSet { if state != oldValue { delegate?.inputController(self, didUpdate: state) } } }
-    var traits = FieldTraits() { didSet { if traits != oldValue { fieldChanged() } } }
+    /// A new field resets the keyboard; a host that merely relabels its return key mid-word
+    /// (web `enterkeyhint`, messengers) does not.
+    var traits = FieldTraits() { didSet { if traits.behaviour != oldValue.behaviour { fieldChanged() } } }
     var keyMap: KeyMap?
     /// Where this user's taps land per key; nil disables learning and adaptive hit targets.
     let tapMap: TapMap?
@@ -75,6 +77,11 @@ final class InputController {
     private var lastNotifiedSentence: String?
 
     private var lastCommit: Commit?
+    /// The symbol layers were opened from the letters with the 123 key (not by the field, like a
+    /// number field): as on the system keyboard, a space after a symbol, or an apostrophe, takes
+    /// the keyboard back to the letters.
+    private var returnsToLetters = false
+    private var typedOnSymbols = false
     private var autoSpacePending = false
     private var lastKeyWasSpace = false
     private var shiftTouchedManually = false
@@ -90,6 +97,8 @@ final class InputController {
     /// Counts suggestion requests so a result that arrives after a newer request is ignored, and
     /// so a request that is already outdated when the queue reaches it is skipped altogether.
     private let suggestionGeneration = Generation()
+    /// What the background search found for the composing word (see `CorrectionCache`).
+    private let correctionCache = CorrectionCache()
 
     private final class Generation {
         private let lock = NSLock()
@@ -97,6 +106,26 @@ final class InputController {
         /// Bumps and returns the new generation (main thread).
         func next() -> Int { lock.lock(); defer { lock.unlock() }; value += 1; return value }
         var current: Int { lock.lock(); defer { lock.unlock() }; return value }
+    }
+
+    /// The corrections the background search found for the composing word, so that the commit
+    /// on space does not search the dictionary again on the main thread – when typing fast that
+    /// commit runs inside the next finger's touch-down. An entry is only good for the request it
+    /// was made for: any edit, learned word or rejected correction starts a new request.
+    private final class CorrectionCache {
+        private let lock = NSLock()
+        private var entry: (generation: Int, composing: String, corrections: [Correction])?
+
+        func store(_ corrections: [Correction], composing: String, generation: Int) {
+            lock.lock(); defer { lock.unlock() }
+            entry = (generation, composing, corrections)
+        }
+
+        func corrections(for composing: String, generation: Int) -> [Correction]? {
+            lock.lock(); defer { lock.unlock() }
+            guard let entry, entry.generation == generation, entry.composing == composing else { return nil }
+            return entry.corrections
+        }
     }
 
     init(engine: KeyboardEngine?, settings: KeyboardSettings, proxy: TextProxy, tapMap: TapMap? = nil) {
@@ -143,10 +172,12 @@ final class InputController {
     func forgetDocument() { history.removeAll() }
 
     /// Reads the host and reconciles it with our own view. Returns true when the document differs
-    /// from anything we assumed, i.e. someone else changed it.
+    /// from anything we assumed, i.e. someone else changed it. The host works through our edits
+    /// in order, so the *oldest* state it could be showing is the one it is at: a state that
+    /// repeats ("Hak", "Hakl", ⌫, "Hak") must not make it skip ahead past the ones in between.
     private func resync() -> Bool {
         let seen = DocumentContext(before: proxy.textBefore, after: proxy.textAfter)
-        if let i = history.lastIndex(of: seen) {
+        if let i = history.firstIndex(of: seen) {
             history.removeFirst(i)
             return false
         }
@@ -243,11 +274,16 @@ final class InputController {
     private func fieldChanged() {
         forgetDocument()
         lastCommit = nil
+        returnsToLetters = false
+        typedOnSymbols = false
         autoSpacePending = false
         shiftTouchedManually = false
+        shiftHeld = false
         wordTaps.removeAll()
         var s = state
         s.layer = initialLayer()
+        // A lock from the last field (caps lock, an all-caps voucher field) does not carry over.
+        s.shift = .off
         state = s
         refreshNow()
     }
@@ -266,6 +302,7 @@ final class InputController {
     /// too, possibly several keystrokes late; those are recognised and cost one read, nothing more.
     func textDidChangeExternally() {
         guard !isEditing, resync() else { return }
+        lastKeyWasSpace = false
         if case .swipe(let w, _, let autoSpace) = lastCommit {
             let expected = w + (autoSpace ? " " : "")
             if !textBefore.hasSuffix(expected) { lastCommit = nil; autoSpacePending = false }
@@ -292,16 +329,18 @@ final class InputController {
         // No engine, or a field/layer without a strip: the answer is empty and must show at
         // once (leaving a password field's neighbour's words on screen is not an option).
         guard input.allowed, input.engine != nil, let queue = suggestionQueue else {
-            s.suggestions = Self.buildSuggestions(input)
+            let cache = correctionCache
+            s.suggestions = Self.buildSuggestions(input) { cache.store($0, composing: input.composing, generation: generation) }
             state = s
             return
         }
         state = s
         let counter = suggestionGeneration
+        let cache = correctionCache
         queue.async { [weak self] in
             // Typing faster than the search runs leaves a backlog; only the newest request matters.
             guard counter.current == generation else { return }
-            let suggestions = Self.buildSuggestions(input)
+            let suggestions = Self.buildSuggestions(input) { cache.store($0, composing: input.composing, generation: generation) }
             DispatchQueue.main.async { self?.deliver(suggestions, generation: generation) }
         }
     }
@@ -330,6 +369,7 @@ final class InputController {
 
     private func computedShift(current: ShiftState) -> ShiftState {
         if current == .locked { return .locked }
+        if shiftHeld { return .on }
         if shiftTouchedManually { return current }
         guard state.layer == .letters else { return current }
         switch traits.autocapitalization {
@@ -402,7 +442,8 @@ final class InputController {
             aiFillsStrip: engine == nil ? false : ai.fillsStrip)
     }
 
-    private static func buildSuggestions(_ input: SuggestionInput) -> [Suggestion] {
+    /// `found` receives the corrections searched for the composing word, for the commit to reuse.
+    private static func buildSuggestions(_ input: SuggestionInput, found: ([Correction]) -> Void = { _ in }) -> [Suggestion] {
         guard input.allowed, let engine = input.engine else { return [] }
         let composing = input.composing
         if input.justinMode {
@@ -425,6 +466,7 @@ final class InputController {
         let previous = input.previous
         let start = input.isSentenceStart
         let corrections = autocorrect.corrections(for: composing, previousWord: previous, isSentenceStart: start)
+        found(corrections)
         let completions = input.predictions ? engine.predictor.completions(prefix: composing, previous: previous, isSentenceStart: start, limit: 4) : []
         let best = corrections.first
         let willReplace = input.autocorrectAllowed && best?.autoApply == true && best?.word != composing
@@ -484,6 +526,13 @@ final class InputController {
             afterEdit(lastWasSpace: false)
             notifySentenceIfCompleted()
         case .switchLayer(let layer):
+            if layer == .letters {
+                returnsToLetters = false
+            } else if state.layer == .letters {
+                returnsToLetters = true
+            }
+            typedOnSymbols = false
+            lastKeyWasSpace = false
             var s = state
             s.layer = layer
             if layer != .letters { s.shift = .off }
@@ -500,6 +549,7 @@ final class InputController {
     }
 
     private func insertCharacter(_ raw: String, fromKey key: Key) {
+        defer { returnToLettersIfDone(after: raw) }
         var text = raw
         if key.isLetter, state.shift.isActive { text = text.uppercased() }
         let isPunctuation = text.count == 1 && (Self.sentenceTerminators.contains(text.first!) || ",;:".contains(text))
@@ -538,7 +588,27 @@ final class InputController {
         for c in text { wordTaps.append((c, point)) }
     }
 
+    /// Takes the keyboard back to the letters once a symbol typed from the 123 key is followed
+    /// by a space, or right after an apostrophe (the rest of the word follows in letters).
+    private func returnToLettersIfDone(after typed: String) {
+        guard returnsToLetters, state.layer != .letters else { return }
+        if typed == " " {
+            guard typedOnSymbols else { return }
+        } else if typed != "'" && typed != "’" {
+            typedOnSymbols = true
+            return
+        }
+        returnsToLetters = false
+        typedOnSymbols = false
+        var s = state
+        s.layer = .letters
+        shiftTouchedManually = false
+        state = s
+        refreshNow()
+    }
+
     private func handleSpace() {
+        defer { returnToLettersIfDone(after: " ") }
         if autoSpacePending, textBefore.hasSuffix(" ") {
             // Space right after a swipe: the space is already there.
             autoSpacePending = false
@@ -623,6 +693,28 @@ final class InputController {
         state = s
     }
 
+    /// Shift is held down while the other thumb types ("USA" with a finger on shift): every
+    /// letter comes out capital until it is let go.
+    private var shiftHeld = false
+
+    func beginShiftHold() {
+        shiftHeld = true
+        shiftTouchedManually = true
+        var s = state
+        if s.shift == .off { s.shift = .on }
+        state = s
+    }
+
+    func endShiftHold() {
+        guard shiftHeld else { return }
+        shiftHeld = false
+        shiftTouchedManually = false
+        var s = state
+        if s.shift == .on { s.shift = .off }
+        state = s
+        refreshNow()
+    }
+
     func lockShift() {
         var s = state
         s.shift = .locked
@@ -640,6 +732,7 @@ final class InputController {
     }
 
     func insertAlternate(_ text: String, for key: Key) {
+        defer { returnToLettersIfDone(after: text) }
         if case .swipe = lastCommit { lastCommit = nil }
         autoSpacePending = false
         recordTap(text, touch: nil)
@@ -648,6 +741,7 @@ final class InputController {
     }
 
     func moveCursor(by offset: Int) {
+        lastKeyWasSpace = false
         edit({ c in
             if offset > 0 {
                 let n = min(offset, c.after.count)
@@ -789,6 +883,18 @@ final class InputController {
         afterEdit(lastWasSpace: true, consumedShift: true)
     }
 
+    /// The word a glide is decoded after (see `handleSwipe`), for the live preview while it is
+    /// still in flight.
+    var glidePreviousWord: String? {
+        let composing = composingWord
+        return composing.isEmpty ? previousWord : composing
+    }
+
+    /// A decoded word cased the way `handleSwipe` will type it, for the live preview.
+    func previewCased(_ word: String) -> String {
+        justinModeActive ? applyCase(to: Self.justinWord) : applyCase(to: word)
+    }
+
     /// Applies shift / sentence casing to a dictionary word without lowercasing German nouns.
     private func applyCase(to word: String) -> String {
         switch state.shift {
@@ -875,7 +981,8 @@ final class InputController {
         }
         guard suggestionsAllowed, let keyMap, let engine, engine.language == language else { wordTaps.removeAll(); return }
         if autocorrectAllowed, trigger == " " || trigger == "\n" || Self.sentenceTerminators.contains(trigger.first!) || trigger == "," {
-            let corrections = engine.autocorrect(for: keyMap).corrections(for: composing, previousWord: previous, isSentenceStart: isSentenceStart)
+            let corrections = correctionCache.corrections(for: composing, generation: suggestionGeneration.current)
+                ?? engine.autocorrect(for: keyMap).corrections(for: composing, previousWord: previous, isSentenceStart: isSentenceStart)
             if let best = corrections.first, best.autoApply, best.word != composing {
                 var replacement = best.word
                 // Keep a capital the user typed (or auto-capitalisation produced): "Hakko" → "Hallo".
@@ -923,8 +1030,10 @@ final class InputController {
 #if DEBUG
         inputLog.debug("delete \(count)")
 #endif
-        edit({ DocumentContext(before: String($0.before.dropLast(count)), after: $0.after) }) {
-            for _ in 0..<count { proxy.deleteBackward() }
+        // One recorded state per deleteBackward: a host that reports each of them as it catches
+        // up must find every one of them among the states we expect.
+        for _ in 0..<count {
+            edit({ DocumentContext(before: String($0.before.dropLast()), after: $0.after) }) { proxy.deleteBackward() }
         }
     }
 
@@ -934,10 +1043,10 @@ final class InputController {
         let composingCount = composingWord.count
         if wordTaps.count > composingCount { wordTaps.removeLast(wordTaps.count - composingCount) }
         var s = state
-        if consumedShift, s.shift == .on { s.shift = .off }
+        if consumedShift, s.shift == .on, !shiftHeld { s.shift = .off }
         state = s
         // Typing a character ends a manual shift override; auto-capitalisation takes over again.
-        if consumedShift { shiftTouchedManually = false }
+        if consumedShift, !shiftHeld { shiftTouchedManually = false }
         refreshNow()
         if lastWasSpace, composingCount == 0, suggestionsAllowed, !justinModeActive, let onWordBoundary {
             onWordBoundary(textBefore)

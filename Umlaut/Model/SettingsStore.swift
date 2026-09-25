@@ -64,7 +64,7 @@ final class SettingsStore: ObservableObject {
 
     // MARK: Zwischenablage
 
-    /// The keyboard keeps what was copied and offers it again from its action menu.
+    /// The keyboard keeps what was copied and offers it again behind the strip's clipboard button.
     @Published var clipboardHistory = true { didSet { write { settings.clipboardHistory = clipboardHistory } } }
     @Published var clipboardRetention: ClipboardRetention = .day { didSet { write { settings.clipboardRetention = clipboardRetention } } }
 

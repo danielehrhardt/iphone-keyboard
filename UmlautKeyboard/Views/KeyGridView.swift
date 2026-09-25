@@ -22,6 +22,11 @@ protocol KeyGridDelegate: AnyObject {
     /// The gear at the end of the period key's hold bubble was picked: open the app's settings.
     /// Defaults to doing nothing.
     func keyGridDidRequestSettings(_ grid: KeyGridView)
+    /// A glide is in flight: its path so far, a few times a second, for a live preview of the
+    /// word under the finger. Defaults to doing nothing.
+    func keyGrid(_ grid: KeyGridView, glideDidMove path: [CGPoint], keyMap: KeyMap)
+    /// The glide in flight ended (committed or cancelled): the preview goes. Defaults to nothing.
+    func keyGridGlideDidEnd(_ grid: KeyGridView)
     var swipeTypingEnabled: Bool { get }
     var keyPreviewEnabled: Bool { get }
     var swipeTrailEnabled: Bool { get }
@@ -31,6 +36,8 @@ protocol KeyGridDelegate: AnyObject {
 extension KeyGridDelegate {
     func keyGrid(_ grid: KeyGridView, didTap key: Key, at point: CGPoint) { keyGrid(grid, didTap: key) }
     func keyGridDidRequestSettings(_ grid: KeyGridView) {}
+    func keyGrid(_ grid: KeyGridView, glideDidMove path: [CGPoint], keyMap: KeyMap) {}
+    func keyGridGlideDidEnd(_ grid: KeyGridView) {}
 }
 
 /// The key area: renders `KeyView`s from a `KeyboardGeometry` and turns raw touches into taps,
@@ -46,8 +53,9 @@ final class KeyGridView: UIView {
     private let popup: KeyPopupView
     private let feedback: Feedback
 
+    /// Set after every keystroke and every suggestion update; only a real change touches the caps.
     var shiftState: ShiftState = .off {
-        didSet { keyViews.values.forEach { $0.shiftState = shiftState } }
+        didSet { if shiftState != oldValue { keyViews.values.forEach { $0.shiftState = shiftState } } }
     }
     /// Likely next letters get a larger touch area (see `KeyboardGeometry.keyFrame(at:prior:)`).
     var letterPrior: LetterPrior?
@@ -72,6 +80,17 @@ final class KeyGridView: UIView {
     /// can actually read starts the trail. Below this the decoder would reject the path anyway.
     private func glideThreshold(_ geometry: KeyboardGeometry) -> CGFloat { max(20, geometry.unitWidth * 0.75) }
 
+    /// Sideways travel before a touch on the space bar drives the cursor. Thumbs hitting the bar
+    /// at speed skid sideways; a skid shorter than this is a space. Even past it the space is
+    /// only given up once the cursor actually moved (see `finish`).
+    private func spaceDragThreshold(_ geometry: KeyboardGeometry) -> CGFloat { max(22, geometry.unitWidth * 0.7) }
+
+    /// Finger travel per cursor step while the space bar drives the cursor.
+    private func cursorStep(_ geometry: KeyboardGeometry) -> CGFloat { max(12, geometry.unitWidth * 0.5) }
+
+    /// How often a glide in flight asks for a preview of its word.
+    static let glidePreviewInterval: CFTimeInterval = 0.06
+
     // MARK: Touch state
 
     private final class TouchState {
@@ -86,7 +105,14 @@ final class KeyGridView: UIView {
         var longPressTimer: Timer?
         var repeatTimer: Timer?
         var cursorAnchorX: CGFloat = 0
+        /// Cursor steps the space-bar drag has taken; a drag that took none was a sloppy space tap.
+        var cursorSteps = 0
+        /// The trackpad was armed by holding the space bar (not by dragging it): a lift without
+        /// movement then types nothing.
+        var cursorFromHold = false
         var deleteCount = 0
+        /// When the glide preview was last sent (see `glidePreviewInterval`).
+        var lastPreview: CFTimeInterval = 0
 
         init(frame: KeyFrame, point: CGPoint) {
             startFrame = frame; currentFrame = frame; startPoint = point
@@ -202,15 +228,18 @@ final class KeyGridView: UIView {
 
     /// Cancels everything in flight (e.g. when the layout switches under the finger).
     func cancelAllTouches() {
+        let endedGlide = isGlideInFlight
         for (_, state) in touches {
             state.invalidate()
             state.mode = .finished
             keyViews[state.currentFrame.key.id]?.setPressed(false)
+            keyViews[state.startFrame.key.id]?.setPressed(false)
         }
         touches.removeAll()
         popup.hide()
         trail.end()
         setTrackpadMode(false)
+        if endedGlide { delegate?.keyGridGlideDidEnd(self) }
         flushTapsBehindGlide()
     }
 
@@ -226,20 +255,24 @@ final class KeyGridView: UIView {
     // MARK: Touch handling
 
     override func touchesBegan(_ newTouches: Set<UITouch>, with event: UIEvent?) {
-        guard let geometry else { return }
+        guard let landingGeometry = geometry else { return }
         // A second finger while a key is pending commits that key (fast typing with both thumbs);
         // an open alternates popup commits its selection so the shared popup is free again.
-        for (touch, state) in touches where state.mode == .pending || state.mode == .shiftSlide || state.mode == .alternates {
+        for (touch, state) in touches where state.mode == .pending || state.mode == .shiftSlide || state.mode == .alternates
+            || (state.mode == .spaceCursor && state.cursorSteps == 0 && !state.cursorFromHold) {
             // A finger already travelling across a letter key is a glide in the making, not a
             // tap to commit: let it go on and decide at its lift (a short path types the key
             // under the finger then; the new tap queues up behind it, see `tapsBehindGlide`).
             if state.mode == .pending, state.startFrame.key.isLetter, delegate?.swipeTypingEnabled ?? true,
-               let last = state.points.last, hypot(last.x - state.startPoint.x, last.y - state.startPoint.y) > slideThreshold(geometry) {
+               let last = state.points.last, hypot(last.x - state.startPoint.x, last.y - state.startPoint.y) > slideThreshold(landingGeometry) {
                 beginGlide(state)
                 continue
             }
             finish(touch: touch, state: state, at: state.points.last ?? state.startPoint)
         }
+        // The key just committed may have switched the layer ("123" then "." with the other
+        // thumb): the new touches belong to the keys on screen now, not the ones before.
+        guard let geometry else { return }
         // A glide in flight never blocks the other thumb: its tap is tracked alongside and
         // commits on its own lift. Every touch that lands on the grid becomes a key event.
         // Two fingers landing in the same frame arrive as one set: take them in touch order,
@@ -299,7 +332,11 @@ final class KeyGridView: UIView {
         for touch in moved {
             guard let state = touches[touch] else { continue }
             let p = touch.location(in: self)
-            state.points.append(p)
+            // Every sample the digitizer took since the last frame (120–240 Hz on current
+            // phones), not just one per frame: a fast glide keeps its corners.
+            let samples = event?.coalescedTouches(for: touch) ?? []
+            let newPoints = samples.isEmpty ? [p] : samples.map { $0.location(in: self) }
+            state.points.append(contentsOf: newPoints)
             let dx = p.x - state.startPoint.x, dy = p.y - state.startPoint.y
             let dist = hypot(dx, dy)
 
@@ -307,12 +344,12 @@ final class KeyGridView: UIView {
             case .pending:
                 let key = state.startFrame.key
                 if key.action == .space {
-                    if abs(dx) > 14 && abs(dx) > abs(dy) {
+                    if abs(dx) > spaceDragThreshold(geometry) && abs(dx) > abs(dy) {
+                        // The caps blank (trackpad look) with the first cursor step, not here:
+                        // a skid that never moves the cursor is still a space.
                         state.mode = .spaceCursor
                         state.cursorAnchorX = p.x
                         state.invalidate()
-                        setTrackpadMode(true)
-                        feedback.selectionTick()
                     }
                 } else if key.isLetter, (delegate?.swipeTypingEnabled ?? true), dist > glideThreshold(geometry) {
                     beginGlide(state)
@@ -333,16 +370,23 @@ final class KeyGridView: UIView {
                     }
                 }
             case .swiping:
-                if delegate?.swipeTrailEnabled ?? true { trail.add(point: p) }
+                if delegate?.swipeTrailEnabled ?? true { newPoints.forEach { trail.add(point: $0) } }
+                let now = CACurrentMediaTime()
+                if now - state.lastPreview >= Self.glidePreviewInterval, let keyMap {
+                    state.lastPreview = now
+                    delegate?.keyGrid(self, glideDidMove: state.points, keyMap: keyMap)
+                }
             case .alternates:
                 if popup.select(at: p) { feedback.selectionTick() }
             case .spaceCursor:
-                let step = max(12, geometry.unitWidth * 0.5)
+                let step = cursorStep(geometry)
                 let delta = p.x - state.cursorAnchorX
                 if abs(delta) >= step {
                     let steps = Int(delta / step)
+                    setTrackpadMode(true)
                     delegate?.keyGrid(self, moveCursorBy: steps)
                     state.cursorAnchorX += CGFloat(steps) * step
+                    state.cursorSteps += abs(steps)
                     feedback.selectionTick()
                 }
             case .shiftSlide:
@@ -369,21 +413,42 @@ final class KeyGridView: UIView {
     }
 
     override func touchesCancelled(_ cancelled: Set<UITouch>, with event: UIEvent?) {
-        for touch in cancelled {
+        var endedGlide = false
+        for touch in cancelled.sorted(by: { $0.timestamp < $1.timestamp }) {
             guard let state = touches[touch] else { continue }
 #if DEBUG
             tapLog.debug("cancelled \(state.currentFrame.key.id, privacy: .public) mode=\(String(describing: state.mode), privacy: .public)")
 #endif
             if state.mode == .globe { delegate?.keyGrid(self, globeTouchEvent: event) }
+            if Self.isQuickTap(state) {
+                // The system took the touch back (a screen-edge gesture it was still weighing,
+                // an alert …) from what can only have been a tap: type it rather than lose it.
+                finish(touch: touch, state: state, at: state.points.last ?? state.startPoint)
+                continue
+            }
+            endedGlide = endedGlide || state.mode == .swiping
             state.invalidate()
             state.mode = .finished
             keyViews[state.currentFrame.key.id]?.setPressed(false)
+            keyViews[state.startFrame.key.id]?.setPressed(false)
             touches[touch] = nil
         }
         popup.hide()
         trail.end()
         setTrackpadMode(false)
+        if endedGlide { delegate?.keyGridGlideDidEnd(self) }
         flushTapsBehindGlide()
+    }
+
+    /// A touch that landed on a typing key a moment ago and has barely moved: a tap in progress.
+    private static func isQuickTap(_ state: TouchState) -> Bool {
+        guard state.mode == .pending, CACurrentMediaTime() - state.startTime < 0.25 else { return false }
+        switch state.currentFrame.key.action {
+        case .character, .space: break
+        default: return false
+        }
+        let last = state.points.last ?? state.startPoint
+        return hypot(last.x - state.startPoint.x, last.y - state.startPoint.y) < 6
     }
 
     // MARK: Gesture completion
@@ -448,6 +513,7 @@ final class KeyGridView: UIView {
             }
         case .swiping:
             trail.end()
+            delegate?.keyGridGlideDidEnd(self)
             var path = state.points
             path.append(point)
             if let geometry, hypot(point.x - state.startPoint.x, point.y - state.startPoint.y) < glideThreshold(geometry) {
@@ -474,11 +540,13 @@ final class KeyGridView: UIView {
         case .spaceCursor:
             // Movement can arrive with the lift itself; don't lose it.
             if let geometry {
-                let step = max(12, geometry.unitWidth * 0.5)
-                let steps = Int((point.x - state.cursorAnchorX) / step)
+                let steps = Int((point.x - state.cursorAnchorX) / cursorStep(geometry))
                 if steps != 0 { delegate?.keyGrid(self, moveCursorBy: steps) }
+                state.cursorSteps += abs(steps)
             }
             setTrackpadMode(false)
+            // A drag that never moved the cursor was a thumb skidding over the bar at speed.
+            if state.cursorSteps == 0, !state.cursorFromHold { deliverTap(state.startFrame.key, at: nil) }
         case .backspaceHold, .globe, .held:
             break
         case .shiftSlide:
@@ -560,6 +628,7 @@ final class KeyGridView: UIView {
             if kf.key.action == .space {
                 // Holding space arms cursor movement; the following drag moves the caret.
                 state.mode = .spaceCursor
+                state.cursorFromHold = true
                 state.cursorAnchorX = state.points.last?.x ?? state.startPoint.x
                 setTrackpadMode(true)
                 feedback.selectionTick()

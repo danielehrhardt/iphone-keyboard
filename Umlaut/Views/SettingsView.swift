@@ -166,7 +166,7 @@ struct SettingsView: View {
             } header: {
                 Text("Zwischenablage")
             } footer: {
-                Text("Kopierte Texte und Bilder erscheinen in der Tastatur hinter der „⋯“-Taste und lassen sich dort wieder einfügen. Bilder legt die Tastatur zurück in die Zwischenablage; eingefügt werden sie wie gewohnt über „Einfügen“. Der Verlauf bleibt auf dem iPhone und wird nach der gewählten Zeit gelöscht. iOS fragt beim ersten Mal, ob Umlaut aus anderen Apps einfügen darf – unter Einstellungen › Umlaut › „Einfügen aus anderen Apps“ lässt sich das dauerhaft erlauben.")
+                Text("Kopierte Texte und Bilder erscheinen in der Tastatur hinter dem Zwischenablage-Symbol oben links und lassen sich dort wieder einfügen. Bilder legt die Tastatur zurück in die Zwischenablage; eingefügt werden sie wie gewohnt über „Einfügen“. Der Verlauf bleibt auf dem iPhone und wird nach der gewählten Zeit gelöscht. iOS fragt beim ersten Mal, ob Umlaut aus anderen Apps einfügen darf – unter Einstellungen › Umlaut › „Einfügen aus anderen Apps“ lässt sich das dauerhaft erlauben.")
             }
 
             Section {

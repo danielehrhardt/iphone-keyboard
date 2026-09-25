@@ -40,10 +40,14 @@ final class Feedback {
         selection.selectionChanged()
     }
 
+    /// Closest two taps may be felt apart. Two thumbs rolling over land 20–30 ms apart; a longer
+    /// window would leave the second tap without a tick, and a key that gives no tick feels lost.
+    static let minimumHapticInterval: CFTimeInterval = 0.012
+
     private func haptic(_ generator: UIImpactFeedbackGenerator, intensity: CGFloat) {
         guard settings.haptics else { return }
         let now = CACurrentMediaTime()
-        guard now - lastHaptic > 0.03 else { return }
+        guard now - lastHaptic > Self.minimumHapticInterval else { return }
         lastHaptic = now
         generator.impactOccurred(intensity: intensity)
         generator.prepare()

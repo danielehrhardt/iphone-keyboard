@@ -75,6 +75,24 @@ final class KeyboardViewController: UIInputViewController {
         super.viewDidAppear(animated)
         // Only reliable once the view is in the hierarchy.
         coordinator.needsGlobeKey = needsInputModeSwitchKey
+        stopDelayingTouches()
+    }
+
+    /// The keyboard's window carries the system's screen-edge gesture gates, and they hold back
+    /// `touchesBegan` for touches near the edges until they have ruled out an edge swipe. Those
+    /// are the keys typed most often at speed – q, a, p, l, shift, backspace and the whole
+    /// bottom row – which then react late and, with the other thumb already down, out of order.
+    /// The same goes for the lift. The gates keep working; they just no longer delay the keys.
+    private func stopDelayingTouches() {
+        var ancestor: UIView? = view.superview
+        while let v = ancestor {
+            for recognizer in v.gestureRecognizers ?? [] where recognizer.delaysTouchesBegan || recognizer.delaysTouchesEnded {
+                recognizer.delaysTouchesBegan = false
+                recognizer.delaysTouchesEnded = false
+                log.debug("stopped \(String(describing: type(of: recognizer)), privacy: .public) delaying touches")
+            }
+            ancestor = v.superview
+        }
     }
 
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {

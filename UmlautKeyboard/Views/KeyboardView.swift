@@ -1,8 +1,8 @@
 import UIKit
 import KeyboardCore
 
-/// Root view of the extension: suggestion strip on top, key grid below, emoji panel and
-/// clipboard panel as overlays, the action menu as a dropdown over the grid.
+/// Root view of the extension: suggestion strip on top, key grid below, the emoji, clipboard
+/// and AI panels as overlays.
 ///
 /// The view is transparent so the system's keyboard material shows through, and it respects the
 /// safe area: keys stay above the home indicator and clear of the notch in landscape.
@@ -18,8 +18,6 @@ final class KeyboardView: UIView {
     /// The AI panel (strip button ✦); created on first use, like the emoji panel.
     private(set) var aiPanel: AIPanelView?
     weak var aiDelegate: AIPanelDelegate?
-    /// The dropdown under the strip's "⋯" button; created on first use.
-    private(set) var actionMenu: ActionMenuView?
     private(set) var theme: KeyboardTheme
     var suggestionHeight: CGFloat = 44 { didSet { setNeedsLayout() } }
     /// Called after every layout pass so the owner can (re)build the key grid for the new size.
@@ -33,7 +31,7 @@ final class KeyboardView: UIView {
                 addSubview(panel)
                 emojiPanel = panel
             }
-            if isEmojiVisible { isClipboardVisible = false; isActionMenuVisible = false; isAIVisible = false }
+            if isEmojiVisible { isClipboardVisible = false; isAIVisible = false }
             emojiPanel?.isHidden = !isEmojiVisible
             updateOverlayVisibility()
             if isEmojiVisible { emojiPanel?.refreshRecents() }
@@ -48,7 +46,7 @@ final class KeyboardView: UIView {
                 addSubview(panel)
                 clipboardPanel = panel
             }
-            if isClipboardVisible { isEmojiVisible = false; isActionMenuVisible = false; isAIVisible = false }
+            if isClipboardVisible { isEmojiVisible = false; isAIVisible = false }
             clipboardPanel?.isHidden = !isClipboardVisible
             updateOverlayVisibility()
         }
@@ -62,36 +60,11 @@ final class KeyboardView: UIView {
                 addSubview(panel)
                 aiPanel = panel
             }
-            if isAIVisible { isEmojiVisible = false; isClipboardVisible = false; isActionMenuVisible = false }
+            if isAIVisible { isEmojiVisible = false; isClipboardVisible = false }
             aiPanel?.isHidden = !isAIVisible
             updateOverlayVisibility()
         }
     }
-    /// Shows or hides the action dropdown. `actions` is set by the owner before opening.
-    var isActionMenuVisible = false {
-        didSet {
-            guard isActionMenuVisible != oldValue else { return }
-            if isActionMenuVisible, actionMenu == nil {
-                let menu = ActionMenuView(theme: theme)
-                menu.frame = bounds
-                addSubview(menu)
-                actionMenu = menu
-            }
-            if let menu = actionMenu {
-                bringSubviewToFront(menu)
-                menu.isHidden = !isActionMenuVisible
-                if isActionMenuVisible {
-                    menu.alpha = 0
-                    menu.transform = CGAffineTransform(translationX: 0, y: -6)
-                    UIView.animate(withDuration: 0.18, delay: 0, options: [.curveEaseOut, .allowUserInteraction]) {
-                        menu.alpha = 1
-                        menu.transform = .identity
-                    }
-                }
-            }
-        }
-    }
-
     /// The grid and the strip only show while no panel covers them.
     private func updateOverlayVisibility() {
         let covered = isEmojiVisible || isClipboardVisible || isAIVisible
@@ -119,21 +92,23 @@ final class KeyboardView: UIView {
         emojiPanel?.apply(theme: theme)
         clipboardPanel?.apply(theme: theme)
         aiPanel?.apply(theme: theme)
-        actionMenu?.apply(theme: theme)
     }
 
-    /// Every touch from the grid's top edge down belongs to the key grid, including the strip
-    /// below the bottom row (the home-indicator inset) and the side insets: a thumb that lands a
-    /// little low on the space bar, as thumbs do when typing fast, must reach the nearest key
-    /// rather than a dead zone. The suggestion bar and the emoji panel keep their own areas.
+    /// How far the key grid reaches up into the suggestion strip: the strip's bottom margin,
+    /// below its word pills and buttons. A thumb aiming at the top row at speed lands a little
+    /// high as often as low, and that tap must type the key, not pick a word or hit nothing.
+    static let gridReachIntoStrip: CGFloat = 6
+
+    /// Every touch from just above the grid's top edge down belongs to the key grid, including
+    /// the strip below the bottom row (the home-indicator inset) and the side insets: a thumb that
+    /// lands a little low on the space bar, as thumbs do when typing fast, must reach the nearest
+    /// key rather than a dead zone. The suggestion bar and the emoji panel keep their own areas.
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         guard isUserInteractionEnabled, !isHidden, alpha >= 0.01, self.point(inside: point, with: event) else { return nil }
-        // While the dropdown is open it owns every touch (its backdrop closes it).
-        if let menu = actionMenu, !menu.isHidden { return menu.hitTest(convert(point, to: menu), with: event) ?? menu }
         if let panel = emojiPanel, !panel.isHidden { return super.hitTest(point, with: event) }
         if let panel = clipboardPanel, !panel.isHidden { return super.hitTest(point, with: event) }
         if let panel = aiPanel, !panel.isHidden { return super.hitTest(point, with: event) }
-        if !grid.isHidden, grid.isUserInteractionEnabled, grid.alpha >= 0.01, point.y >= grid.frame.minY {
+        if !grid.isHidden, grid.isUserInteractionEnabled, grid.alpha >= 0.01, point.y >= grid.frame.minY - Self.gridReachIntoStrip {
             return grid
         }
         return super.hitTest(point, with: event)
@@ -155,9 +130,6 @@ final class KeyboardView: UIView {
         emojiPanel?.frame = bounds
         clipboardPanel?.frame = bounds
         aiPanel?.frame = bounds
-        actionMenu?.frame = bounds
-        // The card hangs from the "⋯" button.
-        actionMenu?.anchor = CGPoint(x: x + SuggestionBarView.dismissInset, y: suggestionHeight - 4)
         onLayout?()
     }
 }

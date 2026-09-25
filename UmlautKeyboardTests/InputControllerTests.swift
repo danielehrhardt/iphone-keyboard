@@ -354,6 +354,42 @@ final class InputControllerTests: XCTestCase {
         XCTAssertNotEqual(input.state.letterPrior?.mostLikely, "o")
     }
 
+    /// Like the system keyboard: a number or symbol typed from the 123 key and a space after it
+    /// take the keyboard back to the letters, and so does an apostrophe ("geht's").
+    func testSymbolLayerReturnsToLettersAfterSpaceOrApostrophe() {
+        func symbol(_ c: String) -> Key { GermanLayouts.symbols().allKeys.first { $0.action == .character(c) }! }
+        type("um")
+        input.handle(key: GermanLayouts.toSymbols)
+        input.handle(key: GermanLayouts.space)
+        XCTAssertEqual(input.state.layer, .symbols, "nothing typed on the layer yet: it stays")
+        input.handle(key: symbol("1"))
+        input.handle(key: symbol("2"))
+        XCTAssertEqual(input.state.layer, .symbols)
+        input.handle(key: GermanLayouts.space)
+        XCTAssertEqual(input.state.layer, .letters)
+        type("uhr")
+        XCTAssertEqual(proxy.text, "Um 12 uhr")
+
+        type(" geht")
+        input.handle(key: GermanLayouts.toSymbols)
+        input.handle(key: symbol("'"))
+        XCTAssertEqual(input.state.layer, .letters, "the word goes on in letters")
+        type("s")
+        XCTAssertTrue(proxy.text.hasSuffix("geht's"), proxy.text)
+    }
+
+    /// A field that asked for numbers and punctuation starts on the symbols and stays there.
+    func testNumberFieldKeepsItsSymbolLayer() {
+        var traits = FieldTraits()
+        traits.keyboardType = .numbersAndPunctuation
+        input.traits = traits
+        XCTAssertEqual(input.state.layer, .symbols)
+        let one = GermanLayouts.symbols().allKeys.first { $0.action == .character("1") }!
+        input.handle(key: one)
+        input.handle(key: GermanLayouts.space)
+        XCTAssertEqual(input.state.layer, .symbols)
+    }
+
     func testLetterPriorIsOffWhenDisabledOrUnavailable() {
         settings.smartHitTargets = false
         input.refresh()

@@ -15,41 +15,43 @@ struct Suggestion: Equatable {
     }
 }
 
-/// Three suggestion cells with hairline dividers, the primary one in the middle and bold.
-/// Cells highlight as soft pills and new suggestions fade in instead of snapping. A "⋯" button
-/// at the leading edge opens the action menu (clipboard history, emoji …). A small "hide
-/// keyboard" button sits at the trailing edge (iPhone has no system dismiss key), and while
-/// several typing languages are enabled a language badge ("DE", "EN") sits next to it: tapping
-/// it switches to the next language.
+/// The strip above the keys: up to three suggestions with hairline dividers, the primary one in
+/// the middle and bold, flanked by a few quiet icon buttons – each action exists exactly once:
+///
+///     [✦ assistant] [clipboard]   word | WORD | word   [DE] [hide]
+///
+/// The assistant shows while it is switched on, the clipboard while the history is kept, the
+/// language badge while several typing languages are enabled (a tap switches to the next one),
+/// and the hide button always (iPhone has no system dismiss key). Emoji live on the comma key.
+/// While a glide is in flight the words give way to a live preview of the word being traced.
 final class SuggestionBarView: UIView {
     var onSelect: ((Suggestion) -> Void)?
     var onDismiss: (() -> Void)?
     var onLanguage: (() -> Void)?
-    var onActions: (() -> Void)?
+    var onClipboard: (() -> Void)?
     var onAI: (() -> Void)?
     private var buttons: [UIButton] = []
     /// Visual pill per cell. The button itself spans the whole cell so the tap target is large;
     /// only this inset view shows the highlight.
     private var pills: [UIView] = []
     private var dividers: [UIView] = []
-    private let dismissButton = UIButton(type: .system)
-    private let languageButton = UIButton(type: .system)
-    let actionsButton = UIButton(type: .system)
-    /// The sparkles capsule that opens the AI panel; hidden while the assistant is off.
+    let dismissButton = StripIconButton(symbol: "keyboard.chevron.compact.down", identifier: "dismiss-keyboard", label: "Tastatur ausblenden")
+    let clipboardButton = StripIconButton(symbol: "list.clipboard", identifier: "keyboard-clipboard", label: "Zwischenablage")
+    let languageButton = StripIconButton(symbol: nil, identifier: "switch-language", label: "Sprache")
+    /// The sparkles that open the AI panel; hidden while the assistant is off.
     let aiButton = AIStripButton()
-    static let aiWidth: CGFloat = 44
-    static let dismissWidth: CGFloat = 46
-    static let languageWidth: CGFloat = 44
-    static let actionsWidth: CGFloat = 46
-    static let dismissInset: CGFloat = 6
-    /// Width taken by the "⋯" button and its inset at the leading edge.
-    static var leadingReserved: CGFloat { actionsWidth + dismissInset }
-    /// Width taken by the dismiss button (and the language badge, when shown) at the trailing edge.
-    static func trailingReserved(hasLanguage: Bool, hasAI: Bool = false) -> CGFloat {
-        dismissWidth + dismissInset * 2 + (hasLanguage ? languageWidth + dismissInset : 0) + (hasAI ? aiWidth + dismissInset : 0)
-    }
+    /// The word being traced while a glide is in flight.
+    private let previewLabel = UILabel()
 
-    /// Whether the AI button is shown (the assistant is switched on in the app).
+    /// Width of each icon button (the whole strip height is its touch area).
+    static let iconWidth: CGFloat = 40
+    /// Gap between the strip's edge and the first icon, and between the icons and the words.
+    static let edgeInset: CGFloat = 2
+
+    /// Where the suggestion cells sit, after layout.
+    private(set) var wordArea: CGRect = .zero
+
+    /// Whether the assistant button is shown (the assistant is switched on in the app).
     var showsAI = false {
         didSet {
             guard showsAI != oldValue else { return }
@@ -57,6 +59,16 @@ final class SuggestionBarView: UIView {
             setNeedsLayout()
         }
     }
+
+    /// Whether the clipboard button is shown (the history is switched on in the app).
+    var showsClipboard = true {
+        didSet {
+            guard showsClipboard != oldValue else { return }
+            clipboardButton.isHidden = !showsClipboard
+            setNeedsLayout()
+        }
+    }
+
     private(set) var suggestions: [Suggestion] = []
     private var theme: KeyboardTheme
 
@@ -65,8 +77,25 @@ final class SuggestionBarView: UIView {
         didSet {
             guard language != oldValue else { return }
             languageButton.isHidden = language == nil
-            configureLanguageButton()
+            languageButton.badge = language?.badge
+            languageButton.accessibilityLabel = language.map { "Sprache: \($0.title). Zum Wechseln tippen" }
             setNeedsLayout()
+        }
+    }
+
+    /// The word under the finger while a glide is in flight; nil shows the suggestions again.
+    var glidePreview: String? {
+        didSet {
+            guard glidePreview != oldValue else { return }
+            if let glidePreview { previewLabel.text = glidePreview }
+            let showing = glidePreview != nil
+            guard showing != (oldValue != nil) else { return }
+            UIView.animate(withDuration: showing ? 0.12 : 0.18, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]) {
+                self.previewLabel.alpha = showing ? 1 : 0
+                let wordsAlpha: CGFloat = showing ? 0 : 1
+                self.buttons.forEach { $0.alpha = wordsAlpha }
+                self.dividers.forEach { $0.alpha = wordsAlpha }
+            }
         }
     }
 
@@ -80,7 +109,7 @@ final class SuggestionBarView: UIView {
             b.titleLabel?.lineBreakMode = .byTruncatingTail
             b.titleLabel?.adjustsFontSizeToFitWidth = true
             b.titleLabel?.minimumScaleFactor = 0.7
-            b.contentEdgeInsets = UIEdgeInsets(top: 0, left: 10, bottom: 0, right: 10)
+            b.contentEdgeInsets = UIEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
             b.addTarget(self, action: #selector(tapped(_:)), for: .touchUpInside)
             b.addTarget(self, action: #selector(highlight(_:)), for: [.touchDown, .touchDragEnter])
             b.addTarget(self, action: #selector(unhighlight(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel, .touchDragExit])
@@ -98,18 +127,20 @@ final class SuggestionBarView: UIView {
             addSubview(d)
             dividers.append(d)
         }
-        dismissButton.accessibilityLabel = "Tastatur ausblenden"
-        dismissButton.accessibilityIdentifier = "dismiss-keyboard"
+        previewLabel.textAlignment = .center
+        previewLabel.adjustsFontSizeToFitWidth = true
+        previewLabel.minimumScaleFactor = 0.6
+        previewLabel.alpha = 0
+        previewLabel.isAccessibilityElement = false
+        addSubview(previewLabel)
+
         dismissButton.addTarget(self, action: #selector(dismissTapped), for: .touchUpInside)
         addSubview(dismissButton)
-        languageButton.accessibilityIdentifier = "switch-language"
         languageButton.isHidden = true
         languageButton.addTarget(self, action: #selector(languageTapped), for: .touchUpInside)
         addSubview(languageButton)
-        actionsButton.accessibilityIdentifier = "keyboard-actions"
-        actionsButton.accessibilityLabel = "Aktionen"
-        actionsButton.addTarget(self, action: #selector(actionsTapped), for: .touchUpInside)
-        addSubview(actionsButton)
+        clipboardButton.addTarget(self, action: #selector(clipboardTapped), for: .touchUpInside)
+        addSubview(clipboardButton)
         aiButton.isHidden = true
         aiButton.addTarget(self, action: #selector(aiTapped), for: .touchUpInside)
         addSubview(aiButton)
@@ -121,69 +152,11 @@ final class SuggestionBarView: UIView {
     func apply(theme: KeyboardTheme) {
         self.theme = theme
         dividers.forEach { $0.backgroundColor = theme.suggestionDivider }
-        configureDismissButton()
-        configureLanguageButton()
-        configureActionsButton()
+        [dismissButton, languageButton, clipboardButton].forEach { $0.apply(theme: theme) }
         aiButton.apply(theme: theme)
+        previewLabel.textColor = theme.suggestionText
+        previewLabel.font = .systemFont(ofSize: traitCollection.userInterfaceIdiom == .pad ? 21 : 19, weight: .semibold)
         render()
-    }
-
-    /// Same capsule as the dismiss button, carrying the language badge.
-    private func configureLanguageButton() {
-        var config: UIButton.Configuration
-        if #available(iOS 26.0, *) {
-            config = .glass()
-        } else {
-            config = .plain()
-            config.background.backgroundColor = theme.suggestionHighlight
-        }
-        config.cornerStyle = .capsule
-        config.baseForegroundColor = theme.suggestionText
-        config.contentInsets = .zero
-        var title = AttributedString(language?.badge ?? "")
-        title.font = .systemFont(ofSize: 13, weight: .semibold)
-        config.attributedTitle = title
-        languageButton.configuration = config
-        languageButton.tintColor = theme.suggestionText
-        languageButton.accessibilityLabel = language.map { "Sprache: \($0.title). Zum Wechseln tippen" }
-    }
-
-    /// Same capsule as the dismiss button, with the "⋯" that opens the action menu.
-    private func configureActionsButton() {
-        let image = UIImage(systemName: "ellipsis",
-                            withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold))
-        var config: UIButton.Configuration
-        if #available(iOS 26.0, *) {
-            config = .glass()
-        } else {
-            config = .plain()
-            config.background.backgroundColor = theme.suggestionHighlight
-        }
-        config.cornerStyle = .capsule
-        config.image = image
-        config.baseForegroundColor = theme.suggestionText
-        config.contentInsets = .zero
-        actionsButton.configuration = config
-        actionsButton.tintColor = theme.suggestionText
-    }
-
-    /// Liquid-glass capsule on iOS 26, a flat translucent capsule before that.
-    private func configureDismissButton() {
-        let image = UIImage(systemName: "keyboard.chevron.compact.down",
-                            withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .medium))
-        var config: UIButton.Configuration
-        if #available(iOS 26.0, *) {
-            config = .glass()
-        } else {
-            config = .plain()
-            config.background.backgroundColor = theme.suggestionHighlight
-        }
-        config.cornerStyle = .capsule
-        config.image = image
-        config.baseForegroundColor = theme.suggestionText
-        config.contentInsets = .zero
-        dismissButton.configuration = config
-        dismissButton.tintColor = theme.suggestionText
     }
 
     func set(_ new: [Suggestion]) {
@@ -220,42 +193,46 @@ final class SuggestionBarView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let leading = Self.leadingReserved
-        let reserved = leading + Self.trailingReserved(hasLanguage: language != nil, hasAI: showsAI)
-        // The visible words share the whole strip: one word gets all of it, two get halves. A
-        // tap anywhere around a word then reaches it instead of a dead third of the strip.
+        let icon = Self.iconWidth
+        // Leading icons from the left edge, trailing ones from the right; each spans the full
+        // strip height so a tap anywhere around the glyph lands.
+        var left = Self.edgeInset
+        for view in [aiButton, clipboardButton] as [UIView] where !view.isHidden {
+            view.frame = CGRect(x: left, y: 0, width: icon, height: bounds.height)
+            left += icon
+        }
+        var right = bounds.width - Self.edgeInset
+        for view in [dismissButton, languageButton] as [UIView] where !view.isHidden {
+            right -= icon
+            view.frame = CGRect(x: right, y: 0, width: icon, height: bounds.height)
+        }
+        // A little air between the icons and the words, none when there is no icon on that side.
+        if left > Self.edgeInset { left += 2 }
+        if right < bounds.width - Self.edgeInset { right -= 2 }
+        wordArea = CGRect(x: left, y: 0, width: max(right - left, 0), height: bounds.height)
+        previewLabel.frame = wordArea.insetBy(dx: 8, dy: 0)
+
+        // The visible words share the whole word area: one word gets all of it, two get halves.
+        // A tap anywhere around a word then reaches it instead of a dead third of the strip.
         let visible = max(min(suggestions.count, buttons.count), 1)
-        let w = max(bounds.width - reserved, 0) / CGFloat(visible)
-        let inset: CGFloat = 6
+        let w = wordArea.width / CGFloat(visible)
+        let inset: CGFloat = 4
         let h = bounds.height - 12
-        let buttonHeight = min(h, 32)
-        actionsButton.frame = CGRect(x: Self.dismissInset, y: (bounds.height - buttonHeight) / 2,
-                                     width: Self.actionsWidth, height: buttonHeight)
-        dismissButton.frame = CGRect(x: bounds.width - Self.dismissInset - Self.dismissWidth,
-                                     y: (bounds.height - buttonHeight) / 2,
-                                     width: Self.dismissWidth, height: buttonHeight)
-        languageButton.frame = CGRect(x: dismissButton.frame.minX - Self.dismissInset - Self.languageWidth,
-                                      y: (bounds.height - buttonHeight) / 2,
-                                      width: Self.languageWidth, height: buttonHeight)
-        // Sparkles sit left of the language badge (or of the dismiss button without one).
-        let aiRight = language == nil ? dismissButton.frame.minX : languageButton.frame.minX
-        aiButton.frame = CGRect(x: aiRight - Self.dismissInset - Self.aiWidth, y: (bounds.height - buttonHeight) / 2,
-                                width: Self.aiWidth, height: buttonHeight)
         // The button covers its whole cell (full height, no gaps) so a tap anywhere near the
         // word registers; the pill inside carries the inset look.
         for (i, b) in buttons.enumerated() {
-            b.frame = CGRect(x: leading + CGFloat(min(i, visible - 1)) * w, y: 0, width: w, height: bounds.height)
+            b.frame = CGRect(x: wordArea.minX + CGFloat(min(i, visible - 1)) * w, y: 0, width: w, height: bounds.height)
             let pill = pills[i]
             pill.frame = CGRect(x: inset, y: 6, width: max(w - inset * 2, 0), height: max(h, 0))
             pill.layer.cornerRadius = min(max(h, 0) / 2, 12)
         }
         for (i, d) in dividers.enumerated() {
-            d.frame = CGRect(x: leading + w * CGFloat(i + 1) - 0.5, y: bounds.height * 0.3, width: 1, height: bounds.height * 0.4)
+            d.frame = CGRect(x: wordArea.minX + w * CGFloat(i + 1) - 0.5, y: bounds.height * 0.3, width: 1, height: bounds.height * 0.4)
         }
     }
 
     @objc private func tapped(_ sender: UIButton) {
-        guard suggestions.indices.contains(sender.tag) else { return }
+        guard glidePreview == nil, suggestions.indices.contains(sender.tag) else { return }
         onSelect?(suggestions[sender.tag])
     }
 
@@ -263,7 +240,7 @@ final class SuggestionBarView: UIView {
 
     @objc private func languageTapped() { onLanguage?() }
 
-    @objc private func actionsTapped() { onActions?() }
+    @objc private func clipboardTapped() { onClipboard?() }
 
     @objc private func aiTapped() { onAI?() }
 
@@ -275,6 +252,83 @@ final class SuggestionBarView: UIView {
         guard let pill = pills[safe: sender.tag] else { return }
         UIView.animate(withDuration: 0.18, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]) {
             pill.backgroundColor = .clear
+        }
+    }
+}
+
+/// A quiet icon in the strip: a glyph (or a short text badge such as "DE") in the strip's
+/// secondary colour, no capsule, and a soft round highlight while pressed.
+final class StripIconButton: UIControl {
+    private let symbol: String?
+    private let imageView = UIImageView()
+    private let badgeLabel = UILabel()
+    private let halo = UIView()
+
+    /// Text shown in a thin rounded frame instead of a glyph (the language badge).
+    var badge: String? {
+        didSet { badgeLabel.text = badge; setNeedsLayout() }
+    }
+
+    init(symbol: String?, identifier: String, label: String) {
+        self.symbol = symbol
+        super.init(frame: .zero)
+        accessibilityIdentifier = identifier
+        accessibilityLabel = label
+        accessibilityTraits = .button
+        isAccessibilityElement = true
+        halo.isUserInteractionEnabled = false
+        halo.alpha = 0
+        addSubview(halo)
+        imageView.contentMode = .center
+        imageView.isUserInteractionEnabled = false
+        if let symbol {
+            imageView.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 16, weight: .regular))
+        }
+        addSubview(imageView)
+        badgeLabel.font = .systemFont(ofSize: 11.5, weight: .semibold)
+        badgeLabel.textAlignment = .center
+        badgeLabel.layer.cornerCurve = .continuous
+        badgeLabel.layer.cornerRadius = 5
+        badgeLabel.layer.borderWidth = 1.2
+        badgeLabel.isHidden = symbol != nil
+        addSubview(badgeLabel)
+        addTarget(self, action: #selector(pressDown), for: [.touchDown, .touchDragEnter])
+        addTarget(self, action: #selector(pressUp), for: [.touchUpInside, .touchUpOutside, .touchCancel, .touchDragExit])
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    func apply(theme: KeyboardTheme) {
+        let color = theme.suggestionText.withAlphaComponent(theme.isDark ? 0.78 : 0.62)
+        imageView.tintColor = color
+        badgeLabel.textColor = color
+        badgeLabel.layer.borderColor = color.cgColor
+        halo.backgroundColor = theme.suggestionHighlight
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let side = min(bounds.width - 4, bounds.height - 8, 34)
+        halo.frame = CGRect(x: bounds.midX - side / 2, y: bounds.midY - side / 2, width: side, height: side)
+        halo.layer.cornerRadius = side / 2
+        imageView.frame = bounds
+        badgeLabel.frame = CGRect(x: bounds.midX - 14, y: bounds.midY - 10, width: 28, height: 20)
+    }
+
+    @objc private func pressDown() {
+        halo.alpha = 1
+        UIView.animate(withDuration: 0.1, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]) {
+            self.imageView.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
+            self.badgeLabel.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
+        }
+    }
+
+    @objc private func pressUp() {
+        UIView.animate(withDuration: 0.25, delay: 0, usingSpringWithDamping: 0.7, initialSpringVelocity: 0.5,
+                       options: [.beginFromCurrentState, .allowUserInteraction]) {
+            self.halo.alpha = 0
+            self.imageView.transform = .identity
+            self.badgeLabel.transform = .identity
         }
     }
 }
