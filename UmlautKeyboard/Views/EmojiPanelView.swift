@@ -37,6 +37,7 @@ final class EmojiPanelView: UIView, UICollectionViewDataSource, UICollectionView
         collection.delegate = self
         collection.backgroundColor = .clear
         collection.showsVerticalScrollIndicator = false
+        collection.hideEdgeEffects()
         addSubview(collection)
 
         categoryBar.axis = .horizontal

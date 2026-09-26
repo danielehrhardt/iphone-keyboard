@@ -50,6 +50,7 @@ final class ClipboardPanelView: UIView, UICollectionViewDataSource, UICollection
         collection.backgroundColor = .clear
         collection.alwaysBounceVertical = true
         collection.showsVerticalScrollIndicator = false
+        collection.hideEdgeEffects()
         collection.keyboardDismissMode = .none
         addSubview(collection)
 

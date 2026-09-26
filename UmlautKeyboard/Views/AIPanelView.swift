@@ -71,6 +71,7 @@ final class AIPanelView: UIView {
             scroll.alwaysBounceHorizontal = true
             scroll.contentInset = UIEdgeInsets(top: 0, left: Self.sideInset, bottom: 0, right: Self.sideInset)
             scroll.contentOffset = CGPoint(x: -Self.sideInset, y: 0)
+            scroll.hideEdgeEffects()
             addSubview(scroll)
         }
         featureStack.axis = .horizontal
@@ -92,6 +93,7 @@ final class AIPanelView: UIView {
         contentScroll.showsVerticalScrollIndicator = false
         contentScroll.alwaysBounceVertical = true
         contentScroll.clipsToBounds = true
+        contentScroll.hideEdgeEffects()
         addSubview(contentScroll)
 
         lettersButton.setTitle("ABC", for: .normal)

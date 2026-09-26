@@ -138,3 +138,14 @@ final class KeyboardView: UIView, UIInputViewAudioFeedback {
         onLayout?()
     }
 }
+
+extension UIScrollView {
+    /// Turns off the edge blur iOS 26 draws where it assumes bars overlap a scroll view. In the
+    /// extension it lands on whatever touches the keyboard's top edge (the AI feature chips, the
+    /// emoji section title), and the panels have no bars for it to blend into.
+    func hideEdgeEffects() {
+        if #available(iOS 26.0, *) {
+            for edge in [topEdgeEffect, leftEdgeEffect, bottomEdgeEffect, rightEdgeEffect] { edge.isHidden = true }
+        }
+    }
+}
