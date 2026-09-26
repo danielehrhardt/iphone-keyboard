@@ -86,9 +86,11 @@ final class DemoKeyboardUITests: XCTestCase {
         shot("06-symbols")
         let symbols = GermanLayouts.symbols(options: LayoutOptions(needsGlobeKey: false))
         keyPoint("ABC", layout: symbols, keyboardFrame: kb, suggestionHeight: heights.suggestions).tap()
-        tap("emoji")
+        // Emoji live on the comma key: hold it.
+        keyPoint("comma", layout: letters, keyboardFrame: kb, suggestionHeight: heights.suggestions).press(forDuration: 0.8)
         sleep(1)
         shot("07-emoji")
+        XCTAssertFalse(app.descendants(matching: .any)["key-q"].exists, "the emoji panel covers the keys")
     }
 
     /// The keyboard can be closed from its own dismiss button and by tapping outside the editor.

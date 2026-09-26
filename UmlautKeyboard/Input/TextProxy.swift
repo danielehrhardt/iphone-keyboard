@@ -52,14 +52,6 @@ struct FieldTraits: Equatable {
         isSecure = proxy.isSecureTextEntry ?? false
     }
 
-    /// Everything that changes how the keyboard behaves: all of it but the return key, which
-    /// only relabels a key (hosts change it mid-word, e.g. web fields with `enterkeyhint`).
-    var behaviour: FieldTraits {
-        var t = self
-        t.returnKeyType = .default
-        return t
-    }
-
     var isEmailOrURL: Bool {
         keyboardType == .emailAddress || keyboardType == .URL
     }

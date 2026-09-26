@@ -59,4 +59,25 @@ final class PredictorAndRulesTests: XCTestCase {
         ul.learn(word: "hunter2ABCdef", after: nil)
         XCTAssertNil(ul.unigramLogBoost("hunter2ABCdef"))
     }
+
+    /// Completions of learned words come from a sorted index that `learn` keeps current: words
+    /// join it at the threshold, counts reorder it, removals drop it.
+    func testUserCompletionsFollowLearning() {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("ul-\(UUID()).json")
+        let ul = UserLexicon(fileURL: url)
+        for _ in 0..<2 { ul.learn(word: "Codext", after: nil) }
+        XCTAssertEqual(ul.completions(prefix: "cod", limit: 5), ["Codext"])
+        for _ in 0..<2 { ul.learn(word: "Codebase", after: nil) }
+        ul.learn(word: "Codex", after: nil)          // once: not learned yet
+        XCTAssertEqual(Set(ul.completions(prefix: "Code", limit: 5)), ["Codext", "Codebase"])
+        for _ in 0..<3 { ul.learn(word: "Codebase", after: nil) }
+        XCTAssertEqual(ul.completions(prefix: "cod", limit: 5), ["Codebase", "Codext"], "most used first")
+        XCTAssertEqual(ul.completions(prefix: "", limit: 1), ["Codebase"])
+        XCTAssertEqual(ul.completions(prefix: "codext", limit: 5), [], "the prefix itself is no completion")
+        ul.learn(word: "Codex", after: nil)
+        XCTAssertTrue(ul.completions(prefix: "codex", limit: 5).contains("Codext"))
+        XCTAssertTrue(ul.completions(prefix: "code", limit: 5).contains("Codex"))
+        ul.remove(word: "Codebase")
+        XCTAssertEqual(ul.completions(prefix: "codeb", limit: 5), [])
+    }
 }

@@ -32,11 +32,20 @@ public final class UserLexicon: @unchecked Sendable {
     private let lock = NSLock()
     private let fileURL: URL?
     private var swipeCache: [SwipeEntry]?
+    /// Learned words sorted by lowercase spelling, for the prefix lookups made on every keystroke
+    /// (the next-letter prior asks on the main thread, the strip in the background). Built on
+    /// first use and kept up to date by `learn`; any other change drops it.
+    private var completionIndex: [IndexEntry]?
+    /// The most used learned words, for completions of an empty prefix.
+    private var topWords: [String]?
+    private struct IndexEntry { let lower: String; let word: String; var count: Int }
     private var dirty = false
     private var loadedModificationDate: Date?
 
     /// Learn a word after it was seen this many times (typos usually aren't repeated).
-    public var learnThreshold = 2
+    public var learnThreshold = 2 {
+        didSet { lock.lock(); completionIndex = nil; topWords = nil; lock.unlock() }
+    }
     public var maxWords = 4000
 
     public init(fileURL: URL?) {
@@ -104,11 +113,56 @@ public final class UserLexicon: @unchecked Sendable {
     public func completions(prefix: String, limit: Int) -> [String] {
         lock.lock(); defer { lock.unlock() }
         let p = prefix.lowercased()
-        return store.words.values
-            .filter { $0.count >= learnThreshold && $0.word.lowercased().hasPrefix(p) && $0.word.count > p.count }
-            .sorted { $0.count > $1.count }
-            .prefix(limit)
-            .map(\.word)
+        let index = indexLocked()
+        if p.isEmpty {
+            if topWords == nil { topWords = index.sorted { $0.count > $1.count }.prefix(64).map(\.word) }
+            return Array(topWords!.prefix(limit))
+        }
+        var matches: [IndexEntry] = []
+        var i = Self.lowerBound(p, in: index)
+        while i < index.count, index[i].lower.hasPrefix(p) {
+            if index[i].word.count > p.count { matches.append(index[i]) }
+            i += 1
+        }
+        return matches.sorted { $0.count > $1.count }.prefix(limit).map(\.word)
+    }
+
+    /// Caller holds the lock.
+    private func indexLocked() -> [IndexEntry] {
+        if let completionIndex { return completionIndex }
+        let threshold = learnThreshold
+        var built: [IndexEntry] = []
+        for e in store.words.values where e.count >= threshold {
+            built.append(IndexEntry(lower: e.word.lowercased(), word: e.word, count: e.count))
+        }
+        built.sort { (a: IndexEntry, b: IndexEntry) -> Bool in
+            a.lower == b.lower ? a.word < b.word : a.lower < b.lower
+        }
+        completionIndex = built
+        return built
+    }
+
+    private static func lowerBound(_ key: String, in index: [IndexEntry]) -> Int {
+        var lo = 0, hi = index.count
+        while lo < hi {
+            let mid = (lo + hi) / 2
+            if index[mid].lower < key { lo = mid + 1 } else { hi = mid }
+        }
+        return lo
+    }
+
+    /// Caller holds the lock. A learned word's count changed (or it just reached the threshold).
+    private func updateIndexLocked(_ e: Entry) {
+        topWords = nil
+        guard completionIndex != nil, e.count >= learnThreshold else { return }
+        let lower = e.word.lowercased()
+        var i = Self.lowerBound(lower, in: completionIndex!)
+        while i < completionIndex!.count, completionIndex![i].lower == lower {
+            if completionIndex![i].word == e.word { completionIndex![i].count = e.count; return }
+            if completionIndex![i].word > e.word { break }
+            i += 1
+        }
+        completionIndex!.insert(IndexEntry(lower: lower, word: e.word, count: e.count), at: i)
     }
 
     // MARK: Learning
@@ -125,7 +179,8 @@ public final class UserLexicon: @unchecked Sendable {
         if let previous, Self.isLearnable(previous) {
             store.bigrams[previous, default: [:]][word, default: 0] += 1
         }
-        if store.words.count > maxWords { prune(); swipeCache = nil }
+        if store.words.count > maxWords { prune(); swipeCache = nil; completionIndex = nil }
+        updateIndexLocked(e)
         // Keep the swipe cache incremental: a word joins it the moment it reaches the threshold.
         if e.count == learnThreshold, word.count >= 2, swipeCache != nil {
             let entry = SwipeEntry(word: word)
@@ -141,7 +196,7 @@ public final class UserLexicon: @unchecked Sendable {
         lock.lock()
         store.blocked.remove(word)
         store.words[word] = Entry(word: word, count: max(learnThreshold, store.words[word]?.count ?? 0), lastUsed: Date())
-        swipeCache = nil; dirty = true
+        swipeCache = nil; completionIndex = nil; topWords = nil; dirty = true
         lock.unlock()
         scheduleSave()
     }
@@ -152,7 +207,7 @@ public final class UserLexicon: @unchecked Sendable {
         store.blocked.insert(word)
         for k in store.bigrams.keys { store.bigrams[k]?[word] = nil }
         store.bigrams[word] = nil
-        swipeCache = nil; dirty = true
+        swipeCache = nil; completionIndex = nil; topWords = nil; dirty = true
         lock.unlock()
         scheduleSave()
     }
@@ -165,7 +220,7 @@ public final class UserLexicon: @unchecked Sendable {
     public func removeAll() {
         lock.lock()
         store = Store()
-        swipeCache = nil; dirty = true
+        swipeCache = nil; completionIndex = nil; topWords = nil; dirty = true
         lock.unlock()
         scheduleSave()
     }
@@ -213,6 +268,8 @@ public final class UserLexicon: @unchecked Sendable {
         lock.lock()
         load()
         swipeCache = nil
+        completionIndex = nil
+        topWords = nil
         lock.unlock()
     }
 

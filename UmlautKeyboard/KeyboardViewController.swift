@@ -63,7 +63,8 @@ final class KeyboardViewController: UIInputViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        view.overrideUserInterfaceStyle = KeyboardTheme.interfaceStyle(for: settings)
+        view.overrideUserInterfaceStyle = KeyboardTheme.interfaceStyle(for: settings, appearance: textDocumentProxy.keyboardAppearance)
+        coordinator.keyboardAppearance = textDocumentProxy.keyboardAppearance
         coordinator.hasFullAccess = hasFullAccess
         coordinator.willAppear()
         coordinator.needsGlobeKey = needsInputModeSwitchKey
@@ -119,6 +120,9 @@ final class KeyboardViewController: UIInputViewController {
 
     override func textDidChange(_ textInput: UITextInput?) {
         coordinator.needsGlobeKey = needsInputModeSwitchKey
+        let style = KeyboardTheme.interfaceStyle(for: settings, appearance: textDocumentProxy.keyboardAppearance)
+        if view.overrideUserInterfaceStyle != style { view.overrideUserInterfaceStyle = style }
+        coordinator.keyboardAppearance = textDocumentProxy.keyboardAppearance
         coordinator.setFieldTraits(FieldTraits(proxy: textDocumentProxy))
         coordinator.input.textDidChangeExternally()
         coordinator.pasteboardMayHaveChanged()

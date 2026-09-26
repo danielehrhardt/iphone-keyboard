@@ -167,6 +167,47 @@ final class FastTypingTests: XCTestCase {
         XCTAssertEqual(host.inner.text, "Haxllo")
     }
 
+    /// A host that reports every single step as it catches up – including each of the
+    /// backspaces behind an autocorrection, and states that repeat – never makes the keyboard
+    /// roll its view of the document back: backspace still undoes the correction afterwards.
+    func testHostReportingEveryStepNeverRollsTheDocumentBack() {
+        let host = LaggingProxy()
+        let input = makeInput(proxy: host)
+        input.refresh()
+        func report() { host.catchUp(1); input.textDidChangeExternally() }
+        // "hakl", ⌫, "ko": the state "Hak" occurs twice.
+        for c in "hakl" { input.handle(key: key(c)) }
+        input.handle(key: GermanLayouts.backspace)
+        for c in "ko" { input.handle(key: key(c)) }
+        input.handle(key: GermanLayouts.space)       // autocorrects to "Hallo "
+        for _ in 0..<40 { report() }
+        XCTAssertEqual(host.inner.text, "Hallo ")
+        XCTAssertEqual(input.textBeforeCursor, "Hallo ")
+        input.handle(key: GermanLayouts.backspace)   // undoes the correction
+        host.catchUp()
+        XCTAssertEqual(host.inner.text, "Hakko")
+    }
+
+    /// The commit on space reuses the correction the background search found, and a rejected
+    /// correction is never applied again from that cache.
+    func testSpaceUsesTheBackgroundCorrectionButNeverARejectedOne() {
+        input.suggestionQueue = DispatchQueue(label: "fast-tests-suggestions")
+        func settle() {
+            let done = expectation(description: "strip")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { done.fulfill() }
+            wait(for: [done], timeout: 5)
+        }
+        for c in "hakko" { input.handle(key: key(c)) }
+        settle()
+        input.handle(key: GermanLayouts.space)
+        XCTAssertEqual(proxy.inner.text, "Hallo ")
+        input.handle(key: GermanLayouts.backspace)
+        XCTAssertEqual(proxy.inner.text, "Hakko")
+        settle()
+        input.handle(key: GermanLayouts.space)
+        XCTAssertEqual(proxy.inner.text, "Hakko ", "the user said no to that correction")
+    }
+
     func testSuggestionsArriveOffTheMainThreadWhileShiftIsImmediate() {
         input.suggestionQueue = DispatchQueue(label: "fast-tests-suggestions")
         for c in "wochene" { input.handle(key: key(c)) }

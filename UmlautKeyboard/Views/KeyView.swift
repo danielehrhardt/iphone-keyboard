@@ -174,6 +174,8 @@ final class KeyView: UIView {
             text = key.label
         case .newline:
             if let returnLabel { text = returnLabel; symbol = nil }
+            // VoiceOver reads what the key says ("Senden"), not a generic "Return".
+            accessibilityLabel = returnLabel ?? Self.accessibilityName(for: key)
         case .shift:
             symbol = shiftState == .locked ? "capslock.fill" : (shiftState == .on ? "shift.fill" : "shift")
         case .switchLayer:

@@ -22,18 +22,24 @@ private final class GridRecorder: KeyGridDelegate {
     var longPressNumbersEnabled = true
 
     var cursorMoves: [Int] = []
+    var shiftHolds: [Bool] = []
+    var backspaceRepeats = 0
+    func keyGrid(_ grid: KeyGridView, shiftHeld: Bool) { shiftHolds.append(shiftHeld) }
     var glideUpdates = 0
     var glideEnds = 0
     /// Runs after a tap is recorded, like the coordinator reacting to it (e.g. a layer switch).
     var afterTap: ((Key) -> Void)?
 
     func keyGrid(_ grid: KeyGridView, didTap key: Key) { taps.append(key.id); events.append(key.id); afterTap?(key) }
-    func keyGrid(_ grid: KeyGridView, glideDidMove path: [CGPoint], keyMap: KeyMap) { glideUpdates += 1 }
+    func keyGrid(_ grid: KeyGridView, glideDidMove path: [CGPoint], times: [TimeInterval], keyMap: KeyMap) {
+        glideUpdates += 1
+        XCTAssertEqual(times.count, path.count, "a time for every point")
+    }
     func keyGridGlideDidEnd(_ grid: KeyGridView) { glideEnds += 1 }
     func keyGrid(_ grid: KeyGridView, didInsertAlternate text: String, for key: Key) { alternates.append(text) }
     func keyGrid(_ grid: KeyGridView, didSwipe path: [CGPoint], keyMap: KeyMap) { swipes += 1; events.append("glide") }
     func keyGrid(_ grid: KeyGridView, didLongPress key: Key) { longPresses.append(key.id) }
-    func keyGridBackspaceRepeat(_ grid: KeyGridView, wordwise: Bool) {}
+    func keyGridBackspaceRepeat(_ grid: KeyGridView, wordwise: Bool) { backspaceRepeats += 1 }
     func keyGrid(_ grid: KeyGridView, moveCursorBy offset: Int) { cursorMoves.append(offset) }
     func keyGridDidDoubleTapShift(_ grid: KeyGridView) {}
     func keyGrid(_ grid: KeyGridView, didShiftSlideTo key: Key) { taps.append(key.id) }
@@ -413,6 +419,156 @@ final class KeyGridViewTests: XCTestCase {
         release(glide)
         XCTAssertEqual(recorder.glideEnds, 1)
         XCTAssertEqual(recorder.swipes, 1)
+    }
+
+    /// A held backspace stops deleting the moment the other thumb types: a repeat after that
+    /// letter would eat it.
+    func testHeldBackspaceStopsWhenTheOtherThumbTypes() {
+        let bs = press("backspace")
+        spin(0.7)
+        let repeats = recorder.backspaceRepeats
+        XCTAssertGreaterThan(repeats, 0, "the hold repeats")
+        let h = press("h")
+        release(h)
+        spin(0.4)
+        XCTAssertEqual(recorder.backspaceRepeats, repeats, "no delete after the letter")
+        release(bs)
+        XCTAssertEqual(recorder.taps, ["backspace", "h"])
+    }
+
+    /// A finger resting on shift while the other types holds it ("USA"); a quick tap on shift
+    /// rolling over into the next letter is still a tap.
+    func testShiftHeldWhileTypingIsAHoldNotATap() {
+        let shift = press("shift")
+        spin(KeyGridView.shiftHoldDelay + 0.05)
+        for id in ["u", "s", "a"] { let t = press(id); release(t) }
+        release(shift)
+        XCTAssertEqual(recorder.shiftHolds, [true, false])
+        XCTAssertEqual(recorder.taps, ["u", "s", "a"])
+
+        let quick = press("shift")
+        let i = press("i")
+        release(quick)
+        release(i)
+        XCTAssertEqual(recorder.shiftHolds, [true, false])
+        XCTAssertEqual(recorder.taps, ["u", "s", "a", "shift", "i"])
+    }
+
+    /// Slide up off "123" onto a digit and let go: the digit is typed and the letters come back
+    /// (the system keyboard's shortcut for a single number or symbol).
+    func testSlideFrom123TypesTheSymbolAndReturnsToLetters() {
+        recorder.afterTap = { [unowned self] key in
+            guard case .switchLayer(let layer) = key.action else { return }
+            self.grid.cancelAllTouches()
+            self.grid.configure(layout: layer == .letters ? GermanLayouts.letters() : GermanLayouts.symbols(), metrics: .phonePortrait)
+        }
+        let start = center(of: "123")
+        let t = press("123")
+        let symbols = KeyboardGeometry(layout: GermanLayouts.symbols(), size: grid.bounds.size, metrics: .phonePortrait)
+        let five = symbols.keyFrames.first { $0.key.label == "5" }!
+        for i in 1...6 {
+            let f = CGFloat(i) / 6
+            t.point = CGPoint(x: start.x + (five.center.x - start.x) * f, y: start.y + (five.center.y - start.y) * f)
+            grid.touchesMoved([t], with: nil)
+        }
+        XCTAssertEqual(grid.geometry?.layout.layer, .symbols, "the symbols open under the finger")
+        release(t)
+        XCTAssertEqual(recorder.taps, ["123", five.key.id, "ABC"])
+        XCTAssertEqual(grid.geometry?.layout.layer, .letters)
+    }
+
+    /// A thumb that skids sideways on "123" while typing fast just taps it.
+    func testSidewaysSkidOn123IsATap() {
+        let start = center(of: "123")
+        let t = press("123")
+        t.point = CGPoint(x: start.x + 14, y: start.y + 4)
+        grid.touchesMoved([t], with: nil)
+        release(t)
+        XCTAssertEqual(recorder.taps, ["123"])
+    }
+
+    /// A held shift whose lift never comes (layer switch, panel, rotation, system cancel) is let
+    /// go all the same: capitals must not stick.
+    func testCancelledShiftHoldIsReleased() {
+        let shift = press("shift")
+        spin(KeyGridView.shiftHoldDelay + 0.05)
+        let u = press("u"); release(u)
+        grid.cancelAllTouches()
+        XCTAssertEqual(recorder.shiftHolds, [true, false])
+
+        let again = press("shift")
+        spin(KeyGridView.shiftHoldDelay + 0.05)
+        let s = press("s"); release(s)
+        grid.touchesCancelled([again], with: nil)
+        XCTAssertEqual(recorder.shiftHolds, [true, false, true, false])
+        release(shift)
+    }
+
+    /// Two fingers lifting in the same frame are both typed even when the first one switches
+    /// the layer (which cancels touches on the way).
+    func testLiftsInOneFrameSurviveALayerSwitch() {
+        recorder.afterTap = { [unowned self] key in
+            guard case .switchLayer = key.action else { return }
+            self.grid.cancelAllTouches()
+            self.grid.configure(layout: GermanLayouts.symbols(), metrics: .phonePortrait)
+        }
+        let a = FakeTouch(), b = FakeTouch()
+        a.point = center(of: "123"); b.point = center(of: "a")
+        grid.touchesBegan([a, b], with: nil)
+        grid.touchesEnded([a, b], with: nil)
+        XCTAssertEqual(Set(recorder.taps), ["123", "a"])
+    }
+
+    /// The system's go-home swipe starts below the keys and cancels before the finger moves;
+    /// that is no tap.
+    func testCancelledTouchBelowTheKeysTypesNothing() {
+        let bottom = grid.geometry!.keyFrames.map(\.frame.maxY).max()!
+        let t = FakeTouch()
+        t.point = CGPoint(x: center(of: "space").x, y: bottom + 1.5)
+        grid.touchesBegan([t], with: nil)
+        grid.touchesCancelled([t], with: nil)
+        XCTAssertEqual(recorder.taps, [])
+    }
+
+    /// The other thumb's tap, still down when a "123" slide lets go, is typed before the switch
+    /// back to the letters cancels touches.
+    func testOtherThumbDuringA123SlideIsNotLost() {
+        recorder.afterTap = { [unowned self] key in
+            guard case .switchLayer(let layer) = key.action else { return }
+            self.grid.cancelAllTouches()
+            self.grid.configure(layout: layer == .letters ? GermanLayouts.letters() : GermanLayouts.symbols(), metrics: .phonePortrait)
+        }
+        let symbols = KeyboardGeometry(layout: GermanLayouts.symbols(), size: grid.bounds.size, metrics: .phonePortrait)
+        let five = symbols.keyFrames.first { $0.key.label == "5" }!, seven = symbols.keyFrames.first { $0.key.label == "7" }!
+        let start = center(of: "123")
+        let slide = press("123")
+        slide.point = CGPoint(x: start.x, y: start.y - 60)
+        grid.touchesMoved([slide], with: nil)
+        XCTAssertEqual(grid.geometry?.layout.layer, .symbols)
+        let other = FakeTouch()
+        other.point = seven.center
+        grid.touchesBegan([other], with: nil)
+        slide.point = five.center
+        grid.touchesMoved([slide], with: nil)
+        release(slide)
+        release(other)
+        XCTAssertEqual(recorder.taps, ["123", seven.key.id, five.key.id, "ABC"])
+    }
+
+    /// A "123" slide let go away from any symbol (up in the strip) leaves the symbols open and
+    /// types nothing more.
+    func testSlideFrom123LetGoOffTheKeysTypesNothing() {
+        recorder.afterTap = { [unowned self] key in
+            guard case .switchLayer(let layer) = key.action else { return }
+            self.grid.cancelAllTouches()
+            self.grid.configure(layout: layer == .letters ? GermanLayouts.letters() : GermanLayouts.symbols(), metrics: .phonePortrait)
+        }
+        let start = center(of: "123")
+        let t = press("123")
+        for i in 1...6 { t.point = CGPoint(x: start.x, y: start.y - CGFloat(i) * 40); grid.touchesMoved([t], with: nil) }
+        release(t)
+        XCTAssertEqual(recorder.taps, ["123"])
+        XCTAssertEqual(grid.geometry?.layout.layer, .symbols)
     }
 
     func testPreviewDisabledStillTypes() {

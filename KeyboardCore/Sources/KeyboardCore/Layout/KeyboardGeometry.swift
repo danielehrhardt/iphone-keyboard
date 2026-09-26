@@ -120,10 +120,11 @@ public struct KeyboardGeometry: Hashable, Sendable {
         /// scatter, so a deliberate tap on an "unexpected" key is never stolen.
         public static let maxReachX: CGFloat = 0.26
         public static let maxReachY: CGFloat = 0.2
-        /// The space bar's vertical reach into the bottom row once the word looks finished. Rows
-        /// are tall and the touch offset already pulls touches away from the bar, so it gets a
-        /// little more; the letter above still keeps three quarters of its cap.
-        public static let maxReachSpaceY: CGFloat = 0.3
+        /// The space bar's vertical reach into the bottom row once the word looks finished: the
+        /// row gap and the bottom edge of the caps above, no more than a letter reaches into its
+        /// neighbours. A wrong space splits a word and autocorrect cannot mend that ("den" + a
+        /// low "n" for "denn"), so the letter keeps all but the bottom ~12 % of its cap.
+        public static let maxReachSpaceY: CGFloat = 0.2
         /// Finger pads land a little below where the user believes they tapped; touches are
         /// nudged upward to compensate (fraction of the row height). Part of the feature, so
         /// disabling dynamic hit targets restores the plain hit test exactly.

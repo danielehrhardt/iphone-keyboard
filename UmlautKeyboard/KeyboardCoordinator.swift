@@ -44,6 +44,9 @@ final class KeyboardCoordinator: NSObject {
     /// Called back on the main queue, with nil when the lexicon is missing.
     var engineProvider: ((KeyboardLanguage, @escaping (KeyboardEngine?) -> Void) -> Void)?
     var needsGlobeKey = false { didSet { if needsGlobeKey != oldValue { refreshLayoutOptions() } } }
+    /// The keyboard appearance the field asked for; a dark one darkens the keys while the theme
+    /// follows the system.
+    var keyboardAppearance: UIKeyboardAppearance? { didSet { if keyboardAppearance != oldValue { themeChanged() } } }
     var isPhoneIdiom = true
 
     /// The language being typed; persisted so the next keyboard session continues in it.
@@ -128,6 +131,10 @@ final class KeyboardCoordinator: NSObject {
         input.engine?.user.reloadIfChanged()
         input.tapMap?.reloadIfChanged()
         input.forgetDocument()
+        // Touches whose lift was never seen (the keyboard went away under them) end here, a
+        // held shift with them.
+        view.grid.cancelAllTouches()
+        input.endShiftHold()
         // The app may have switched the current language off meanwhile.
         select(language: settings.currentLanguage)
         view.suggestionBar.showsClipboard = settings.clipboardHistory
@@ -284,7 +291,7 @@ final class KeyboardCoordinator: NSObject {
         isPhoneIdiom = traits.userInterfaceIdiom == .phone
         let h = KeyboardMetrics.heights(for: traits, screenSize: screenSize, keySize: settings.keySize)
         view.suggestionHeight = h.suggestions
-        view.apply(theme: KeyboardTheme.current(traits: traits, settings: settings))
+        view.apply(theme: KeyboardTheme.current(traits: traits, settings: settings, appearance: keyboardAppearance))
         refreshLayoutOptions()
         view.setNeedsLayout()     // metrics may have changed even when the options did not
         return h.keys + h.suggestions
@@ -298,7 +305,7 @@ final class KeyboardCoordinator: NSObject {
     }
 
     func themeChanged() {
-        view.apply(theme: KeyboardTheme.current(traits: traits, settings: settings))
+        view.apply(theme: KeyboardTheme.current(traits: traits, settings: settings, appearance: keyboardAppearance))
     }
 
     func cancelTouches() { view.grid.cancelAllTouches() }
@@ -335,13 +342,16 @@ final class KeyboardCoordinator: NSObject {
 // MARK: - InputControllerDelegate
 
 extension KeyboardCoordinator: InputControllerDelegate {
-    func inputController(_ c: InputController, didUpdate state: InputUIState) {
-        if state.layer != currentLayer {
-            currentLayer = state.layer
+    func inputController(_ c: InputController, didUpdate reported: InputUIState) {
+        if reported.layer != currentLayer {
+            currentLayer = reported.layer
             view.grid.cancelAllTouches()
             view.setNeedsLayout()
             view.layoutIfNeeded()
         }
+        // Laying out a new layer refreshes the input, which reports a newer state from inside
+        // the call above: show that one, not the one this call started with.
+        let state = c.state
         view.grid.shiftState = state.shift
         view.grid.letterPrior = state.letterPrior
         view.grid.tapOffsets = state.tapOffsets
@@ -371,8 +381,11 @@ extension KeyboardCoordinator: KeyGridDelegate {
     func keyGrid(_ grid: KeyGridView, didTap key: Key, at point: CGPoint) { input.handle(key: key, touch: point) }
     func keyGrid(_ grid: KeyGridView, didInsertAlternate text: String, for key: Key) { input.insertAlternate(text, for: key) }
     func keyGrid(_ grid: KeyGridView, didSwipe path: [CGPoint], keyMap: KeyMap) {
+        keyGrid(grid, didSwipe: path, times: [], keyMap: keyMap)
+    }
+    func keyGrid(_ grid: KeyGridView, didSwipe path: [CGPoint], times: [TimeInterval], keyMap: KeyMap) {
         let fallback = path.last.flatMap { grid.geometry?.keyFrame(at: $0)?.key }
-        input.handleSwipe(path: path, keyMap: keyMap, fallbackKey: fallback)
+        input.handleSwipe(path: path, times: times.count == path.count ? times : nil, keyMap: keyMap, fallbackKey: fallback)
     }
     /// Keys with a `longPressAction` (emoji on the comma key) perform it here and swallow the tap.
     /// Other keys without alternates (space, return …) do nothing; the touch stays pending and
@@ -384,17 +397,19 @@ extension KeyboardCoordinator: KeyGridDelegate {
     func keyGridDidDoubleTapShift(_ grid: KeyGridView) { input.lockShift() }
     func keyGrid(_ grid: KeyGridView, didShiftSlideTo key: Key) { input.shiftSlide(to: key) }
     func keyGridDidRequestSettings(_ grid: KeyGridView) { onOpenSettings?() }
+    func keyGrid(_ grid: KeyGridView, shiftHeld: Bool) { shiftHeld ? input.beginShiftHold() : input.endShiftHold() }
 
     /// Decodes the path so far in the background and shows the best word in the strip, like
     /// Gboard's gesture preview. A decode still running when the next update comes skips that
     /// update (the finger moves on faster than it is worth decoding every step).
-    func keyGrid(_ grid: KeyGridView, glideDidMove path: [CGPoint], keyMap: KeyMap) {
+    func keyGrid(_ grid: KeyGridView, glideDidMove path: [CGPoint], times: [TimeInterval], keyMap: KeyMap) {
         guard settings.swipeTyping, !glidePreviewBusy, let engine = input.engine, engine.language == language else { return }
         glidePreviewBusy = true
         let generation = glidePreviewGeneration
         let previous = input.glidePreviousWord
         glidePreviewQueue.async { [weak self, weak engine] in
-            let best = engine?.decodeSwipe(path: path, keyMap: keyMap, previousWord: previous, limit: 1).first?.word
+            let timestamps = times.count == path.count ? times : nil
+            let best = engine?.decodeSwipe(path: path, keyMap: keyMap, timestamps: timestamps, previousWord: previous, limit: 1).first?.word
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.glidePreviewBusy = false

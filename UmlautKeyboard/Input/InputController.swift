@@ -52,9 +52,7 @@ final class InputController {
     var suggestionQueue: DispatchQueue?
 
     private(set) var state = InputUIState() { didSet { if state != oldValue { delegate?.inputController(self, didUpdate: state) } } }
-    /// A new field resets the keyboard; a host that merely relabels its return key mid-word
-    /// (web `enterkeyhint`, messengers) does not.
-    var traits = FieldTraits() { didSet { if traits.behaviour != oldValue.behaviour { fieldChanged() } } }
+    var traits = FieldTraits() { didSet { if traits != oldValue { fieldChanged() } } }
     var keyMap: KeyMap?
     /// Where this user's taps land per key; nil disables learning and adaptive hit targets.
     let tapMap: TapMap?
@@ -152,7 +150,9 @@ final class InputController {
     /// the host catching up (a slow host lags several keystrokes behind a fast typist) and
     /// changes nothing; anything else is news and replaces the lot.
     private var history: [DocumentContext] = []
-    private static let historyLimit = 64
+    /// One entry per insert and per deleted character: room for an AI replacement or a long
+    /// word-wise delete that a slow host is still working through.
+    private static let historyLimit = 256
     /// Set while an edit of ours is in flight, so a host that reports it synchronously (the
     /// in-app text view) is not mistaken for an external change.
     private var isEditing = false
@@ -550,7 +550,16 @@ final class InputController {
 
     private func insertCharacter(_ raw: String, fromKey key: Key) {
         defer { returnToLettersIfDone(after: raw) }
-        var text = raw
+        if let quote = smartQuote(raw), quote.closes, autoSpacePending, textBefore.hasSuffix(" ") {
+            // A closing quote after a glided or picked word hugs it: "Hallo “" → "Hallo“ ".
+            deleteBackwardOnce()
+            insertText(quote.text)
+            insertText(" ")
+            lastCommit = nil
+            afterEdit(lastWasSpace: false)
+            return
+        }
+        var text = smartQuote(raw)?.text ?? raw
         if key.isLetter, state.shift.isActive { text = text.uppercased() }
         let isPunctuation = text.count == 1 && (Self.sentenceTerminators.contains(text.first!) || ",;:".contains(text))
 
@@ -578,6 +587,21 @@ final class InputController {
         recordTap(text, touch: currentTouch)
         insertText(text)
         afterEdit(lastWasSpace: false, consumedShift: key.isLetter)
+    }
+
+    /// The typographic double quote for the language – „…“ in German, “…” in English – or nil
+    /// to keep the straight one (where autocorrection is unwelcome: code, addresses, passwords).
+    /// It closes right after a word, and after a space too while a quote in the paragraph is
+    /// still open ("„Hallo " after a glide); otherwise it opens.
+    private func smartQuote(_ raw: String) -> (text: String, closes: Bool)? {
+        guard raw == "\"", autocorrectAllowed, !justinModeActive else { return nil }
+        let (open, close): (Character, Character) = language == .german ? ("„", "“") : ("“", "”")
+        let before = textBefore
+        let afterWord = before.last.map { !($0.isWhitespace || $0.isNewline || "([{/-–—".contains($0)) } ?? false
+        let paragraph = before.split(separator: "\n", omittingEmptySubsequences: false).last ?? ""
+        let unmatched = paragraph.filter { $0 == open }.count > paragraph.filter { $0 == close }.count
+        let closes = afterWord || unmatched
+        return (String(closes ? close : open), closes)
     }
 
     /// Appends the tap behind `text`, which is about to join the composing word. A buffer that has
@@ -851,7 +875,8 @@ final class InputController {
 
     // MARK: Swipe
 
-    func handleSwipe(path: [CGPoint], keyMap: KeyMap, fallbackKey: Key?) {
+    /// `times`: when each point of `path` was reached, if known (see `SwipeDecoder.decode`).
+    func handleSwipe(path: [CGPoint], times: [TimeInterval]? = nil, keyMap: KeyMap, fallbackKey: Key?) {
         guard traits.allowsSwipe, settings.swipeTyping, let engine, engine.language == language else {
             if let fallbackKey { handle(key: fallbackKey) }
             return
@@ -864,7 +889,7 @@ final class InputController {
         if !composingWord.isEmpty { commitComposingIfNeeded(trigger: " ") }
         let composing = composingWord
         let previous = composing.isEmpty ? previousWord : composing
-        let candidates = engine.decodeSwipe(path: path, keyMap: keyMap, previousWord: previous, limit: 4)
+        let candidates = engine.decodeSwipe(path: path, keyMap: keyMap, timestamps: times, previousWord: previous, limit: 4)
         guard let best = candidates.first else {
             if let fallbackKey { handle(key: fallbackKey) }
             return

@@ -257,6 +257,17 @@ final class LetterPriorTests: XCTestCase {
         XCTAssertEqual(geometry.keyFrame(at: touch(CGPoint(x: backspace.center.x, y: backspace.frame.maxY - 1)), prior: hallo)?.key.id, "backspace")
     }
 
+    /// A word that often goes on ("den" → "denn") keeps its letters: the space bar takes the row
+    /// gap and the very bottom edge of the caps above it, never a tap a thumb lands a little low.
+    func testSpaceBarTakesOnlyTheBottomEdgeOfALetter() throws {
+        let den = try XCTUnwrap(predictor.letterPrior(prefix: "den", previous: nil))
+        for c: Character in ["n", "b", "v"] {
+            let key = frame(c)
+            let low = touch(CGPoint(x: key.center.x, y: key.frame.maxY - key.frame.height * 0.2))
+            XCTAssertEqual(geometry.keyFrame(at: low, prior: den)?.key.id, key.key.id)
+        }
+    }
+
     func testSymbolsLayerUsesPlainHitTest() {
         let symbols = KeyboardGeometry(layout: GermanLayouts.symbols(), size: CGSize(width: 390, height: 216))
         for kf in symbols.keyFrames {

@@ -28,10 +28,12 @@ struct KeyboardTheme {
     let suggestionHighlight: UIColor
     let cornerRadius: CGFloat
 
-    static func current(traits: UITraitCollection, settings: KeyboardSettings) -> KeyboardTheme {
+    /// `appearance`: what the field asked for; following the system also follows a field that
+    /// wants a dark keyboard (dark-themed apps on a light phone).
+    static func current(traits: UITraitCollection, settings: KeyboardSettings, appearance: UIKeyboardAppearance? = nil) -> KeyboardTheme {
         let dark: Bool
         switch settings.theme {
-        case .system: dark = traits.userInterfaceStyle == .dark
+        case .system: dark = traits.userInterfaceStyle == .dark || appearance == .dark
         case .light: dark = false
         case .dark: dark = true
         }
@@ -86,9 +88,11 @@ struct KeyboardTheme {
     }
 
     /// The `UIUserInterfaceStyle` the system backdrop should render in for the chosen theme.
-    static func interfaceStyle(for settings: KeyboardSettings) -> UIUserInterfaceStyle {
+    /// Following the system also follows the field: an app that asks for a dark keyboard
+    /// (`keyboardAppearance = .dark`, common in dark-themed apps on a light phone) gets one.
+    static func interfaceStyle(for settings: KeyboardSettings, appearance: UIKeyboardAppearance? = nil) -> UIUserInterfaceStyle {
         switch settings.theme {
-        case .system: return .unspecified
+        case .system: return appearance == .dark ? .dark : .unspecified
         case .light: return .light
         case .dark: return .dark
         }

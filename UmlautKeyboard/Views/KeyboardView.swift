@@ -6,7 +6,11 @@ import KeyboardCore
 ///
 /// The view is transparent so the system's keyboard material shows through, and it respects the
 /// safe area: keys stay above the home indicator and clear of the notch in landscape.
-final class KeyboardView: UIView {
+final class KeyboardView: UIView, UIInputViewAudioFeedback {
+    /// `UIDevice.playInputClick()` only clicks while an input view on screen says it wants the
+    /// clicks; without this the letter keys were silent while the function keys clicked.
+    var enableInputClicksWhenVisible: Bool { true }
+
     let suggestionBar: SuggestionBarView
     let grid: KeyGridView
     /// Created on first use: the colour-emoji font and collection view cost tens of MB.
@@ -127,6 +131,7 @@ final class KeyboardView: UIView {
         let gridHeight = max(0, bounds.height - suggestionHeight - insets.bottom)
         suggestionBar.frame = CGRect(x: x, y: 0, width: width, height: suggestionHeight)
         grid.frame = CGRect(x: x, y: suggestionHeight, width: width, height: gridHeight)
+        grid.popupHeadroom = suggestionHeight
         emojiPanel?.frame = bounds
         clipboardPanel?.frame = bounds
         aiPanel?.frame = bounds

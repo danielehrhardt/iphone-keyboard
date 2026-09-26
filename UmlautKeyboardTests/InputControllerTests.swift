@@ -378,6 +378,66 @@ final class InputControllerTests: XCTestCase {
         XCTAssertTrue(proxy.text.hasSuffix("geht's"), proxy.text)
     }
 
+    /// Shift held with one thumb while the other types: every letter is a capital until shift
+    /// is let go ("USA"), then auto-capitalisation takes over again.
+    func testHeldShiftCapitalisesEveryLetterUntilReleased() {
+        type("wir sind in ")
+        input.beginShiftHold()
+        type("usa")
+        input.endShiftHold()
+        XCTAssertEqual(proxy.text, "Wir sind in USA")
+        type("x")
+        XCTAssertEqual(proxy.text, "Wir sind in USAx", "shift is off again once let go")
+    }
+
+    /// „…“ in German, “…” in English; straight quotes where autocorrection is off.
+    func testDoubleQuotesAreTypographic() {
+        let quote = GermanLayouts.symbols().allKeys.first { $0.action == .character("\"") }!
+        type("er sagte ")
+        input.handle(key: quote)
+        type("hallo")
+        input.handle(key: quote)
+        XCTAssertTrue(proxy.text.hasSuffix("sagte „hallo“"), proxy.text)
+
+        // After a glided word (auto-space) the open quote is closed, hugging the word.
+        type(" ")
+        input.handle(key: quote)
+        swipe("hallo")
+        input.handle(key: quote)
+        XCTAssertTrue(proxy.text.lowercased().hasSuffix("„hallo“ "), proxy.text)
+
+        input.language = .english
+        input.handle(key: Key(action: .newline, label: "Return"))
+        input.handle(key: quote)
+        type("hi")
+        input.handle(key: quote)
+        XCTAssertTrue(proxy.text.hasSuffix("\n“Hi”"), proxy.text)
+
+        var code = FieldTraits()
+        code.autocorrectionDisabled = true
+        input.traits = code
+        input.handle(key: quote)
+        XCTAssertTrue(proxy.text.hasSuffix("\""), proxy.text)
+    }
+
+    /// Double-space means two spaces in a row, not a space long ago and one after moving the cursor.
+    func testDoubleSpacePeriodNeedsTwoSpacesInARow() {
+        type("hallo welt ")
+        input.moveCursor(by: -5)
+        input.handle(key: GermanLayouts.space)
+        XCTAssertEqual(proxy.text, "Hallo  Welt ")
+    }
+
+    /// Caps lock does not follow the user into the next field.
+    func testShiftLockDoesNotCarryOverToTheNextField() {
+        input.lockShift()
+        XCTAssertEqual(input.state.shift, .locked)
+        var other = FieldTraits()
+        other.keyboardType = .twitter
+        input.traits = other
+        XCTAssertNotEqual(input.state.shift, .locked)
+    }
+
     /// A field that asked for numbers and punctuation starts on the symbols and stays there.
     func testNumberFieldKeepsItsSymbolLayer() {
         var traits = FieldTraits()

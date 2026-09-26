@@ -110,6 +110,7 @@ final class SuggestionBarView: UIView {
             b.titleLabel?.adjustsFontSizeToFitWidth = true
             b.titleLabel?.minimumScaleFactor = 0.7
             b.contentEdgeInsets = UIEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
+            b.addTarget(self, action: #selector(pressDown(_:)), for: .touchDown)
             b.addTarget(self, action: #selector(tapped(_:)), for: .touchUpInside)
             b.addTarget(self, action: #selector(highlight(_:)), for: [.touchDown, .touchDragEnter])
             b.addTarget(self, action: #selector(unhighlight(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel, .touchDragExit])
@@ -231,9 +232,18 @@ final class SuggestionBarView: UIView {
         }
     }
 
+    /// The word under the finger when it came down. The strip may update while the finger is
+    /// on it (the search for the last keystroke lands late); the word picked is the one pressed.
+    private var pressed: (tag: Int, suggestion: Suggestion)?
+
     @objc private func tapped(_ sender: UIButton) {
-        guard glidePreview == nil, suggestions.indices.contains(sender.tag) else { return }
-        onSelect?(suggestions[sender.tag])
+        defer { pressed = nil }
+        guard glidePreview == nil else { return }
+        if let pressed, pressed.tag == sender.tag {
+            onSelect?(pressed.suggestion)
+        } else if suggestions.indices.contains(sender.tag) {
+            onSelect?(suggestions[sender.tag])
+        }
     }
 
     @objc private func dismissTapped() { onDismiss?() }
@@ -243,6 +253,10 @@ final class SuggestionBarView: UIView {
     @objc private func clipboardTapped() { onClipboard?() }
 
     @objc private func aiTapped() { onAI?() }
+
+    @objc private func pressDown(_ sender: UIButton) {
+        pressed = suggestions[safe: sender.tag].map { (sender.tag, $0) }
+    }
 
     @objc private func highlight(_ sender: UIButton) {
         pills[safe: sender.tag]?.backgroundColor = theme.suggestionHighlight

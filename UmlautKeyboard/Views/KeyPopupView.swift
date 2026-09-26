@@ -55,6 +55,17 @@ final class KeyPopupView: UIView {
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
     override func point(inside point: CGPoint, with event: UIEvent?) -> Bool { false }
 
+    /// Gap between the bubble and the key it grows out of.
+    private static let stemHeight: CGFloat = 7
+
+    /// A little taller than the key, but never above `container`'s top: the keyboard cannot draw
+    /// above its own view, so a top-row bubble on a tall keyboard gets shorter instead of clipped.
+    private static func bubbleHeight(for keyFrame: CGRect, in container: CGRect) -> CGFloat {
+        let wanted = keyFrame.height * 1.15
+        let room = keyFrame.minY - stemHeight - (container.minY + 2)
+        return max(min(wanted, room), min(wanted, 30))
+    }
+
     /// Shows a single magnified character above `keyFrame` (coordinates in the superview).
     func showPreview(text: String, keyFrame: CGRect, in container: CGRect) {
         isExpanded = false
@@ -62,11 +73,11 @@ final class KeyPopupView: UIView {
         options = [text]
         selectedIndex = 0
         let w = max(keyFrame.width * 1.6, 48)
-        let h = keyFrame.height * 1.15
+        let h = Self.bubbleHeight(for: keyFrame, in: container)
         var x = keyFrame.midX - w / 2
         x = min(max(x, container.minX + 2), container.maxX - w - 2)
-        bubbleRect = CGRect(x: x, y: keyFrame.minY - h - 7, width: w, height: h)
-        rebuildLabels(fontSize: 34)
+        bubbleRect = CGRect(x: x, y: keyFrame.minY - h - Self.stemHeight, width: w, height: h)
+        rebuildLabels(fontSize: min(34, h * 0.62))
         layoutBubble()
         present()
     }
@@ -80,7 +91,7 @@ final class KeyPopupView: UIView {
         optionWidth = max(keyFrame.width * 1.1, 38)
         let pad = Self.sidePadding
         let w = optionWidth * CGFloat(alternates.count) + pad * 2
-        let h = keyFrame.height * 1.15
+        let h = Self.bubbleHeight(for: keyFrame, in: container)
         // The cell nearest the key lines up with the key itself, so the stem grows straight out of it.
         var x = preferLeft ? keyFrame.maxX + pad - w : keyFrame.minX - pad
         x = min(max(x, container.minX + 2), container.maxX - w - 2)
@@ -88,8 +99,8 @@ final class KeyPopupView: UIView {
             options = alternates.reversed()
             selectedIndex = options.count - 1
         }
-        bubbleRect = CGRect(x: x, y: keyFrame.minY - h - 7, width: w, height: h)
-        rebuildLabels(fontSize: 24)
+        bubbleRect = CGRect(x: x, y: keyFrame.minY - h - Self.stemHeight, width: w, height: h)
+        rebuildLabels(fontSize: min(24, h * 0.5))
         layoutBubble()
         present()
     }

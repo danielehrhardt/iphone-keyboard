@@ -142,16 +142,23 @@ row). `KeyboardGeometry` places keys for any size; `KeyMap` exposes letter centr
 letter code space (`KeyAlphabet`, a–z + äöü) is shared: on QWERTY the umlaut codes fold onto a/o/u so
 one swipe decoder, autocorrect and tap map serve every layout.
 
-**Swipe decoding** (`SwipeDecoder`) – a SHARK²-style two-channel matcher with a language-model prior:
+**Swipe decoding** (`SwipeDecoder`) – a SHARK²-style matcher with a language-model prior:
 
-1. The finger path is smoothed and resampled to 32 equidistant points.
-2. Candidate words come from (first key, last key) buckets around the start/end points (up to 4×5 keys).
-3. Each candidate's ideal path through its key centres is resampled the same way and compared in a
-   *location* channel (banded DTW in key widths) and a *shape* channel (normalised outline),
-   plus endpoint and "every key visited" penalties.
-4. Scores are Gaussian log-likelihoods summed with `languageWeight · log P(word | previous)`.
+1. The finger path – every coalesced touch sample, with its timestamp – is de-jittered, smoothed and
+   resampled to 24–64 equidistant points (more for longer gestures).
+2. Candidate words come from (first key, last key) buckets around the start and end points (up to
+   4×6 keys, the end looked for further out since fingers overshoot or lift early).
+3. Each candidate's ideal path through its key centres is compared in a *location* channel
+   (banded DTW) and a *shape* channel (normalised outline), whose weight grows with the length of
+   the gesture; its keys must be passed in order; and every sharp turn of the finger – and every
+   spot where it lingered – must be explained by one of its letters.
+4. Scores are log-likelihoods summed with `languageWeight · log P(word | previous)`; learned words
+   get at least the prior of a common word. Cheap checks and a quarter-resolution comparison
+   prune candidates before the full comparison.
 
-A decode takes about 2 ms on a Mac for a 137k-word lexicon.
+On human-like simulated gestures (`GestureSimulator`, `RealisticSwipeBenchmark`) top-1 is 0.96
+(German) / 0.97 (English), top-3 above 0.99, at 0.3–0.5 ms per decode on a Mac. While the finger
+still moves, the strip previews the word under it, decoded off the main thread.
 
 **Autocorrect** (`Autocorrect`) – Damerau–Levenshtein with keyboard-aware costs (adjacent keys are
 cheap substitutions), free-ish fixes for casing (`haus → Haus`) and digraphs (`schoen → schön`,
