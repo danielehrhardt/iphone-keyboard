@@ -71,7 +71,8 @@ final class SwipeAccuracyBenchmark: XCTestCase {
         let r1 = Double(top1) / Double(total), r3 = Double(top3) / Double(total)
         print("SWIPE ACCURACY top1=\(String(format: "%.3f", r1)) top3=\(String(format: "%.3f", r3)) n=\(total)")
         print("MISSES: \(misses.prefix(40).joined(separator: ", "))")
-        XCTAssertGreaterThan(r1, 0.80, "top-1 \(r1)")
-        XCTAssertGreaterThan(r3, 0.93, "top-3 \(r3)")
+        // About 0.99 / 1.0 today; `RealisticSwipeBenchmark` has the harder gestures.
+        XCTAssertGreaterThan(r1, 0.95, "top-1 \(r1)")
+        XCTAssertGreaterThan(r3, 0.99, "top-3 \(r3)")
     }
 }

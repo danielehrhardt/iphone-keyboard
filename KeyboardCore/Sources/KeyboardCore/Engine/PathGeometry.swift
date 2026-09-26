@@ -12,20 +12,13 @@ struct FPoint: Equatable {
     @inline(__always) static func * (a: FPoint, s: Float) -> FPoint { FPoint(a.x * s, a.y * s) }
     @inline(__always) var length: Float { (x * x + y * y).squareRoot() }
     @inline(__always) func distance(to o: FPoint) -> Float { (self - o).length }
+    @inline(__always) func squaredDistance(to o: FPoint) -> Float {
+        let dx = x - o.x, dy = y - o.y
+        return dx * dx + dy * dy
+    }
 }
 
 enum PathGeometry {
-
-    /// Removes consecutive (near-)duplicate points.
-    static func dedupe(_ pts: [FPoint], epsilon: Float = 0.5) -> [FPoint] {
-        var out: [FPoint] = []
-        out.reserveCapacity(pts.count)
-        for p in pts {
-            if let last = out.last, last.distance(to: p) < epsilon { continue }
-            out.append(p)
-        }
-        return out
-    }
 
     static func length(_ pts: [FPoint]) -> Float {
         guard pts.count > 1 else { return 0 }
@@ -37,13 +30,22 @@ enum PathGeometry {
     /// Resamples a polyline into `n` points equidistant along its arc length.
     /// A degenerate (single point / zero length) path yields `n` copies of the point.
     static func resample(_ pts: [FPoint], count n: Int) -> [FPoint] {
-        guard let first = pts.first else { return [] }
-        guard pts.count > 1 else { return [FPoint](repeating: first, count: n) }
+        var out: [FPoint] = []
+        resample(pts, count: n, into: &out)
+        return out
+    }
+
+    /// `resample(_:count:)` into a caller-owned buffer, so hot loops don't allocate.
+    static func resample(_ pts: [FPoint], count n: Int, into out: inout [FPoint]) {
+        out.removeAll(keepingCapacity: true)
+        guard let first = pts.first else { return }
         let total = length(pts)
-        guard total > 0 else { return [FPoint](repeating: first, count: n) }
+        guard pts.count > 1, total > 0 else {
+            for _ in 0..<n { out.append(first) }
+            return
+        }
         let step = total / Float(n - 1)
-        var out: [FPoint] = [first]
-        out.reserveCapacity(n)
+        out.append(first)
         var acc: Float = 0
         var i = 1
         var prev = pts[0]
@@ -63,7 +65,6 @@ enum PathGeometry {
             }
         }
         while out.count < n { out.append(pts[pts.count - 1]) }
-        return out
     }
 
     /// Light exponential smoothing to tame touch jitter without rounding corners too much.
@@ -78,7 +79,13 @@ enum PathGeometry {
 
     /// Translates the centroid to the origin and scales the larger bounding-box side to 1.
     static func normalizeShape(_ pts: [FPoint]) -> [FPoint] {
-        guard !pts.isEmpty else { return pts }
+        var out = pts
+        normalizeShape(&out)
+        return out
+    }
+
+    static func normalizeShape(_ pts: inout [FPoint]) {
+        guard !pts.isEmpty else { return }
         var minX = Float.greatestFiniteMagnitude, minY = minX, maxX = -minX, maxY = -minX
         var cx: Float = 0, cy: Float = 0
         for p in pts {
@@ -89,44 +96,55 @@ enum PathGeometry {
         cx /= Float(pts.count); cy /= Float(pts.count)
         let extent = max(maxX - minX, maxY - minY)
         let s: Float = extent > 1e-3 ? 1 / extent : 0
-        return pts.map { FPoint(($0.x - cx) * s, ($0.y - cy) * s) }
+        for i in pts.indices { pts[i] = FPoint((pts[i].x - cx) * s, (pts[i].y - cy) * s) }
     }
 
-    /// Mean point-to-point distance of two equally long sequences.
+    /// Mean squared point-to-point distance of two equally long sequences, each term capped at
+    /// `cap` so a single stray point (a lift-off hook) can't dominate. `.infinity` once the mean
+    /// is certain to exceed `abortAbove`.
     @inline(__always)
-    static func alignedDistance(_ a: [FPoint], _ b: [FPoint], abortAbove limit: Float = .infinity) -> Float {
+    static func alignedSquaredDistance(_ a: [FPoint], _ b: [FPoint], cap: Float, abortAbove limit: Float = .infinity) -> Float {
         let n = min(a.count, b.count)
         guard n > 0 else { return .infinity }
         var sum: Float = 0
-        let cap = limit * Float(n)
+        let bound = limit * Float(n)
         for i in 0..<n {
-            sum += a[i].distance(to: b[i])
-            if sum > cap { return .infinity }
+            sum += min(a[i].squaredDistance(to: b[i]), cap)
+            if sum > bound { return .infinity }
         }
         return sum / Float(n)
     }
 
-    /// Banded dynamic time warping (Sakoe–Chiba) returning the mean matched distance.
-    static func dtwDistance(_ a: [FPoint], _ b: [FPoint], band: Int = 4) -> Float {
-        let n = a.count, m = b.count
-        guard n > 0, m > 0 else { return .infinity }
+    /// Banded DTW over capped squared distances of two equally long sequences, normalised by the
+    /// sequence length. `rows` is scratch space (resized as needed). `.infinity` when every
+    /// alignment already exceeds `abortAbove` (as a mean) part-way through.
+    static func dtwSquaredDistance(_ a: [FPoint], _ b: [FPoint], band: Int, cap: Float,
+                                   abortAbove limit: Float = .infinity, rows: inout [Float]) -> Float {
+        let n = a.count
+        guard n > 0, b.count == n else { return .infinity }
         let inf = Float.infinity
-        var prev = [Float](repeating: inf, count: m + 1)
-        var cur = [Float](repeating: inf, count: m + 1)
-        prev[0] = 0
-        for i in 1...n {
-            cur[0] = inf
-            let lo = max(1, i - band), hi = min(m, i + band)
-            guard lo <= hi else { swap(&prev, &cur); continue }
-            if lo > 1 { for j in 1..<lo { cur[j] = inf } }
-            for j in lo...hi {
-                let d = a[i - 1].distance(to: b[j - 1])
-                cur[j] = d + min(prev[j], prev[j - 1], cur[j - 1])
+        if rows.count < 2 * (n + 1) { rows = [Float](repeating: inf, count: 2 * (n + 1)) }
+        let bound = limit * Float(n)
+        return rows.withUnsafeMutableBufferPointer { buf -> Float in
+            var prev = buf.baseAddress!, cur = buf.baseAddress! + (n + 1)
+            for j in 0...n { prev[j] = inf; cur[j] = inf }
+            prev[0] = 0
+            for i in 1...n {
+                let lo = max(1, i - band), hi = min(n, i + band)
+                cur[lo - 1] = inf
+                let p = a[i - 1]
+                var rowMin = inf
+                for j in lo...hi {
+                    let d = min(p.squaredDistance(to: b[j - 1]), cap)
+                    let v = d + min(prev[j], prev[j - 1], cur[j - 1])
+                    cur[j] = v
+                    if v < rowMin { rowMin = v }
+                }
+                if hi < n { cur[hi + 1] = inf }
+                if rowMin > bound { return inf }
+                swap(&prev, &cur)
             }
-            if hi < m { for j in (hi + 1)...m { cur[j] = inf } }
-            swap(&prev, &cur)
+            return prev[n] / Float(n)
         }
-        // Path length is at least max(n, m); normalise by that for a mean-like value.
-        return prev[m] / Float(max(n, m))
     }
 }

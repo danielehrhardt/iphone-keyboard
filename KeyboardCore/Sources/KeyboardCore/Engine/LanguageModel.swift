@@ -4,10 +4,15 @@ import Foundation
 public struct LanguageModel {
     public let lexicon: Lexicon
     public let user: UserLexicon?
+    /// Lowest log-probability of a word the user has taught the keyboard (nil: no floor). The
+    /// personal boost alone ranks a word typed twice among the rarest dictionary entries; a
+    /// consumer that should treat personal words as ordinary vocabulary (swipe decoding) sets this.
+    public var personalFloor: Float?
 
-    public init(lexicon: Lexicon, user: UserLexicon? = nil) {
+    public init(lexicon: Lexicon, user: UserLexicon? = nil, personalFloor: Float? = nil) {
         self.lexicon = lexicon
         self.user = user
+        self.personalFloor = personalFloor
     }
 
     /// log P(word | previous). Mixes bigram evidence (static + personal) with the unigram prior.
@@ -25,7 +30,10 @@ public struct LanguageModel {
         }
         if let user {
             let word = lexicon.word(id)
-            if let b = user.unigramLogBoost(word) { best = logAdd(best, b) }
+            if let b = user.unigramLogBoost(word) {
+                best = logAdd(best, b)
+                if let personalFloor { best = max(best, personalFloor) }
+            }
         }
         return best
     }
@@ -33,7 +41,11 @@ public struct LanguageModel {
     /// Score for a word that only exists in the personal dictionary.
     public func logProb(userWord: String, previousWord: String?) -> Float {
         guard let user else { return lexicon.minLogProb }
-        var lp = user.unigramLogBoost(userWord) ?? lexicon.minLogProb
+        var lp = lexicon.minLogProb
+        if let b = user.unigramLogBoost(userWord) {
+            lp = b
+            if let personalFloor { lp = max(lp, personalFloor) }
+        }
         if let previousWord, let b = user.bigramLogBoost(previous: previousWord, next: userWord) {
             lp = logAdd(lp, b)
         }

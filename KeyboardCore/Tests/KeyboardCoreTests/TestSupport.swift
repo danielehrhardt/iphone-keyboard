@@ -9,6 +9,10 @@ enum TestSupport {
 
     static let keyMap = KeyMap.reference()
 
+    static let englishLexicon: Lexicon = {
+        do { return try Lexicon.loadBundled(language: .english) } catch { fatalError("english lexicon: \(error)") }
+    }()
+
     /// Synthesises a finger path for a word: straight segments between key centres with a
     /// little jitter and extra samples so it resembles a real gesture.
     static func syntheticPath(for word: String, keyMap: KeyMap = keyMap, jitter: CGFloat = 0, seed: UInt64 = 1, overshootEnd: CGFloat = 0) -> [CGPoint] {

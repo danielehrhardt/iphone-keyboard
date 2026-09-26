@@ -55,4 +55,95 @@ final class SwipeDecoderTests: XCTestCase {
         let path = TestSupport.syntheticPath(for: "wahrscheinlich", jitter: 3)
         measure { _ = decoder.decode(path: path, keyMap: km) }
     }
+
+    func testTimestampsAreAccepted() {
+        let sim = GestureSimulator(keyMap: km)
+        for (i, w) in ["hallo", "wahrscheinlich", "zusammen", "Geburtstag"].enumerated() {
+            let g = sim.gesture(for: w, seed: UInt64(i + 1))
+            let withTimes = decoder.decode(path: g.map(\.point), keyMap: km, timestamps: g.map(\.time), limit: 3)
+            XCTAssertEqual(withTimes.first?.word.lowercased(), w.lowercased(), "\(withTimes.map(\.word))")
+            // A timestamp list that doesn't match the path is ignored rather than trusted.
+            let mismatched = decoder.decode(path: g.map(\.point), keyMap: km, timestamps: [0, 0.1], limit: 3)
+            XCTAssertEqual(mismatched.map(\.word), decoder.decode(path: g.map(\.point), keyMap: km, limit: 3).map(\.word))
+        }
+    }
+
+    func testSloppyEndsAreForgiven() {
+        // Lifting a whole key width past the last letter still finds the word.
+        for w in ["hallo", "danke", "morgen", "Zeit", "gut", "machen"] {
+            let top = decodeTop(w, overshoot: km.keyWidth * 1.0)
+            XCTAssertTrue(top.prefix(3).map { $0.lowercased() }.contains(w.lowercased()), "\(w): \(top)")
+        }
+    }
+
+    func testTwoLetterWords() {
+        for w in ["zu", "es", "in", "an", "ja", "du", "er", "so"] {
+            XCTAssertEqual(decodeTop(w).first?.lowercased(), w, "\(decodeTop(w))")
+        }
+    }
+
+    /// With the umlaut keys switched off, ä/ö/ü share the a/o/u keys. Words that start or end
+    /// with an umlaut must still be reachable from those keys.
+    func testUmlautWordsOnLayoutWithoutUmlautKeys() {
+        let layout = GermanLayouts.letters(options: LayoutOptions(language: .german, germanUmlautKeys: false))
+        let folded = KeyMap(geometry: KeyboardGeometry(layout: layout, size: CGSize(width: 390, height: 216)))!
+        XCTAssertFalse(folded.foldedCodes.isEmpty)
+        for w in ["über", "öfter", "ähnlich", "Übung"] {
+            let path = TestSupport.syntheticPath(for: w, keyMap: folded)
+            let top = decoder.decode(path: path, keyMap: folded, limit: 4).map(\.word)
+            XCTAssertEqual(top.first?.lowercased(), w.lowercased(), "\(w): \(top)")
+        }
+    }
+
+    func testLearnedWordsCanBeSwiped() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("swipe-user-\(UUID()).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let user = UserLexicon(fileURL: url)
+        let words = ["Brudi", "Schatzi", "Codext"]
+        for w in words {
+            XCTAssertFalse(lex.containsIgnoringCase(w), "\(w) is in the dictionary; pick another test word")
+            user.learn(word: w, after: nil)
+            user.learn(word: w, after: nil)
+        }
+        let personal = SwipeDecoder(lexicon: lex, user: user)
+        let sim = GestureSimulator(keyMap: km)
+        for (i, w) in words.enumerated() {
+            for v in 0..<3 {
+                let g = sim.gesture(for: w, seed: UInt64(100 * i + v + 1))
+                let top = personal.decode(path: g.map(\.point), keyMap: km, timestamps: g.map(\.time), limit: 3).map(\.word)
+                XCTAssertTrue(top.contains(w), "\(w): \(top)")
+            }
+        }
+        // Everyday words keep winning with the personal dictionary around.
+        for w in ["hallo", "danke", "Schule", "schön"] {
+            let top = personal.decode(path: TestSupport.syntheticPath(for: w), keyMap: km, limit: 3).map(\.word)
+            XCTAssertEqual(top.first?.lowercased(), w.lowercased(), "\(top)")
+        }
+    }
+
+    /// The keyboard decodes the partial path while the finger is still moving (live preview) on a
+    /// background queue, while the main thread decodes finished gestures.
+    func testPartialPathsAndConcurrentDecoding() {
+        let sim = GestureSimulator(keyMap: km)
+        let g = sim.gesture(for: "wahrscheinlich", seed: 7)
+        var prefixes: [[CGPoint]] = []
+        var next: TimeInterval = 0.06
+        for (i, s) in g.enumerated() where s.time >= next {
+            prefixes.append(g[...i].map(\.point))
+            next += 0.06
+        }
+        prefixes.append(g.map(\.point))
+        let sequential = prefixes.map { decoder.decode(path: $0, keyMap: km, limit: 3).map(\.word) }
+        XCTAssertEqual(sequential.last?.first?.lowercased(), "wahrscheinlich", "\(sequential.last ?? [])")
+        XCTAssertTrue(sequential.suffix(sequential.count / 2).allSatisfy { !$0.isEmpty })
+
+        var concurrent = [[String]](repeating: [], count: prefixes.count)
+        let lock = NSLock()
+        let decoder = self.decoder, keyMap = km
+        DispatchQueue.concurrentPerform(iterations: prefixes.count) { i in
+            let words = decoder.decode(path: prefixes[i], keyMap: keyMap, limit: 3).map(\.word)
+            lock.lock(); concurrent[i] = words; lock.unlock()
+        }
+        XCTAssertEqual(concurrent, sequential)
+    }
 }

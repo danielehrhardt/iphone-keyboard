@@ -36,7 +36,12 @@ public final class KeyboardEngine: @unchecked Sendable {
         return a
     }
 
-    public func decodeSwipe(path: [CGPoint], keyMap: KeyMap, previousWord: String?, limit: Int = 4) -> [SwipeCandidate] {
-        decoder.decode(path: path, keyMap: keyMap, context: DecodeContext(previousWord: previousWord), limit: limit)
+    /// Decodes a swipe. Safe to call from a background queue while the finger is still moving
+    /// (live preview of the partial path) and from the main thread at the same time.
+    /// `timestamps`: one per path point (`UITouch.timestamp`, coalesced touches included); optional.
+    public func decodeSwipe(path: [CGPoint], keyMap: KeyMap, timestamps: [TimeInterval]? = nil,
+                            previousWord: String?, limit: Int = 4) -> [SwipeCandidate] {
+        decoder.decode(path: path, keyMap: keyMap, timestamps: timestamps,
+                       context: DecodeContext(previousWord: previousWord), limit: limit)
     }
 }
