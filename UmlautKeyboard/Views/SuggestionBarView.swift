@@ -104,12 +104,11 @@ final class SuggestionBarView: UIView {
         super.init(frame: .zero)
         backgroundColor = .clear
         for i in 0..<3 {
-            let b = UIButton(type: .custom)
+            let b = InsetButton(type: .custom)
             b.tag = i
             b.titleLabel?.lineBreakMode = .byTruncatingTail
             b.titleLabel?.adjustsFontSizeToFitWidth = true
             b.titleLabel?.minimumScaleFactor = 0.7
-            b.contentEdgeInsets = UIEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
             b.addTarget(self, action: #selector(pressDown(_:)), for: .touchDown)
             b.addTarget(self, action: #selector(tapped(_:)), for: .touchUpInside)
             b.addTarget(self, action: #selector(highlight(_:)), for: [.touchDown, .touchDragEnter])
@@ -349,4 +348,9 @@ final class StripIconButton: UIControl {
 
 private extension Array {
     subscript(safe index: Int) -> Element? { indices.contains(index) ? self[index] : nil }
+}
+
+/// A word button whose title keeps 8 pt from either side.
+private final class InsetButton: UIButton {
+    override func contentRect(forBounds bounds: CGRect) -> CGRect { bounds.insetBy(dx: 8, dy: 0) }
 }

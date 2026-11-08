@@ -75,7 +75,7 @@ public final class KeyboardSettings: @unchecked Sendable {
             Keys.haptics: true, Keys.sound: true, Keys.swipeTrail: true, Keys.learnWords: true,
             Keys.theme: Theme.system.rawValue, Keys.accent: Accent.blue.rawValue, Keys.keySize: KeySize.regular.rawValue,
             Keys.longPressNumbers: true, Keys.commaKey: true, Keys.emojiOnCommaKey: true, Keys.smartHitTargets: true, Keys.adaptiveTapMap: true, Keys.justinMode: false, Keys.onboardingDone: false,
-            Keys.germanUmlautKeys: true,
+            Keys.germanUmlautKeys: true, Keys.splitKeyboard: true,
             Keys.clipboardHistory: true, Keys.clipboardRetention: ClipboardRetention.day.rawValue,
             Keys.enabledLanguages: [KeyboardLanguage.default.rawValue], Keys.currentLanguage: KeyboardLanguage.default.rawValue,
         ])
@@ -105,6 +105,7 @@ public final class KeyboardSettings: @unchecked Sendable {
         static let justinMode = "justinMode"
         static let onboardingDone = "onboardingDone"
         static let germanUmlautKeys = "germanUmlautKeys"
+        static let splitKeyboard = "splitKeyboard"
         static let aiEnabled = "aiEnabled"
         static let aiDefaultModel = "aiDefaultModel"
         static let aiFeatureModelPrefix = "aiModel."
@@ -144,6 +145,9 @@ public final class KeyboardSettings: @unchecked Sendable {
     /// The German layout shows ü/ö/ä as keys of their own. Off, it has ten keys per row like the
     /// English one and the umlauts are reached by holding u/o/a (ß stays on s).
     public var germanUmlautKeys: Bool { get { defaults.bool(forKey: Keys.germanUmlautKeys) } set { defaults.set(newValue, forKey: Keys.germanUmlautKeys) } }
+    /// Splits the keys into two halves on a wide foldable display (iPhone Duo held sideways),
+    /// one under each thumb and none on the fold.
+    public var splitKeyboard: Bool { get { defaults.bool(forKey: Keys.splitKeyboard) } set { defaults.set(newValue, forKey: Keys.splitKeyboard) } }
 
     // MARK: Clipboard
 

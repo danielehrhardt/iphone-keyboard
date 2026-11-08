@@ -233,7 +233,7 @@ final class KeyPopupView: UIView {
         var innerRight = b.maxX - r - shoulder
         if innerLeft > innerRight { innerLeft = b.midX; innerRight = b.midX }
         var stemLeft = min(max(k.minX, innerLeft), innerRight)
-        var stemRight = max(min(k.maxX, innerRight), innerLeft)
+        let stemRight = max(min(k.maxX, innerRight), innerLeft)
         if stemLeft > stemRight { stemLeft = stemRight }
         path.addLine(to: CGPoint(x: stemRight + shoulder, y: stemTop))
         path.addQuadCurve(to: CGPoint(x: stemRight, y: stemTop + 8), controlPoint: CGPoint(x: stemRight, y: stemTop))

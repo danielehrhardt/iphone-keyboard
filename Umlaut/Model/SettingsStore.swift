@@ -25,6 +25,8 @@ final class SettingsStore: ObservableObject {
     @Published var doubleSpacePeriod = true { didSet { write { settings.doubleSpacePeriod = doubleSpacePeriod } } }
     @Published var longPressNumbers = true { didSet { write { settings.longPressNumbers = longPressNumbers } } }
     @Published var commaKey = true { didSet { write { settings.commaKey = commaKey } } }
+    /// Two halves on the iPhone Duo's inner display held sideways.
+    @Published var splitKeyboard = true { didSet { write { settings.splitKeyboard = splitKeyboard } } }
     @Published var emojiOnCommaKey = true { didSet { write { settings.emojiOnCommaKey = emojiOnCommaKey } } }
     @Published var smartHitTargets = true { didSet { write { settings.smartHitTargets = smartHitTargets } } }
     @Published var adaptiveTapMap = true { didSet { write { settings.adaptiveTapMap = adaptiveTapMap } } }
@@ -153,6 +155,7 @@ final class SettingsStore: ObservableObject {
         doubleSpacePeriod = settings.doubleSpacePeriod
         longPressNumbers = settings.longPressNumbers
         commaKey = settings.commaKey
+        splitKeyboard = settings.splitKeyboard
         emojiOnCommaKey = settings.emojiOnCommaKey
         smartHitTargets = settings.smartHitTargets
         adaptiveTapMap = settings.adaptiveTapMap

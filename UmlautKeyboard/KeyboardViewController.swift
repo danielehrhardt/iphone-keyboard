@@ -48,7 +48,11 @@ final class KeyboardViewController: UIInputViewController {
             kv.topAnchor.constraint(equalTo: view.topAnchor),
             kv.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
-        (inputView as? UIInputView)?.allowsSelfSizing = true
+        inputView?.allowsSelfSizing = true
+        // Folding or unfolding an iPhone Duo moves the keyboard to the other display.
+        registerForTraitChanges([UITraitUserInterfaceStyle.self, UITraitHorizontalSizeClass.self, UITraitVerticalSizeClass.self]) { (self: Self, _: UITraitCollection) in
+            self.updateHeight()
+        }
 
         Self.loadEngine(language: coordinator.language) { [weak self] engine in
             guard let engine else { return }
@@ -77,6 +81,7 @@ final class KeyboardViewController: UIInputViewController {
         // Only reliable once the view is in the hierarchy.
         coordinator.needsGlobeKey = needsInputModeSwitchKey
         stopDelayingTouches()
+        updateHeight()
     }
 
     /// The keyboard's window carries the system's screen-edge gesture gates, and they hold back
@@ -101,14 +106,10 @@ final class KeyboardViewController: UIInputViewController {
         self.coordinator.cancelTouches()
         coordinator.animate(alongsideTransition: { _ in
             self.updateHeight(for: size)
+        }, completion: { _ in
+            // Folding or unfolding lands on another screen; size it for the one it is on now.
+            self.updateHeight()
         })
-    }
-
-    override func traitCollectionDidChange(_ previous: UITraitCollection?) {
-        super.traitCollectionDidChange(previous)
-        if previous?.userInterfaceStyle != traitCollection.userInterfaceStyle {
-            updateHeight()
-        }
     }
 
     /// The home indicator strip (and the notch in landscape) only become known once the view is
@@ -208,7 +209,7 @@ final class KeyboardViewController: UIInputViewController {
         let current = screenSize
         let longSide = max(current.width, current.height), shortSide = min(current.width, current.height)
         let screen: CGSize
-        if let size {
+        if let size, abs(size.width - shortSide) < 1 || abs(size.width - longSide) < 1 {
             screen = size.width > shortSide ? CGSize(width: longSide, height: shortSide) : CGSize(width: shortSide, height: longSide)
         } else {
             screen = current

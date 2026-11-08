@@ -223,7 +223,7 @@ final class KeyGridView: UIView {
             for (id, v) in keyViews {
                 v.shiftState = shiftState
                 v.setPressed(false)
-                v.setContentHidden(isTrackpadMode && id != "space", animated: false)
+                v.setContentHidden(isTrackpadMode && v.key.action != .space, animated: false)
                 if id == "return" { v.returnLabel = returnLabel; v.isAccented = isReturnAccented }
                 insertSubview(v, belowSubview: popup)
             }
@@ -297,7 +297,7 @@ final class KeyGridView: UIView {
     private func setTrackpadMode(_ on: Bool) {
         guard on != isTrackpadMode else { return }
         isTrackpadMode = on
-        for (id, v) in keyViews where id != "space" {
+        for v in keyViews.values where v.key.action != .space {
             v.setContentHidden(on, animated: true)
         }
     }

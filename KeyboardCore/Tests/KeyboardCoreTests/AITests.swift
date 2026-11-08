@@ -13,10 +13,10 @@ final class AITests: XCTestCase {
         let settings = KeyboardSettings(defaults: UserDefaults(suiteName: "ai-tests-\(UUID())")!)
         XCTAssertNil(settings.aiDefaultModel)
         XCTAssertFalse(settings.aiEnabled)
-        settings.aiDefaultModel = AIProvider.anthropic.model(withID: "claude-opus-5")
-        XCTAssertEqual(settings.aiDefaultModel?.modelID, "claude-opus-5")
-        XCTAssertEqual(settings.aiDefaultModel?.title, "Claude Opus 5")
-        XCTAssertEqual(settings.aiModel(for: .rewrite)?.modelID, "claude-opus-5", "features follow the default")
+        settings.aiDefaultModel = AIProvider.anthropic.model(withID: "claude-opus-5-5")
+        XCTAssertEqual(settings.aiDefaultModel?.modelID, "claude-opus-5-5")
+        XCTAssertEqual(settings.aiDefaultModel?.title, "Claude Opus 5.5")
+        XCTAssertEqual(settings.aiModel(for: .rewrite)?.modelID, "claude-opus-5-5", "features follow the default")
         settings.setAIModelOverride(AIProvider.google.fastModel, for: .proofread)
         XCTAssertEqual(settings.aiModel(for: .proofread)?.provider, .google)
         XCTAssertEqual(settings.aiModel(for: .rewrite)?.provider, .anthropic)
@@ -32,6 +32,17 @@ final class AITests: XCTestCase {
         XCTAssertNil(AIModel(id: "openai:"))
         XCTAssertFalse(AIModel(custom: "claude-haiku-4-5-20251001", provider: .anthropic).supportsEffort)
         XCTAssertTrue(AIModel(custom: "claude-opus-6", provider: .anthropic).supportsEffort)
+    }
+
+    func testFormerlyListedModelsMoveToTheirSuccessors() {
+        XCTAssertEqual(AIModel(id: "anthropic:claude-opus-5")?.modelID, "claude-opus-5-5")
+        XCTAssertEqual(AIModel(id: "anthropic:claude-haiku-4-5")?.modelID, "claude-haiku-5-5")
+        XCTAssertEqual(AIModel(id: "openai:gpt-5.6-sol")?.modelID, "gpt-6.1-sol")
+        XCTAssertEqual(AIModel(id: "google:gemini-3.1-pro-preview")?.modelID, "gemini-4-argon")
+        XCTAssertEqual(AIModel(id: "openai:gpt-5.6-sol")?.isCustom, false)
+        for (old, new) in AIProvider.successors {
+            XCTAssertTrue(AIProvider.allCases.contains { p in p.models.contains { $0.modelID == new } }, "\(old) -> \(new) is listed")
+        }
     }
 
     func testEveryProviderHasADefaultAndAFastModel() {
@@ -52,7 +63,7 @@ final class AITests: XCTestCase {
         XCTAssertEqual(r.value(forHTTPHeaderField: "x-api-key"), "sk-ant-test")
         XCTAssertEqual(r.value(forHTTPHeaderField: "anthropic-version"), "2023-06-01")
         let body = json(r)
-        XCTAssertEqual(body["model"] as? String, "claude-opus-5")
+        XCTAssertEqual(body["model"] as? String, "claude-opus-5-5")
         XCTAssertEqual(body["system"] as? String, prompt.system)
         XCTAssertEqual((body["messages"] as? [[String: Any]])?.first?["content"] as? String, "Hallo wie gehts")
         XCTAssertEqual((body["output_config"] as? [String: Any])?["effort"] as? String, "low")
@@ -60,11 +71,13 @@ final class AITests: XCTestCase {
         XCTAssertNil(body["thinking"], "adaptive thinking is the default; an explicit config is not sent")
     }
 
-    func testHaikuGetsNoEffortHint() throws {
+    func testOldHaikuGetsNoEffortHint() throws {
         let prompt = AIPrompts.prompt(for: AIRequestSpec(feature: .proofread, text: "x y", language: .german))
-        let haiku = AIProvider.anthropic.model(withID: "claude-haiku-4-5")
+        let haiku = AIModel(custom: "claude-haiku-4-5-20251001", provider: .anthropic)
         let r = try AIRequestBuilder.urlRequest(prompt: prompt, model: haiku, apiKey: "k")
         XCTAssertNil(json(r)["output_config"])
+        let current = try AIRequestBuilder.urlRequest(prompt: prompt, model: AIProvider.anthropic.fastModel, apiKey: "k")
+        XCTAssertEqual((json(current)["output_config"] as? [String: Any])?["effort"] as? String, "low")
     }
 
     func testOpenAIRequestShape() throws {
@@ -73,7 +86,7 @@ final class AITests: XCTestCase {
         XCTAssertEqual(r.url, AIRequestBuilder.openAIURL)
         XCTAssertEqual(r.value(forHTTPHeaderField: "Authorization"), "Bearer sk-x")
         let body = json(r)
-        XCTAssertEqual(body["model"] as? String, "gpt-5.6-sol")
+        XCTAssertEqual(body["model"] as? String, "gpt-6.1-sol")
         XCTAssertEqual(body["instructions"] as? String, prompt.system)
         XCTAssertEqual(body["input"] as? String, "hi")
         XCTAssertEqual(body["store"] as? Bool, false)

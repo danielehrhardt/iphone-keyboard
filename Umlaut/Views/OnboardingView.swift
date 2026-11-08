@@ -18,6 +18,8 @@ struct OnboardingView: View {
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 32)
+            .frame(maxWidth: 620)
+            .frame(maxWidth: .infinity)
         }
         .background(background)
         .navigationTitle("Umlaut")

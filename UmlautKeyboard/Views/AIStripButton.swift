@@ -56,6 +56,7 @@ final class AIStripButton: UIControl {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
+        registerForTraitChanges([UITraitDisplayScale.self]) { (self: Self, _: UITraitCollection) in self.updateGlyphImage() }
         accessibilityIdentifier = "ai-button"
         accessibilityLabel = "KI-Assistent"
         accessibilityTraits = .button
@@ -104,11 +105,6 @@ final class AIStripButton: UIControl {
         badge.borderColor = (isDark ? UIColor(white: 0.16, alpha: 1) : UIColor(white: 0.97, alpha: 1)).cgColor
         CATransaction.commit()
         updateGlyphImage()
-    }
-
-    override func traitCollectionDidChange(_ previous: UITraitCollection?) {
-        super.traitCollectionDidChange(previous)
-        if previous?.displayScale != traitCollection.displayScale { updateGlyphImage() }
     }
 
     /// The symbol is rendered once as an alpha mask; the gradient shows through it.

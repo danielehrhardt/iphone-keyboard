@@ -81,6 +81,12 @@ struct SettingsView: View {
                 Toggle("Neue Wörter lernen", isOn: $settings.learnWords)
             }
 
+            if Device.isFoldable {
+                Section("iPhone Duo") {
+                    Toggle("Geteilte Tastatur im Querformat", isOn: $settings.splitKeyboard)
+                }
+            }
+
             Section {
                 Toggle("Kommataste neben Leertaste", isOn: $settings.commaKey)
                 Toggle("Emoji durch Halten der Kommataste", isOn: $settings.emojiOnCommaKey)

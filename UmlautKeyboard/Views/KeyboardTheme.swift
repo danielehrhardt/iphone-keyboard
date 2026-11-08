@@ -102,6 +102,14 @@ struct KeyboardTheme {
 /// Row heights for the different environments; the total keyboard height is keys + suggestion bar
 /// (+ the bottom safe area, which the owner adds so the home indicator gets its own strip).
 enum KeyboardMetrics {
+    /// The iPhone Duo's inner display: an iPhone with regular size classes both ways (669 x 951 pt).
+    /// The screen size backs up the traits, which an extension may get late or not at all.
+    static func isUnfolded(traits: UITraitCollection, screenSize: CGSize) -> Bool {
+        guard traits.userInterfaceIdiom == .phone else { return false }
+        if traits.horizontalSizeClass == .regular && traits.verticalSizeClass == .regular { return true }
+        return min(screenSize.width, screenSize.height) >= 600
+    }
+
     static func heights(for traits: UITraitCollection, screenSize: CGSize, keySize: KeyboardSettings.KeySize) -> (keys: CGFloat, suggestions: CGFloat) {
         let landscape = screenSize.width > screenSize.height
         var keys: CGFloat
@@ -109,6 +117,10 @@ enum KeyboardMetrics {
         if traits.userInterfaceIdiom == .pad {
             keys = landscape ? 300 : 264
             bar = 50
+        } else if isUnfolded(traits: traits, screenSize: screenSize) {
+            // Upright, the keys stay below the fold; sideways, the halves get keys close to square.
+            keys = landscape ? 236 : 252
+            bar = 46
         } else if landscape {
             keys = 162
             bar = 38
@@ -120,8 +132,12 @@ enum KeyboardMetrics {
         return (keys.rounded(), bar)
     }
 
-    static func layoutMetrics(for traits: UITraitCollection, screenSize: CGSize) -> KeyboardGeometry.Metrics {
+    static func layoutMetrics(for traits: UITraitCollection, screenSize: CGSize, width: CGFloat, split: Bool) -> KeyboardGeometry.Metrics {
         if traits.userInterfaceIdiom == .pad { return .pad }
-        return screenSize.width > screenSize.height ? .phoneLandscape : .phonePortrait
+        let landscape = screenSize.width > screenSize.height
+        if isUnfolded(traits: traits, screenSize: screenSize) {
+            return landscape ? .unfoldedLandscape(width: width, split: split && width >= 700) : .unfoldedPortrait
+        }
+        return landscape ? .phoneLandscape : .phonePortrait
     }
 }

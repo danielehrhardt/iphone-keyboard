@@ -72,6 +72,14 @@ to the nearest key, and the extension turns off the screen-edge gesture gates' t
 reads the host document and hands the suggestion search to a background queue; the caps only
 redraw when their state really changes.
 
+## iPhone Duo
+
+On the inner display (an iPhone with regular size classes both ways, 669 × 951 pt) the keyboard
+picks its own metrics: upright, the keys keep phone proportions and stay below the fold; sideways,
+the letter and symbol layers split into two thumb halves with the middle, where the fold runs,
+left free, each half with its own space bar. „Einstellungen › iPhone Duo“ turns the split off. A
+keyboard extension gets no hinge information, so the split follows the display, not the posture.
+
 ## In-app demo keyboard
 
 The app's „Ausprobieren“ screen hosts the *same* keyboard UI (`KeyboardCoordinator` + `DemoKeyboardView`)
