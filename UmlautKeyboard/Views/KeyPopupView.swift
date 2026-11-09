@@ -192,12 +192,13 @@ final class KeyPopupView: UIView {
     }
 
     private func updateHighlights() {
-        for (i, l) in labels.enumerated() {
+        // Hiding clears the options but keeps the labels for the next tap.
+        for (i, (l, option)) in zip(labels, options).enumerated() {
             let selected = isExpanded && i == selectedIndex
             let color = selected ? theme.onAccent : theme.keyText
             l.backgroundColor = selected ? theme.accent : .clear
             l.textColor = color
-            if options[i] == Self.settingsOption { l.attributedText = Self.gear(color: color, font: l.font) }
+            if option == Self.settingsOption { l.attributedText = Self.gear(color: color, font: l.font) }
         }
     }
 
