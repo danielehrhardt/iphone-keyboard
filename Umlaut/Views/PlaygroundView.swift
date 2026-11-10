@@ -36,6 +36,7 @@ struct PlaygroundView: View {
                 }
             }
             .padding(20)
+            .frame(maxWidth: 620)
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
             .onTapGesture { endEditing() }   // tapping outside the editor closes the keyboard

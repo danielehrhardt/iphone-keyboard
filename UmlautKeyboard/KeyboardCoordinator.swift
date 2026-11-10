@@ -327,7 +327,7 @@ final class KeyboardCoordinator: NSObject {
         let size = view.grid.bounds.size
         guard size.width > 0, size.height > 0 else { return }
         if screenSize == .zero { screenSize = view.window?.windowScene?.screen.bounds.size ?? CGSize(width: size.width, height: size.width * 2) }
-        let metrics = KeyboardMetrics.layoutMetrics(for: traits, screenSize: screenSize)
+        let metrics = KeyboardMetrics.layoutMetrics(for: traits, screenSize: screenSize, width: size.width, split: settings.splitKeyboard)
         if size != lastGridSize || lastGridLayer != currentLayer || lastOptions != layoutOptions || lastMetrics != metrics {
             lastGridSize = size; lastGridLayer = currentLayer; lastOptions = layoutOptions; lastMetrics = metrics
             let layout = KeyboardLayouts.layout(for: currentLayer, options: layoutOptions)

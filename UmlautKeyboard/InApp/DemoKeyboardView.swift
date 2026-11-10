@@ -32,6 +32,10 @@ final class DemoKeyboardView: UIInputView {
         heightConstraint.priority = UILayoutPriority(999)
         heightConstraint.isActive = true
         backgroundColor = .clear
+        // Folding or unfolding an iPhone Duo moves the keyboard to the other display.
+        registerForTraitChanges([UITraitUserInterfaceStyle.self, UITraitHorizontalSizeClass.self, UITraitVerticalSizeClass.self]) { (self: Self, _: UITraitCollection) in
+            self.settingsChanged()
+        }
         overrideUserInterfaceStyle = KeyboardTheme.interfaceStyle(for: settings)
         coordinator.needsGlobeKey = false
         coordinator.onDismiss = { [weak textView] in textView?.resignFirstResponder() }
@@ -90,9 +94,4 @@ final class DemoKeyboardView: UIInputView {
     }
 
     override var intrinsicContentSize: CGSize { CGSize(width: UIView.noIntrinsicMetric, height: heightConstraint.constant) }
-
-    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
-        super.traitCollectionDidChange(previousTraitCollection)
-        if previousTraitCollection?.userInterfaceStyle != traitCollection.userInterfaceStyle { settingsChanged() }
-    }
 }

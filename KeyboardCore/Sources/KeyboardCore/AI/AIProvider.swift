@@ -59,21 +59,21 @@ public enum AIProvider: String, CaseIterable, Codable, Hashable, Sendable, Ident
         switch self {
         case .anthropic:
             return [
-                AIModel(provider: self, modelID: "claude-opus-5", title: "Claude Opus 5", tier: .flagship),
+                AIModel(provider: self, modelID: "claude-opus-5-5", title: "Claude Opus 5.5", tier: .flagship),
                 AIModel(provider: self, modelID: "claude-fable-5-1", title: "Claude Fable 5.1", tier: .flagship),
-                AIModel(provider: self, modelID: "claude-sonnet-5", title: "Claude Sonnet 5", tier: .balanced),
-                AIModel(provider: self, modelID: "claude-haiku-4-5", title: "Claude Haiku 4.5", tier: .fast, supportsEffort: false),
+                AIModel(provider: self, modelID: "claude-sonnet-5-5", title: "Claude Sonnet 5.5", tier: .balanced),
+                AIModel(provider: self, modelID: "claude-haiku-5-5", title: "Claude Haiku 5.5", tier: .fast),
             ]
         case .openai:
             return [
                 AIModel(provider: self, modelID: "gpt-6-astra", title: "GPT-6 Astra", tier: .flagship),
-                AIModel(provider: self, modelID: "gpt-5.6-sol", title: "GPT-5.6 Sol", tier: .flagship),
-                AIModel(provider: self, modelID: "gpt-5.6-terra", title: "GPT-5.6 Terra", tier: .balanced),
-                AIModel(provider: self, modelID: "gpt-5.6-luna", title: "GPT-5.6 Luna", tier: .fast),
+                AIModel(provider: self, modelID: "gpt-6.1-sol", title: "GPT-6.1 Sol", tier: .flagship),
+                AIModel(provider: self, modelID: "gpt-6.1-terra", title: "GPT-6.1 Terra", tier: .balanced),
+                AIModel(provider: self, modelID: "gpt-6-luna", title: "GPT-6 Luna", tier: .fast),
             ]
         case .google:
             return [
-                AIModel(provider: self, modelID: "gemini-3.1-pro-preview", title: "Gemini 3.1 Pro", tier: .flagship),
+                AIModel(provider: self, modelID: "gemini-4-argon", title: "Gemini 4 Argon", tier: .flagship),
                 AIModel(provider: self, modelID: "gemini-3.8-flash", title: "Gemini 3.8 Flash", tier: .balanced),
                 AIModel(provider: self, modelID: "gemini-3.5-flash-lite", title: "Gemini 3.5 Flash-Lite", tier: .fast),
             ]
@@ -83,8 +83,8 @@ public enum AIProvider: String, CaseIterable, Codable, Hashable, Sendable, Ident
     /// The model picked when the user adds a key of this provider without choosing one.
     public var defaultModel: AIModel {
         switch self {
-        case .anthropic: return models[0]          // claude-opus-5
-        case .openai: return models[1]             // gpt-5.6-sol
+        case .anthropic: return models[0]          // claude-opus-5-5
+        case .openai: return models[1]             // gpt-6.1-sol
         case .google: return models[1]             // gemini-3.8-flash
         }
     }
@@ -93,10 +93,23 @@ public enum AIProvider: String, CaseIterable, Codable, Hashable, Sendable, Ident
     /// continuations) where latency matters more than depth.
     public var fastModel: AIModel { models.last(where: { $0.tier == .fast }) ?? defaultModel }
 
-    /// A listed model, or a custom entry for an ID the picker doesn't know.
+    /// A listed model, or a custom entry for an ID the picker doesn't know. A model the picker
+    /// used to list resolves to its successor, so earlier choices move up with the list.
     public func model(withID modelID: String) -> AIModel {
-        models.first { $0.modelID == modelID } ?? AIModel(custom: modelID, provider: self)
+        let id = Self.successors[modelID] ?? modelID
+        return models.first { $0.modelID == id } ?? AIModel(custom: id, provider: self)
     }
+
+    /// Formerly listed models and the ones that replaced them.
+    static let successors: [String: String] = [
+        "claude-opus-5": "claude-opus-5-5",
+        "claude-sonnet-5": "claude-sonnet-5-5",
+        "claude-haiku-4-5": "claude-haiku-5-5",
+        "gpt-5.6-sol": "gpt-6.1-sol",
+        "gpt-5.6-terra": "gpt-6.1-terra",
+        "gpt-5.6-luna": "gpt-6-luna",
+        "gemini-3.1-pro-preview": "gemini-4-argon",
+    ]
 }
 
 /// One model of a provider. `id` is "provider:modelID" so a selection round-trips through the
@@ -138,7 +151,7 @@ public struct AIModel: Hashable, Codable, Sendable, Identifiable {
         let id = modelID.trimmingCharacters(in: .whitespacesAndNewlines)
         let effort: Bool
         switch provider {
-        case .anthropic: effort = !(id.contains("haiku") || id.contains("-4-5") || id.contains("-3-"))
+        case .anthropic: effort = !(id.contains("haiku-4") || id.contains("haiku-3") || id.contains("-4-5") || id.contains("-3-"))
         case .openai, .google: effort = true
         }
         self.init(provider: provider, modelID: id, title: id, tier: .balanced, supportsEffort: effort, isCustom: true)

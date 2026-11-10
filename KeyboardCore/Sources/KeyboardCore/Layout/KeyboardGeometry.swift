@@ -29,19 +29,38 @@ public struct KeyboardGeometry: Hashable, Sendable {
         public var sideInset: CGFloat
         public var topInset: CGFloat
         public var bottomInset: CGFloat
+        /// Empty width in the middle of the letter and symbol layers: each half sits at its edge,
+        /// under a thumb, and nothing lies on the fold of a foldable. 0 keeps one block of keys.
+        public var splitGap: CGFloat
 
-        public init(horizontalGap: CGFloat = 6, verticalGap: CGFloat = 11, sideInset: CGFloat = 3, topInset: CGFloat = 8, bottomInset: CGFloat = 4) {
+        public init(horizontalGap: CGFloat = 6, verticalGap: CGFloat = 11, sideInset: CGFloat = 3, topInset: CGFloat = 8, bottomInset: CGFloat = 4, splitGap: CGFloat = 0) {
             self.horizontalGap = horizontalGap
             self.verticalGap = verticalGap
             self.sideInset = sideInset
             self.topInset = topInset
             self.bottomInset = bottomInset
+            self.splitGap = splitGap
         }
 
         public static let phonePortrait = Metrics()
         public static let phoneLandscape = Metrics(horizontalGap: 6, verticalGap: 7, sideInset: 3, topInset: 5, bottomInset: 3)
         public static let pad = Metrics(horizontalGap: 8, verticalGap: 10, sideInset: 6, topInset: 8, bottomInset: 6)
+        /// iPhone Duo inner display, upright (669 pt wide): squarer keys than a stretched phone row.
+        public static let unfoldedPortrait = Metrics(horizontalGap: 7, verticalGap: 10, sideInset: 4, topInset: 8, bottomInset: 4)
+        /// iPhone Duo inner display, sideways (951 pt wide) with the fold down the middle.
+        public static func unfoldedLandscape(width: CGFloat, split: Bool) -> Metrics {
+            Metrics(horizontalGap: 7, verticalGap: 9, sideInset: 6, topInset: 6, bottomInset: 4,
+                    splitGap: split ? (width * splitGapFraction).rounded() : 0)
+        }
+        /// Share of the width left empty between the halves: each half stays within thumb reach.
+        public static let splitGapFraction: CGFloat = 0.27
     }
+
+    /// The right half of a split space bar; the left half keeps the layout's own key.
+    public static let splitSpaceID = "space.right"
+
+    /// Whether the keys keep a gap in the middle (the split keyboard).
+    public let isSplit: Bool
 
     public init(layout: KeyboardLayout, size: CGSize, metrics: Metrics = .phonePortrait) {
         self.layout = layout
@@ -50,7 +69,9 @@ public struct KeyboardGeometry: Hashable, Sendable {
         verticalGap = metrics.verticalGap
 
         let horizontalGap = metrics.horizontalGap, verticalGap = metrics.verticalGap
-        let usableWidth = size.width - metrics.sideInset * 2
+        let splitGap = Self.splits(layout.layer) ? max(0, metrics.splitGap) : 0
+        isSplit = splitGap > 0
+        let usableWidth = size.width - metrics.sideInset * 2 - splitGap
         let unit = (usableWidth - horizontalGap * (layout.columns - 1)) / layout.columns
         unitWidth = unit
         let rowCount = CGFloat(layout.rows.count)
@@ -75,18 +96,22 @@ public struct KeyboardGeometry: Hashable, Sendable {
                 ? max(0, usableWidth - rowWidth) / 2 : 0
             var x = metrics.sideInset + (usableWidth - rowWidth - flankExtra * 2) / 2 + row.leadingInset * (unit + horizontalGap)
 
-            var caps: [CGRect] = []
+            var placed: [(key: Key, cap: CGRect)] = []
             for (i, key) in row.keys.enumerated() {
                 let isFlank = i == 0 || i == row.keys.count - 1
                 let w = key.action == .space ? spaceWidth : fixedWidths[i] + (isFlank ? flankExtra : 0)
-                caps.append(CGRect(x: x, y: y, width: w, height: rh))
+                placed.append((key, CGRect(x: x, y: y, width: w, height: rh)))
                 x += w + horizontalGap
+            }
+            if splitGap > 0 {
+                placed = Self.split(placed, at: metrics.sideInset + usableWidth / 2, gap: splitGap,
+                                    keyGap: horizontalGap, unit: unit)
             }
 
             // Gaps are split between neighbours, so no touch inside the row falls between keys.
-            for (i, key) in row.keys.enumerated() {
-                let frame = caps[i]
-                let isFirst = i == 0, isLast = i == row.keys.count - 1
+            let caps = placed.map { $0.cap }
+            for (i, (key, frame)) in placed.enumerated() {
+                let isFirst = i == 0, isLast = i == placed.count - 1
                 let left = isFirst ? 0 : (caps[i - 1].maxX + frame.minX) / 2
                 let right = isLast ? size.width : (frame.maxX + caps[i + 1].minX) / 2
                 let hit = CGRect(x: left, y: frame.minY - verticalGap / 2,
@@ -95,6 +120,32 @@ public struct KeyboardGeometry: Hashable, Sendable {
             }
         }
         keyFrames = frames
+    }
+
+    /// The layers that split; the numeric pads stay one block.
+    static func splits(_ layer: KeyboardLayer) -> Bool {
+        switch layer {
+        case .letters, .symbols, .extraSymbols: return true
+        case .numberPad, .decimalPad, .phonePad: return false
+        }
+    }
+
+    /// Moves the keys of the right half (centre at or right of `mid`) over by `gap`. A space bar
+    /// across the middle becomes two, one per half, so either thumb has one.
+    static func split(_ row: [(key: Key, cap: CGRect)], at mid: CGFloat, gap: CGFloat, keyGap: CGFloat, unit: CGFloat) -> [(key: Key, cap: CGRect)] {
+        var result: [(key: Key, cap: CGRect)] = []
+        for (key, cap) in row {
+            if key.action == .space, cap.minX < mid - unit / 2, cap.maxX > mid + unit / 2 {
+                let right = Key(id: splitSpaceID, action: .space, label: key.label, width: key.width, isFunction: key.isFunction)
+                result.append((key, CGRect(x: cap.minX, y: cap.minY, width: mid - keyGap / 2 - cap.minX, height: cap.height)))
+                result.append((right, CGRect(x: mid + keyGap / 2 + gap, y: cap.minY, width: cap.maxX - mid - keyGap / 2, height: cap.height)))
+            } else if cap.midX >= mid - unit / 4 {
+                result.append((key, cap.offsetBy(dx: gap, dy: 0)))
+            } else {
+                result.append((key, cap))
+            }
+        }
+        return result
     }
 
     public func keyFrame(at point: CGPoint) -> KeyFrame? {
